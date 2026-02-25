@@ -8,6 +8,7 @@ export default function SceneSetup() {
   const mountRef = useRef(null);
 
   useEffect(() => {
+    const mount = mountRef.current;
 
     // 1. CREATE SCENE
     const scene = new THREE.Scene();
@@ -43,7 +44,7 @@ export default function SceneSetup() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     
     // Add renderer to page
-    mountRef.current.appendChild(renderer.domElement);
+    mount.appendChild(renderer.domElement);
 
     console.log(' Renderer created');
 
@@ -156,8 +157,8 @@ export default function SceneSetup() {
       window.removeEventListener('resize', handleResize);
       
       // Remove renderer
-      if (mountRef.current && renderer.domElement) {
-        mountRef.current.removeChild(renderer.domElement);
+      if (mount && renderer.domElement) {
+        mount.removeChild(renderer.domElement);
       }
       
       // Dispose of resources
