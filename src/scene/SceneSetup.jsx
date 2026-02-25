@@ -1,14 +1,12 @@
 // src/scene/SceneSetup.jsx
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { CAMERA, SCENE, LIGHT, PRODUCT, FLOOR } from './sceneConfig';
 
 export default function SceneSetup() {
-  const mountRef = useRef(null);
-
   useEffect(() => {
-    const mount = mountRef.current;
+    const mount = document.getElementById('root');
 
     // 1. CREATE SCENE
     const scene = new THREE.Scene();
@@ -168,14 +166,5 @@ export default function SceneSetup() {
     };
   }, []);
 
-  // Render empty div (Three.js will fill it)
-  return (
-    <div 
-      ref={mountRef} 
-      style={{ 
-        width: '100vw', 
-        height: '100vh' 
-      }} 
-    />
-  );
+  return null;
 }
