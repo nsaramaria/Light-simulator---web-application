@@ -1,13 +1,12 @@
 // src/scene/SceneSetup.jsx
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { CAMERA, SCENE, LIGHT, PRODUCT, FLOOR } from './sceneConfig';
 
 export default function SceneSetup() {
-  const mountRef = useRef(null);
-
   useEffect(() => {
+    const mount = document.getElementById('root');
 
     // 1. CREATE SCENE
     const scene = new THREE.Scene();
@@ -43,7 +42,7 @@ export default function SceneSetup() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     
     // Add renderer to page
-    mountRef.current.appendChild(renderer.domElement);
+    mount.appendChild(renderer.domElement);
 
     console.log(' Renderer created');
 
@@ -156,8 +155,8 @@ export default function SceneSetup() {
       window.removeEventListener('resize', handleResize);
       
       // Remove renderer
-      if (mountRef.current && renderer.domElement) {
-        mountRef.current.removeChild(renderer.domElement);
+      if (mount && renderer.domElement) {
+        mount.removeChild(renderer.domElement);
       }
       
       // Dispose of resources
@@ -167,14 +166,5 @@ export default function SceneSetup() {
     };
   }, []);
 
-  // Render empty div (Three.js will fill it)
-  return (
-    <div 
-      ref={mountRef} 
-      style={{ 
-        width: '100vw', 
-        height: '100vh' 
-      }} 
-    />
-  );
+  return null;
 }
