@@ -14,7 +14,7 @@ div = "division" or "divider"
 ---
 
 ## 🎨 Visual Representation
-```
+```n
 ┌─────────────────────┐
 │  <div>              │  ← The box
 │  ┌───────────────┐  │
