@@ -2,40 +2,40 @@
 
 // Camera settings
 export const CAMERA = {
-  fov: 50,                    // Field of view
-  near: 0.1,                  // Near clipping plane
-  far: 1000,                  // Far clipping plane
+  fov: 50,                  
+  near: 0.1,                 
+  far: 1000,                 
   position: {
-    x: 0,                     // Camera X position
-    y: 3,                     // Camera Y position (height)
-    z: 8                      // Camera Z position (distance from center)
+    x: 0,                    
+    y: 3,                     
+    z: 8                      
   }
 };
 
 // Scene settings
 export const SCENE = {
-  backgroundColor: 0x1a1a1a   // Dark gray background
+  backgroundColor: 0x1a1a1a   // dark gray background
 };
 
 // Light settings
 export const LIGHT = {
-  color: 0xffffff,            // White light
-  intensity: 1.5,             // Brightness
+  color: 0xffffff,            // white light
+  intensity: 1.5,            
   position: {
-    x: 5,                     // Light X position
-    y: 5,                     // Light Y position
-    z: 5                      // Light Z position
+    x: 5,                    
+    y: 5,                    
+    z: 5                     
   }
 };
 
 // Product (simple cube for now)
 export const PRODUCT = {
-  size: 2,                    // Cube size
-  color: 0x0000ff,            // Blue color
+  size: 2,                   
+  color: 0xd4a5a5,            // pink
   position: {
-    x: 0,                     // Center X
-    y: 1,                     // Y position (on ground)
-    z: 0                      // Center Z
+    x: 0,                    
+    y: 1,                     
+    z: 0                      
   }
 };
 
@@ -43,5 +43,5 @@ export const PRODUCT = {
 export const FLOOR = {
   width: 20,
   height: 20,
-  color: 0x808080             // Gray floor
+  color: 0x8b7d6b           // brown
 };
