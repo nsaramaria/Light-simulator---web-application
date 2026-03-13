@@ -4,6 +4,13 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { createSharedScene } from './sharedScene';
 import { CAMERA, LIGHT } from './sceneConfig';
+import styled from 'styled-components';
+
+const Mount = styled.div`
+  width: 100%;
+  height: 100%;
+  background: #1a1a1a;
+`;
 
 export default function SetupView() {
   const mountRef = useRef(null);
@@ -104,14 +111,5 @@ export default function SetupView() {
     };
   }, []);
 
-  return (
-    <div
-      ref={mountRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        background: '#1a1a1a',
-      }}
-    />
-  );
+  return <Mount ref={mountRef} />;
 }
