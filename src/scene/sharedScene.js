@@ -17,7 +17,7 @@ const notify = () => listeners.forEach(fn => fn());
 export const sceneState = {
   selected: null,
   product:  { x: PRODUCT.position.x, y: PRODUCT.position.y, z: PRODUCT.position.z },
-  light:    { x: LIGHT.position.x,   y: LIGHT.position.y,   z: LIGHT.position.z, intensity: LIGHT.intensity },
+  light:    { x: LIGHT.position.x, y: LIGHT.position.y, z: LIGHT.position.z, intensity: LIGHT.intensity, color: '#ffffff' },
   camera:   { x: 0, y: 3, z: 8 },
 };
 
@@ -32,6 +32,7 @@ export const updateLight = (key, val) => {
   sceneState.light[key] = val;
   const { light } = sharedInstance;
   if (key === 'intensity') light.intensity = val;
+  else if (key === 'color') light.color.set(val);
   else light.position[key] = val;
   notify();
 };

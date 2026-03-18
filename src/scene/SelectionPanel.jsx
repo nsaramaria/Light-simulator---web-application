@@ -66,6 +66,15 @@ const ValLabel = styled.span`
   font-variant-numeric: tabular-nums;
 `;
 
+const ColorInput = styled.input.attrs({ type: 'color' })`
+  width: 32px;
+  height: 24px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+`;
+
 const Hint = styled.div`
   font-size: 11px;
   color: #9b8a7a;
@@ -78,9 +87,9 @@ const CONFIGS = {
   product: {
     label: 'Product',
     sliders: [
-      { key: 'x', axis: 'x', min: -8,  max: 8,  step: 0.1, update: updateProduct },
-      { key: 'y', axis: 'y', min: 0,   max: 6,  step: 0.1, update: updateProduct },
-      { key: 'z', axis: 'z', min: -8,  max: 8,  step: 0.1, update: updateProduct },
+      { key: 'x', axis: 'x', min: -8, max: 8,  step: 0.1, update: updateProduct },
+      { key: 'y', axis: 'y', min: 0,  max: 6,  step: 0.1, update: updateProduct },
+      { key: 'z', axis: 'z', min: -8, max: 8,  step: 0.1, update: updateProduct },
     ],
     stateKey: 'product',
   },
@@ -150,6 +159,18 @@ export default function SelectionPanel() {
             <ValLabel>{(vals[sl.key] ?? 0).toFixed(1)}</ValLabel>
           </SliderRow>
         ))}
+        {selected === 'light' && (
+          <SliderRow>
+            <AxisLabel $axis="c">C</AxisLabel>
+            <ColorInput
+              value={vals.color ?? '#ffffff'}
+              onChange={e => {
+                updateLight('color', e.target.value);
+                setVals(v => ({ ...v, color: e.target.value }));
+              }}
+            />
+          </SliderRow>
+        )}
       </SliderGroup>
     </Panel>
   );
