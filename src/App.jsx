@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import CameraView from './scene/CameraView';
 import SetupView from './scene/SetupView';
+import SelectionPanel from './scene/SelectionPanel';
 
 const AppWrapper = styled.div`
   width: 100vw;
@@ -260,6 +261,7 @@ export default function App() {
           </ModalBox>
         </ModalOverlay>
       )}
+      <SelectionPanel />
     </AppWrapper>
   );
 }
