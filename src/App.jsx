@@ -214,32 +214,18 @@ export default function App() {
 
             <ModalContent>
               <Section>
-                <SectionTitle>Setup View (Right Side)</SectionTitle>
-                <SectionList>
-                  <li>Overhead view of your studio setup</li>
-                  <li>Orange pyramid shows camera position and field of view</li>
-                  <li>White sphere shows light position</li>
-                  <li>Grid helps with spatial reference</li>
-                  <li>Drag to rotate view, scroll to zoom</li>
-                </SectionList>
+                <SectionTitle>About</SectionTitle>
+                <p style={{ margin: 0, lineHeight: '1.7', color: '#9b8a7a', fontSize: '14px' }}>
+                  Plan and visualise your studio photo setup in real time. Arrange the product, light and camera in the Setup View and instantly see the result through the lens in the Camera View.
+                </p>
               </Section>
 
               <Section>
-                <SectionTitle>Camera View (Left Side)</SectionTitle>
-                <SectionList>
-                  <li>Shows what the photographer's camera captures</li>
-                  <li><strong>Locked mode:</strong> Fixed camera position, see exact final photo</li>
-                  <li><strong>Free mode:</strong> Explore and inspect from any angle</li>
-                  <li>Toggle switch to change between modes</li>
-                </SectionList>
-              </Section>
-
-              <Section>
-                <SectionTitle>Mouse Controls</SectionTitle>
+                <SectionTitle>Navigation</SectionTitle>
                 <SectionList>
                   <li><strong>Left click + drag:</strong> Rotate view</li>
                   <li><strong>Scroll wheel:</strong> Zoom in/out</li>
-                  <li><strong>Right click + drag:</strong> Pan camera</li>
+                  <li><strong>Right click + drag:</strong> Pan</li>
                 </SectionList>
               </Section>
 
@@ -248,8 +234,8 @@ export default function App() {
                 <SectionList>
                   <li><strong>Orange lines:</strong> Camera viewing frustum</li>
                   <li><strong>White sphere:</strong> Light position</li>
-                  <li><strong>Blue cube:</strong> Product being photographed</li>
-                  <li><strong>Grid:</strong> Floor reference (each square = 1 unit)</li>
+                  <li><strong>Orange box:</strong> Camera position</li>
+                  <li><strong>Pink cube:</strong> Product being photographed</li>
                   <li><strong>Colored axes:</strong> Red (X), Green (Y), Blue (Z)</li>
                 </SectionList>
               </Section>
