@@ -2,7 +2,12 @@
 import * as THREE from 'three';
 import { SCENE, LIGHT, PRODUCT, FLOOR } from './sceneConfig';
 
+// Singleton — ensures CameraView and SetupView share the same scene
+let sharedInstance = null;
+
 export const createSharedScene = () => {
+  if (sharedInstance) return sharedInstance;
+
   // CREATE SCENE
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SCENE.backgroundColor);
@@ -51,5 +56,6 @@ export const createSharedScene = () => {
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
   scene.add(ambientLight);
 
-  return { scene, product, light };
+  sharedInstance = { scene, product, light };
+  return sharedInstance;
 };
