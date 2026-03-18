@@ -19,11 +19,7 @@
   "dependencies": {
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "three": "^0.182.0"
-  },
-   "dependencies": {
-    "react": "^19.0.0",
-    "three": "^0.165.0",
-    "styled-components": "^6.1.0"  
+    "three": "^0.182.0",
+    "styled-components": "^6.1.13"
   }
 }
