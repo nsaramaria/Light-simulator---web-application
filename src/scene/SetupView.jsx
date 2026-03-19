@@ -37,14 +37,11 @@ export default function SetupView() {
 
   useEffect(() => {
     const { scene, product, light } = createSharedScene();
-    console.log('SetupView mount — product position:', product.position);
-    console.log('SetupView mount — product in scene:', scene.children.includes(product));
-    console.log('SetupView mount — scene children count:', scene.children.length);
 
     const helperCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
     helperCamera.position.set(4, 18, 12);
     helperCamera.lookAt(0, 0, 0);
-    helperCamera.layers.enable(1); 
+    helperCamera.layers.enable(1);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.shadowMap.enabled = false;
@@ -89,7 +86,7 @@ export default function SetupView() {
     const axes = new THREE.AxesHelper(5);
     scene.add(axes);
 
-    // These objects are setup view only ,hide from camera view
+    // These objects are setup view only — hide from camera view
     const setupOnlyObjects = [lightProxy, cameraProxy, lightHelper, cameraHelper, grid, axes];
     setupOnlyObjects.forEach(o => { o.layers.set(1); });
 
@@ -103,7 +100,7 @@ export default function SetupView() {
     };
 
     const raycaster = new THREE.Raycaster();
-    raycaster.layers.enable(1); 
+    raycaster.layers.enable(1);
     const mouse = new THREE.Vector2();
     const clickables = [product, lightProxy, cameraProxy];
 
@@ -157,9 +154,14 @@ export default function SetupView() {
     };
     window.addEventListener('resize', onResize);
 
+    // ResizeObserver catches panel size changes (maximize/restore/drag)
+    const ro = new ResizeObserver(onResize);
+    ro.observe(container);
+
     return () => {
       cancelAnimationFrame(rafId);
       unsub();
+      ro.disconnect();
       window.removeEventListener('resize', onResize);
       container.removeEventListener('pointerdown', onPointerDown);
       container.removeEventListener('pointermove', onPointerMove);

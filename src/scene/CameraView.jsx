@@ -35,7 +35,6 @@ export default function CameraView() {
     camera.updateProjectionMatrix();
     container.appendChild(renderer.domElement);
 
-    // Hide setup only helpers from this view
     const unsub = onSceneChange(() => {
       camera.position.set(
         sceneState.camera.x, sceneState.camera.y, sceneState.camera.z
@@ -58,9 +57,14 @@ export default function CameraView() {
     };
     window.addEventListener('resize', onResize);
 
+    // ResizeObserver catches panel size changes (maximize/restore/drag)
+    const ro = new ResizeObserver(onResize);
+    ro.observe(container);
+
     return () => {
       cancelAnimationFrame(rafId);
       unsub();
+      ro.disconnect();
       window.removeEventListener('resize', onResize);
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);

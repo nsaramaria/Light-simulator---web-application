@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import styled from 'styled-components';
 import CameraView from './scene/CameraView';
 import SetupView from './scene/SetupView';
@@ -50,12 +50,41 @@ const HelpButton = styled.button`
 const ViewsContainer = styled.div`
   flex: 1;
   display: flex;
+  min-height: 0;
+  overflow: hidden;
+  user-select: ${({ $dragging }) => $dragging ? 'none' : 'auto'};
 `;
 
 const ViewPanel = styled.div`
-  flex: 1;
   position: relative;
-  ${({ $left }) => $left && `border-right: 2px solid #3d3530;`}
+  width: ${({ $width }) => $width}%;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  display: ${({ $width }) => $width === 0 ? 'none' : 'block'};
+`;
+
+const Divider = styled.div`
+  width: 5px;
+  height: 100%;
+  background: #3d3530;
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover, &:active {
+    background: #d4a574;
+  }
+
+  &::after {
+    content: '⋮';
+    color: #9b8a7a;
+    font-size: 14px;
+    pointer-events: none;
+  }
 `;
 
 const ViewLabel = styled.div`
@@ -72,6 +101,30 @@ const ViewLabel = styled.div`
   text-transform: uppercase;
   border: 1px solid #3d3530;
   z-index: 10;
+`;
+
+const MaximizeBtn = styled.button`
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+  background: rgba(45, 40, 34, 0.85);
+  border: 1px solid #3d3530;
+  color: #9b8a7a;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: #d4a574;
+    color: #d4a574;
+  }
 `;
 
 const ModalOverlay = styled.div`
@@ -184,6 +237,46 @@ const GotItButton = styled.button`
 
 export default function App() {
   const [showHelp, setShowHelp] = useState(false);
+  const [splitPct, setSplitPct] = useState(50);
+  const [dragging, setDragging] = useState(false);
+  const [maximized, setMaximized] = useState(null); // 'camera' | 'setup' | null
+  const containerRef = useRef(null);
+
+  const onDividerMouseDown = useCallback((e) => {
+    e.preventDefault();
+    setDragging(true);
+
+    const onMouseMove = (e) => {
+      const rect = containerRef.current.getBoundingClientRect();
+      const pct = ((e.clientX - rect.left) / rect.width) * 100;
+      setSplitPct(Math.min(Math.max(pct, 15), 85));
+      window.dispatchEvent(new Event('resize'));
+    };
+
+    const onMouseUp = () => {
+      setDragging(false);
+      window.dispatchEvent(new Event('resize'));
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }, []);
+
+  const toggleMaximize = (panel) => {
+    setMaximized(prev => prev === panel ? null : panel);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new Event('resize'));
+      });
+    });
+  };
+
+  // Compute widths based on maximized state
+  const cameraWidth = maximized === 'camera' ? 100 : maximized === 'setup' ? 0 : splitPct;
+  const setupWidth  = maximized === 'setup'  ? 100 : maximized === 'camera' ? 0 : 100 - splitPct;
+  const showDivider = maximized === null;
 
   return (
     <AppWrapper>
@@ -192,16 +285,30 @@ export default function App() {
         <HelpButton onClick={() => setShowHelp(true)}>How to use</HelpButton>
       </Header>
 
-      <ViewsContainer>
-        <ViewPanel $left>
-          <ViewLabel>Camera View</ViewLabel>
-          <CameraView />
-        </ViewPanel>
+      <ViewsContainer ref={containerRef} $dragging={dragging}>
+        <ViewPanel $width={cameraWidth}>
+            <ViewLabel>Camera View</ViewLabel>
+            <MaximizeBtn
+              onClick={() => toggleMaximize('camera')}
+              title={maximized === 'camera' ? 'Restore split' : 'Maximize'}
+            >
+              {maximized === 'camera' ? '⤡' : '⤢'}
+            </MaximizeBtn>
+            <CameraView />
+          </ViewPanel>
 
-        <ViewPanel>
-          <ViewLabel>Setup View</ViewLabel>
-          <SetupView />
-        </ViewPanel>
+        {showDivider && <Divider onMouseDown={onDividerMouseDown} />}
+
+          <ViewPanel $width={setupWidth}>
+            <ViewLabel>Setup View</ViewLabel>
+            <MaximizeBtn
+              onClick={() => toggleMaximize('setup')}
+              title={maximized === 'setup' ? 'Restore split' : 'Maximize'}
+            >
+              {maximized === 'setup' ? '⤡' : '⤢'}
+            </MaximizeBtn>
+            <SetupView />
+          </ViewPanel>
       </ViewsContainer>
 
       {showHelp && (
