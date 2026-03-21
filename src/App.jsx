@@ -239,7 +239,7 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [splitPct, setSplitPct] = useState(50);
   const [dragging, setDragging] = useState(false);
-  const [maximized, setMaximized] = useState(null); // 'camera' | 'setup' | null
+  const [maximized, setMaximized] = useState(null);
   const containerRef = useRef(null);
 
   const onDividerMouseDown = useCallback((e) => {
@@ -273,7 +273,6 @@ export default function App() {
     });
   };
 
-  // Compute widths based on maximized state
   const cameraWidth = maximized === 'camera' ? 100 : maximized === 'setup' ? 0 : splitPct;
   const setupWidth  = maximized === 'setup'  ? 100 : maximized === 'camera' ? 0 : 100 - splitPct;
   const showDivider = maximized === null;
@@ -287,28 +286,31 @@ export default function App() {
 
       <ViewsContainer ref={containerRef} $dragging={dragging}>
         <ViewPanel $width={cameraWidth}>
-            <ViewLabel>Camera View</ViewLabel>
-            <MaximizeBtn
-              onClick={() => toggleMaximize('camera')}
-              title={maximized === 'camera' ? 'Restore split' : 'Maximize'}
-            >
-              {maximized === 'camera' ? '⤡' : '⤢'}
-            </MaximizeBtn>
-            <CameraView />
-          </ViewPanel>
+          <ViewLabel>Camera View</ViewLabel>
+          <MaximizeBtn
+            onClick={() => toggleMaximize('camera')}
+            title={maximized === 'camera' ? 'Restore split' : 'Maximize'}
+          >
+            {maximized === 'camera' ? '⤡' : '⤢'}
+          </MaximizeBtn>
+          <CameraView />
+        </ViewPanel>
 
         {showDivider && <Divider onMouseDown={onDividerMouseDown} />}
 
-          <ViewPanel $width={setupWidth}>
-            <ViewLabel>Setup View</ViewLabel>
-            <MaximizeBtn
-              onClick={() => toggleMaximize('setup')}
-              title={maximized === 'setup' ? 'Restore split' : 'Maximize'}
-            >
-              {maximized === 'setup' ? '⤡' : '⤢'}
-            </MaximizeBtn>
-            <SetupView />
-          </ViewPanel>
+        <ViewPanel $width={setupWidth}>
+          <ViewLabel>Setup View</ViewLabel>
+          <MaximizeBtn
+            onClick={() => toggleMaximize('setup')}
+            title={maximized === 'setup' ? 'Restore split' : 'Maximize'}
+          >
+            {maximized === 'setup' ? '⤡' : '⤢'}
+          </MaximizeBtn>
+          <SetupView />
+        </ViewPanel>
+
+        {/*sidebar */}
+        <SelectionPanel />
       </ViewsContainer>
 
       {showHelp && (
@@ -354,7 +356,6 @@ export default function App() {
           </ModalBox>
         </ModalOverlay>
       )}
-      <SelectionPanel />
     </AppWrapper>
   );
 }

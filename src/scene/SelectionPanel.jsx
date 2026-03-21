@@ -2,53 +2,66 @@ import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { sceneState, updateProduct, updateLight, updateCamera } from './sharedScene';
 
-const Panel = styled.div`
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(35, 30, 26, 0.97);
-  border-top: 1px solid #3d3530;
-  padding: 14px 24px 18px;
-  z-index: 100;
-  backdrop-filter: blur(8px);
+const Sidebar = styled.div`
+  width: 220px;
+  height: 100%;
+  background: #1e1a16;
+  border-left: 1px solid #3d3530;
   display: flex;
-  gap: 32px;
-  align-items: center;
-  flex-wrap: wrap;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow-y: auto;
 `;
 
-const PanelTitle = styled.div`
+const SidebarHint = styled.div`
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 11px;
+  color: #9b8a7a;
+  padding: 24px;
+  text-align: center;
+  line-height: 1.6;
+`;
+
+const SectionHeader = styled.div`
+  padding: 10px 12px 6px;
+  font-size: 10px;
   font-weight: 600;
   color: #d4a574;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  white-space: nowrap;
-  min-width: 72px;
+  border-bottom: 1px solid #3d3530;
 `;
 
 const SliderGroup = styled.div`
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  flex: 1;
-  min-width: 200px;
+  gap: 10px;
 `;
 
 const SliderRow = styled.div`
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const SliderTop = styled.div`
+  display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
 `;
 
 const AxisLabel = styled.span`
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: ${({ $axis }) =>
     $axis === 'x' ? '#e05a4e' : $axis === 'y' ? '#5aad5a' : $axis === 'z' ? '#4a90d9' : '#d4a574'};
-  width: 14px;
+  width: 10px;
   text-transform: uppercase;
+  flex-shrink: 0;
 `;
 
 const Slider = styled.input.attrs({ type: 'range' })`
@@ -56,30 +69,54 @@ const Slider = styled.input.attrs({ type: 'range' })`
   height: 3px;
   accent-color: #d4a574;
   cursor: pointer;
+  min-width: 0;
 `;
 
-const ValLabel = styled.span`
+const NumInput = styled.input.attrs({ type: 'number' })`
+  width: 52px;
+  background: #2d2822;
+  border: 1px solid #3d3530;
+  color: #e8dfd6;
   font-size: 11px;
-  color: #9b8a7a;
-  width: 34px;
+  padding: 3px 5px;
+  border-radius: 3px;
   text-align: right;
   font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+
+  &:focus {
+    outline: none;
+    border-color: #d4a574;
+  }
+
+  /* hide spin arrows */
+  -moz-appearance: textfield;
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+  }
+`;
+
+const ColorRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
 `;
 
 const ColorInput = styled.input.attrs({ type: 'color' })`
   width: 32px;
-  height: 24px;
+  height: 22px;
   border: none;
   background: none;
   cursor: pointer;
   padding: 0;
 `;
 
-const Hint = styled.div`
-  font-size: 11px;
-  color: #9b8a7a;
-  text-align: center;
-  padding: 6px 0;
+const Divider = styled.div`
+  height: 1px;
+  background: #3d3530;
+  margin: 2px 0;
 `;
 
 // Slider config per element
@@ -87,9 +124,9 @@ const CONFIGS = {
   product: {
     label: 'Product',
     sliders: [
-      { key: 'x', axis: 'x', min: -8, max: 8,  step: 0.1, update: updateProduct },
-      { key: 'y', axis: 'y', min: 0,  max: 6,  step: 0.1, update: updateProduct },
-      { key: 'z', axis: 'z', min: -8, max: 8,  step: 0.1, update: updateProduct },
+      { key: 'x', axis: 'x', min: -8,  max: 8,  step: 0.1, update: updateProduct },
+      { key: 'y', axis: 'y', min: 0,   max: 6,  step: 0.1, update: updateProduct },
+      { key: 'z', axis: 'z', min: -8,  max: 8,  step: 0.1, update: updateProduct },
     ],
     stateKey: 'product',
   },
@@ -114,12 +151,10 @@ const CONFIGS = {
   },
 };
 
-// Component
 export default function SelectionPanel() {
   const [selected, setSelected] = useState(null);
   const [vals, setVals] = useState({});
 
-  // Listen for selection from SetupView
   useEffect(() => {
     const handler = (e) => {
       const id = e.detail;
@@ -131,47 +166,84 @@ export default function SelectionPanel() {
   }, []);
 
   if (!selected) return (
-    <Hint>Click an element in the Setup View to select and move it</Hint>
+    <Sidebar>
+      <SidebarHint>Click an element in the Setup View to select and move it</SidebarHint>
+    </Sidebar>
   );
 
   const cfg = CONFIGS[selected];
 
   const handleChange = (slider, raw) => {
-    const val = parseFloat(raw);
-    slider.update(slider.key, val);
-    setVals(v => ({ ...v, [slider.key]: val }));
+    const num = parseFloat(raw);
+    if (isNaN(num)) return;
+    const clamped = Math.min(Math.max(num, slider.min), slider.max);
+    slider.update(slider.key, clamped);
+    setVals(v => ({ ...v, [slider.key]: clamped }));
+  };
+
+  const handleNumInput = (slider, raw) => {
+    // free typing
+    setVals(v => ({ ...v, [slider.key]: raw }));
+  };
+
+  const handleNumBlur = (slider, raw) => {
+    const num = parseFloat(raw);
+    if (isNaN(num)) {
+      setVals(v => ({ ...v, [slider.key]: sceneState[cfg.stateKey][slider.key] }));
+      return;
+    }
+    const clamped = Math.min(Math.max(num, slider.min), slider.max);
+    slider.update(slider.key, clamped);
+    setVals(v => ({ ...v, [slider.key]: clamped }));
   };
 
   return (
-    <Panel>
-      <PanelTitle>{cfg.label}</PanelTitle>
+    <Sidebar>
+      <SectionHeader>{cfg.label}</SectionHeader>
       <SliderGroup>
-        {cfg.sliders.map(sl => (
-          <SliderRow key={sl.key}>
-            <AxisLabel $axis={sl.axis}>{sl.axis}</AxisLabel>
-            <Slider
-              min={sl.min}
-              max={sl.max}
-              step={sl.step}
-              value={vals[sl.key] ?? 0}
-              onChange={e => handleChange(sl, e.target.value)}
-            />
-            <ValLabel>{(vals[sl.key] ?? 0).toFixed(1)}</ValLabel>
-          </SliderRow>
+        {cfg.sliders.map((sl, i) => (
+          <React.Fragment key={sl.key}>
+            {i > 0 && sl.axis !== cfg.sliders[i - 1].axis && <Divider />}
+            <SliderRow>
+              <SliderTop>
+                <AxisLabel $axis={sl.axis}>{sl.axis}</AxisLabel>
+                <Slider
+                  min={sl.min}
+                  max={sl.max}
+                  step={sl.step}
+                  value={parseFloat(vals[sl.key]) || 0}
+                  onChange={e => handleChange(sl, e.target.value)}
+                />
+                <NumInput
+                  value={vals[sl.key] !== undefined ? (typeof vals[sl.key] === 'number' ? vals[sl.key].toFixed(2) : vals[sl.key]) : '0.00'}
+                  onChange={e => handleNumInput(sl, e.target.value)}
+                  onBlur={e => handleNumBlur(sl, e.target.value)}
+                  step={sl.step}
+                  min={sl.min}
+                  max={sl.max}
+                />
+              </SliderTop>
+            </SliderRow>
+          </React.Fragment>
         ))}
+
         {selected === 'light' && (
-          <SliderRow>
-            <AxisLabel $axis="c">C</AxisLabel>
-            <ColorInput
-              value={vals.color ?? '#ffffff'}
-              onChange={e => {
-                updateLight('color', e.target.value);
-                setVals(v => ({ ...v, color: e.target.value }));
-              }}
-            />
-          </SliderRow>
+          <>
+            <Divider />
+            <ColorRow>
+              <AxisLabel $axis="c">C</AxisLabel>
+              <ColorInput
+                value={vals.color ?? '#ffffff'}
+                onChange={e => {
+                  updateLight('color', e.target.value);
+                  setVals(v => ({ ...v, color: e.target.value }));
+                }}
+              />
+              <span style={{ fontSize: '10px', color: '#9b8a7a' }}>Light color</span>
+            </ColorRow>
+          </>
         )}
       </SliderGroup>
-    </Panel>
+    </Sidebar>
   );
 }
