@@ -155,6 +155,7 @@ export default function SelectionPanel() {
   const [selected, setSelected] = useState(null);
   const [vals, setVals] = useState({});
 
+  // Listen for selection from SetupView
   useEffect(() => {
     const handler = (e) => {
       const id = e.detail;
@@ -162,7 +163,18 @@ export default function SelectionPanel() {
       if (id) setVals({ ...sceneState[CONFIGS[id].stateKey] });
     };
     window.addEventListener('studio:select', handler);
-    return () => window.removeEventListener('studio:select', handler);
+
+    // Sync sidebar when gizmo moves an object
+    const posHandler = (e) => {
+      const { axis, val } = e.detail;
+      setVals(v => ({ ...v, [axis]: val }));
+    };
+    window.addEventListener('studio:position-update', posHandler);
+
+    return () => {
+      window.removeEventListener('studio:select', handler);
+      window.removeEventListener('studio:position-update', posHandler);
+    };
   }, []);
 
   if (!selected) return (
@@ -182,7 +194,7 @@ export default function SelectionPanel() {
   };
 
   const handleNumInput = (slider, raw) => {
-    // free typing
+    // Allow free typing , only clamp and apply on blur
     setVals(v => ({ ...v, [slider.key]: raw }));
   };
 
