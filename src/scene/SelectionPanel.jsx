@@ -3,14 +3,69 @@ import styled from 'styled-components';
 import { sceneState, updateProduct, updateLight, updateCamera } from './sharedScene';
 
 const Sidebar = styled.div`
-  width: 220px;
+  width: ${({ $collapsed }) => $collapsed ? '24px' : '220px'};
   height: 100%;
   background: #1e1a16;
   border-left: 1px solid #3d3530;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  overflow-y: auto;
+  overflow: hidden;
+  transition: width 0.2s ease;
+`;
+
+const SidebarHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid #3d3530;
+  flex-shrink: 0;
+  min-height: 32px;
+`;
+
+const SidebarTitle = styled.div`
+  font-size: 10px;
+  font-weight: 600;
+  color: #d4a574;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+  overflow: hidden;
+`;
+
+const CollapseBtn = styled.button`
+  background: transparent;
+  border: none;
+  color: #9b8a7a;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #d4a574;
+  }
+`;
+
+// Vertical label shown when collapsed
+const CollapsedLabel = styled.div`
+  writing-mode: vertical-rl;
+  font-size: 9px;
+  font-weight: 600;
+  color: #9b8a7a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-top: 10px;
+  text-align: center;
+  cursor: pointer;
+  flex: 1;
+
+  &:hover {
+    color: #d4a574;
+  }
 `;
 
 const SidebarHint = styled.div`
@@ -40,6 +95,8 @@ const SliderGroup = styled.div`
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow-y: auto;
+  flex: 1;
 `;
 
 const SliderRow = styled.div`
@@ -151,9 +208,11 @@ const CONFIGS = {
   },
 };
 
+// Component
 export default function SelectionPanel() {
   const [selected, setSelected] = useState(null);
   const [vals, setVals] = useState({});
+  const [collapsed, setCollapsed] = useState(false);
 
   // Listen for selection from SetupView
   useEffect(() => {
@@ -177,8 +236,23 @@ export default function SelectionPanel() {
     };
   }, []);
 
+  if (collapsed) return (
+    <Sidebar $collapsed>
+      <SidebarHeader style={{ justifyContent: 'center', padding: '8px 0' }}>
+        <CollapseBtn onClick={() => setCollapsed(false)} title="Expand">›</CollapseBtn>
+      </SidebarHeader>
+      <CollapsedLabel onClick={() => setCollapsed(false)}>
+        {selected ? CONFIGS[selected].label : 'Details'}
+      </CollapsedLabel>
+    </Sidebar>
+  );
+
   if (!selected) return (
-    <Sidebar>
+    <Sidebar $collapsed={false}>
+      <SidebarHeader>
+        <SidebarTitle>Details</SidebarTitle>
+        <CollapseBtn onClick={() => setCollapsed(true)} title="Collapse">‹</CollapseBtn>
+      </SidebarHeader>
       <SidebarHint>Click an element in the Setup View to select and move it</SidebarHint>
     </Sidebar>
   );
@@ -194,7 +268,7 @@ export default function SelectionPanel() {
   };
 
   const handleNumInput = (slider, raw) => {
-    // Allow free typing , only clamp and apply on blur
+    // Allow free typing, only clamp and apply on blur
     setVals(v => ({ ...v, [slider.key]: raw }));
   };
 
@@ -210,8 +284,11 @@ export default function SelectionPanel() {
   };
 
   return (
-    <Sidebar>
-      <SectionHeader>{cfg.label}</SectionHeader>
+    <Sidebar $collapsed={false}>
+      <SidebarHeader>
+        <SidebarTitle>{cfg.label}</SidebarTitle>
+        <CollapseBtn onClick={() => setCollapsed(true)} title="Collapse">‹</CollapseBtn>
+      </SidebarHeader>
       <SliderGroup>
         {cfg.sliders.map((sl, i) => (
           <React.Fragment key={sl.key}>
