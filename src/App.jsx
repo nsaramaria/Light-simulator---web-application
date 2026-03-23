@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import CameraView from './scene/CameraView';
 import SetupView from './scene/SetupView';
 import SelectionPanel from './scene/SelectionPanel';
+import AddMenu from './scene/AddMenu';
 
 const AppWrapper = styled.div`
   width: 100vw;
@@ -27,6 +28,12 @@ const Title = styled.h1`
   font-size: 20px;
   font-weight: 600;
   margin: 0;
+`;
+
+const HeaderRight = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
 `;
 
 const HelpButton = styled.button`
@@ -273,6 +280,11 @@ export default function App() {
     });
   };
 
+  // Placeholder , functionality wired up in next step
+  const handleAdd = (itemId) => {
+    console.log('add:', itemId);
+  };
+
   const cameraWidth = maximized === 'camera' ? 100 : maximized === 'setup' ? 0 : splitPct;
   const setupWidth  = maximized === 'setup'  ? 100 : maximized === 'camera' ? 0 : 100 - splitPct;
   const showDivider = maximized === null;
@@ -281,7 +293,10 @@ export default function App() {
     <AppWrapper>
       <Header>
         <Title>Studio Simulator</Title>
-        <HelpButton onClick={() => setShowHelp(true)}>How to use</HelpButton>
+        <HeaderRight>
+          <AddMenu onAdd={handleAdd} />
+          <HelpButton onClick={() => setShowHelp(true)}>How to use</HelpButton>
+        </HeaderRight>
       </Header>
 
       <ViewsContainer ref={containerRef} $dragging={dragging}>
@@ -309,7 +324,7 @@ export default function App() {
           <SetupView />
         </ViewPanel>
 
-        {/*sidebar */}
+        {/* sidebar */}
         <SelectionPanel />
       </ViewsContainer>
 
