@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { sceneState, updateProduct, updateLight, updateCamera } from './sharedScene';
+import { sceneState, updateElement, updateCamera } from './sharedScene';
 
 const Sidebar = styled.div`
   width: ${({ $collapsed }) => $collapsed ? '24px' : '220px'};
@@ -78,16 +78,6 @@ const SidebarHint = styled.div`
   padding: 24px;
   text-align: center;
   line-height: 1.6;
-`;
-
-const SectionHeader = styled.div`
-  padding: 10px 12px 6px;
-  font-size: 10px;
-  font-weight: 600;
-  color: #d4a574;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  border-bottom: 1px solid #3d3530;
 `;
 
 const SliderGroup = styled.div`
@@ -176,36 +166,36 @@ const Divider = styled.div`
   margin: 2px 0;
 `;
 
-// Slider config per element
-const CONFIGS = {
-  product: {
-    label: 'Product',
-    sliders: [
-      { key: 'x', axis: 'x', min: -8,  max: 8,  step: 0.1, update: updateProduct },
-      { key: 'y', axis: 'y', min: 0,   max: 6,  step: 0.1, update: updateProduct },
-      { key: 'z', axis: 'z', min: -8,  max: 8,  step: 0.1, update: updateProduct },
-    ],
-    stateKey: 'product',
-  },
-  light: {
-    label: 'Light',
-    sliders: [
-      { key: 'x',         axis: 'x', min: -10, max: 10, step: 0.1,  update: updateLight },
-      { key: 'y',         axis: 'y', min: 0,   max: 12, step: 0.1,  update: updateLight },
-      { key: 'z',         axis: 'z', min: -10, max: 10, step: 0.1,  update: updateLight },
-      { key: 'intensity', axis: 'i', min: 0,   max: 5,  step: 0.05, update: updateLight },
-    ],
-    stateKey: 'light',
-  },
-  camera: {
-    label: 'Camera',
-    sliders: [
-      { key: 'x', axis: 'x', min: -12, max: 12, step: 0.1, update: updateCamera },
-      { key: 'y', axis: 'y', min: 1,   max: 14, step: 0.1, update: updateCamera },
-      { key: 'z', axis: 'z', min: -12, max: 14, step: 0.1, update: updateCamera },
-    ],
-    stateKey: 'camera',
-  },
+// Slider definitions per element type
+const SLIDERS_BY_TYPE = {
+  'point-light': [
+    { key: 'x', axis: 'x', min: -10, max: 10, step: 0.1 },
+    { key: 'y', axis: 'y', min: 0,   max: 12, step: 0.1 },
+    { key: 'z', axis: 'z', min: -10, max: 10, step: 0.1 },
+    { key: 'intensity', axis: 'i', min: 0, max: 5, step: 0.05 },
+  ],
+  'product-cube': [
+    { key: 'x', axis: 'x', min: -8, max: 8, step: 0.1 },
+    { key: 'y', axis: 'y', min: 0,  max: 6, step: 0.1 },
+    { key: 'z', axis: 'z', min: -8, max: 8, step: 0.1 },
+  ],
+  camera: [
+    { key: 'x', axis: 'x', min: -12, max: 12, step: 0.1 },
+    { key: 'y', axis: 'y', min: 1,   max: 14, step: 0.1 },
+    { key: 'z', axis: 'z', min: -12, max: 14, step: 0.1 },
+  ],
+};
+
+const LABEL_BY_TYPE = {
+  'point-light':   'Point Light',
+  'product-cube':  'Product Cube',
+  camera:          'Camera',
+};
+
+// Get current state object for any selected id
+const getStateForId = (id) => {
+  if (id === 'camera') return sceneState.camera;
+  return sceneState.elements[id] ?? null;
 };
 
 // Component
@@ -214,12 +204,12 @@ export default function SelectionPanel() {
   const [vals, setVals] = useState({});
   const [collapsed, setCollapsed] = useState(false);
 
-  // Listen for selection from SetupView
+  // Listen for selection from Setup view
   useEffect(() => {
     const handler = (e) => {
       const id = e.detail;
       setSelected(id);
-      if (id) setVals({ ...sceneState[CONFIGS[id].stateKey] });
+      if (id) setVals({ ...getStateForId(id) });
     };
     window.addEventListener('studio:select', handler);
 
@@ -236,13 +226,14 @@ export default function SelectionPanel() {
     };
   }, []);
 
+  // Collapsed state , show thin strip with vertical label
   if (collapsed) return (
     <Sidebar $collapsed>
       <SidebarHeader style={{ justifyContent: 'center', padding: '8px 0' }}>
         <CollapseBtn onClick={() => setCollapsed(false)} title="Expand">›</CollapseBtn>
       </SidebarHeader>
       <CollapsedLabel onClick={() => setCollapsed(false)}>
-        {selected ? CONFIGS[selected].label : 'Details'}
+        {selected ? (LABEL_BY_TYPE[sceneState.elements[selected]?.type ?? selected] ?? 'Details') : 'Details'}
       </CollapsedLabel>
     </Sidebar>
   );
@@ -257,42 +248,46 @@ export default function SelectionPanel() {
     </Sidebar>
   );
 
-  const cfg = CONFIGS[selected];
+  const type  = selected === 'camera' ? 'camera' : sceneState.elements[selected]?.type;
+  const sliders = SLIDERS_BY_TYPE[type] ?? [];
+  const label   = LABEL_BY_TYPE[type] ?? selected;
 
-  const handleChange = (slider, raw) => {
+  const handleChange = (sl, raw) => {
     const num = parseFloat(raw);
     if (isNaN(num)) return;
-    const clamped = Math.min(Math.max(num, slider.min), slider.max);
-    slider.update(slider.key, clamped);
-    setVals(v => ({ ...v, [slider.key]: clamped }));
+    const clamped = Math.min(Math.max(num, sl.min), sl.max);
+    if (selected === 'camera') updateCamera(sl.key, clamped);
+    else updateElement(selected, sl.key, clamped);
+    setVals(v => ({ ...v, [sl.key]: clamped }));
   };
 
-  const handleNumInput = (slider, raw) => {
+  const handleNumInput = (sl, raw) => {
     // Allow free typing, only clamp and apply on blur
-    setVals(v => ({ ...v, [slider.key]: raw }));
+    setVals(v => ({ ...v, [sl.key]: raw }));
   };
 
-  const handleNumBlur = (slider, raw) => {
+  const handleNumBlur = (sl, raw) => {
     const num = parseFloat(raw);
     if (isNaN(num)) {
-      setVals(v => ({ ...v, [slider.key]: sceneState[cfg.stateKey][slider.key] }));
+      setVals(v => ({ ...v, [sl.key]: getStateForId(selected)?.[sl.key] ?? 0 }));
       return;
     }
-    const clamped = Math.min(Math.max(num, slider.min), slider.max);
-    slider.update(slider.key, clamped);
-    setVals(v => ({ ...v, [slider.key]: clamped }));
+    const clamped = Math.min(Math.max(num, sl.min), sl.max);
+    if (selected === 'camera') updateCamera(sl.key, clamped);
+    else updateElement(selected, sl.key, clamped);
+    setVals(v => ({ ...v, [sl.key]: clamped }));
   };
 
   return (
     <Sidebar $collapsed={false}>
       <SidebarHeader>
-        <SidebarTitle>{cfg.label}</SidebarTitle>
+        <SidebarTitle>{label}</SidebarTitle>
         <CollapseBtn onClick={() => setCollapsed(true)} title="Collapse">‹</CollapseBtn>
       </SidebarHeader>
       <SliderGroup>
-        {cfg.sliders.map((sl, i) => (
+        {sliders.map((sl, i) => (
           <React.Fragment key={sl.key}>
-            {i > 0 && sl.axis !== cfg.sliders[i - 1].axis && <Divider />}
+            {i > 0 && sl.axis !== sliders[i - 1].axis && <Divider />}
             <SliderRow>
               <SliderTop>
                 <AxisLabel $axis={sl.axis}>{sl.axis}</AxisLabel>
@@ -316,7 +311,7 @@ export default function SelectionPanel() {
           </React.Fragment>
         ))}
 
-        {selected === 'light' && (
+        {type === 'point-light' && (
           <>
             <Divider />
             <ColorRow>
@@ -324,7 +319,7 @@ export default function SelectionPanel() {
               <ColorInput
                 value={vals.color ?? '#ffffff'}
                 onChange={e => {
-                  updateLight('color', e.target.value);
+                  updateElement(selected, 'color', e.target.value);
                   setVals(v => ({ ...v, color: e.target.value }));
                 }}
               />

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { createSharedScene, destroySharedScene, sceneState, onSceneChange, updateProduct, updateLight, updateCamera } from './sharedScene';
+import { createSharedScene, destroySharedScene, sceneState, onSceneChange, updateElement, updateCamera } from './sharedScene';
 import { CAMERA } from './sceneConfig';
 import styled from 'styled-components';
 
@@ -12,13 +12,27 @@ const Mount = styled.div`
   cursor: pointer;
 `;
 
-const makeLightProxy = (position) => {
+// Proxy sphere for lights
+const makeLightProxy = (position, id) => {
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(0.25, 16, 16),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
   );
   mesh.position.copy(position);
-  mesh.userData.id = 'light';
+  mesh.userData.id = id;
+  mesh.userData.proxyFor = id;
+  return mesh;
+};
+
+// Proxy box for product cubes
+const makeProductProxy = (position, id) => {
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(2, 2, 2),
+    new THREE.MeshBasicMaterial({ color: 0xd4a5a5, wireframe: true })
+  );
+  mesh.position.copy(position);
+  mesh.userData.id = id;
+  mesh.userData.proxyFor = id;
   return mesh;
 };
 
@@ -70,7 +84,7 @@ export default function SetupView() {
   const mountRef = useRef(null);
 
   useEffect(() => {
-    const { scene, product, light } = createSharedScene();
+    const { scene, elementMeshes } = createSharedScene();
 
     const helperCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
     helperCamera.position.set(4, 18, 12);
@@ -109,23 +123,36 @@ export default function SetupView() {
     scene.add(cameraHelper);
     scene.add(photographerCamera);
 
-    // Clickable proxies
-    const lightProxy = makeLightProxy(light.position);
+    const proxies = {};
+
+    // Camera proxy
     const cameraProxy = makeCameraProxy(photographerCamera.position);
-    scene.add(lightProxy);
     scene.add(cameraProxy);
+    proxies['camera'] = cameraProxy;
+
+    // Build proxies for all existing elements
+    const buildProxies = () => {
+      Object.entries(sceneState.elements).forEach(([id, state]) => {
+        if (proxies[id]) return; // already exists
+        const pos = new THREE.Vector3(state.x, state.y, state.z);
+        const proxy = state.type === 'point-light'
+          ? makeLightProxy(pos, id)
+          : makeProductProxy(pos, id);
+        proxy.layers.set(1);
+        scene.add(proxy);
+        proxies[id] = proxy;
+      });
+    };
+    buildProxies();
 
     // Helpers
-    const lightHelper = new THREE.PointLightHelper(light, 0.5);
-    scene.add(lightHelper);
     const grid = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
     scene.add(grid);
-    const axes = new THREE.AxesHelper(5);
-    scene.add(axes);
+    const axesHelper = new THREE.AxesHelper(5);
+    scene.add(axesHelper);
 
     // These objects are setup view only, hide from camera view
-    const setupOnlyObjects = [lightProxy, cameraProxy, lightHelper, cameraHelper, grid, axes];
-    setupOnlyObjects.forEach(o => { o.layers.set(1); });
+    [cameraProxy, grid, axesHelper].forEach(o => o.layers.set(1));
 
     // Gizmo shown on selected object
     const gizmo = makeGizmo();
@@ -133,10 +160,8 @@ export default function SetupView() {
     scene.add(gizmo);
 
     const getSelectedPosition = (id) => {
-      if (id === 'product') return product.position;
-      if (id === 'light')   return light.position;
-      if (id === 'camera')  return photographerCamera.position;
-      return null;
+      if (id === 'camera') return photographerCamera.position;
+      return elementMeshes[id]?.position ?? null;
     };
 
     const syncGizmo = (id) => {
@@ -146,23 +171,37 @@ export default function SetupView() {
     };
 
     const highlightObject = (id) => {
-      product.material.emissive.set(0x000000);
-      lightProxy.material.color.set(0xffffff);
-      cameraProxy.material.color.set(0xd4a574);
-      if (id === 'product') product.material.emissive.set(0x4a90d9);
-      if (id === 'light')   lightProxy.material.color.set(0x4a90d9);
-      if (id === 'camera')  cameraProxy.material.color.set(0x4a90d9);
+      // Reset all proxy highlights
+      Object.entries(proxies).forEach(([pid, proxy]) => {
+        if (pid === 'camera') { proxy.material.color.set(0xd4a574); return; }
+        const state = sceneState.elements[pid];
+        if (!state) return;
+        proxy.material.color.set(state.type === 'point-light' ? 0xffffff : 0xd4a5a5);
+        if (proxy.material.emissive) proxy.material.emissive.set(0x000000);
+      });
+      // Highlight selected
+      if (id && proxies[id]) {
+        proxies[id].material.color.set(0x4a90d9);
+      }
       syncGizmo(id);
     };
 
-    // React to sceneState changes (from sliders)
+    // React to scene state changes 
     const unsub = onSceneChange(() => {
       photographerCamera.position.set(
         sceneState.camera.x, sceneState.camera.y, sceneState.camera.z
       );
       photographerCamera.lookAt(0, 1, 0);
       cameraProxy.position.copy(photographerCamera.position);
-      lightProxy.position.copy(light.position);
+
+      // Sync proxy positions and build new ones if elements were added
+      buildProxies();
+      Object.entries(proxies).forEach(([id, proxy]) => {
+        if (id === 'camera') return;
+        const mesh = elementMeshes[id];
+        if (mesh) proxy.position.copy(mesh.position);
+      });
+
       if (sceneState.selected) syncGizmo(sceneState.selected);
     });
 
@@ -170,10 +209,8 @@ export default function SetupView() {
     const raycaster = new THREE.Raycaster();
     raycaster.layers.enable(1);
     const mouse = new THREE.Vector2();
-    const clickables = [product, lightProxy, cameraProxy];
     const gizmoChildren = gizmo.children;
 
-    // Gizmo drag state
     let dragAxis = null;
     let dragStartMouse = new THREE.Vector2();
     let dragStartPos = new THREE.Vector3();
@@ -230,9 +267,8 @@ export default function SetupView() {
       const newVal = dragStartPos[dragAxis] + movement * dist * 1.2;
       const id = sceneState.selected;
 
-      if (id === 'product') updateProduct(dragAxis, newVal);
-      if (id === 'light')   updateLight(dragAxis, newVal);
-      if (id === 'camera')  updateCamera(dragAxis, newVal);
+      if (id === 'camera') updateCamera(dragAxis, newVal);
+      else updateElement(id, dragAxis, newVal);
 
       // Notify sidebar to sync
       window.dispatchEvent(new CustomEvent('studio:position-update', {
@@ -248,7 +284,7 @@ export default function SetupView() {
         return;
       }
 
-      // Was a drag  not a click
+      // Was a drag not a click
       const dx = e.clientX - pointerDownPos.x;
       const dy = e.clientY - pointerDownPos.y;
       if (Math.sqrt(dx * dx + dy * dy) > 4) return;
@@ -257,10 +293,12 @@ export default function SetupView() {
       mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
       mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
       raycaster.setFromCamera(mouse, helperCamera);
+
+      // Collect all clickable proxies dynamically
+      const clickables = Object.values(proxies);
       const hits = raycaster.intersectObjects(clickables);
       if (hits.length > 0) {
-        const id = hits[0].object.userData.id;
-        sceneState.selected = id;
+        sceneState.selected = hits[0].object.userData.id;
       } else {
         sceneState.selected = null;
       }
@@ -278,7 +316,6 @@ export default function SetupView() {
       rafId = requestAnimationFrame(animate);
       controls.update();
       cameraHelper.update();
-      lightHelper.update();
 
       // Keep gizmo constant size regardless of zoom
       if (gizmo.visible) {

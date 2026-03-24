@@ -5,6 +5,7 @@ import CameraView from './scene/CameraView';
 import SetupView from './scene/SetupView';
 import SelectionPanel from './scene/SelectionPanel';
 import AddMenu from './scene/AddMenu';
+import { addPointLight, addProductCube } from './scene/sharedScene';
 
 const AppWrapper = styled.div`
   width: 100vw;
@@ -280,10 +281,18 @@ export default function App() {
     });
   };
 
-  // Placeholder , functionality wired up in next step
-  const handleAdd = (itemId) => {
-    console.log('add:', itemId);
-  };
+ // Add element to scene and auto select it
+const handleAdd = (itemId) => {
+  let newId;
+  if (itemId === 'point-light') newId = addPointLight();
+  if (itemId === 'product-cube') newId = addProductCube();
+  if (newId) {
+   
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('studio:select', { detail: newId }));
+    }, 0);
+  }
+};
 
   const cameraWidth = maximized === 'camera' ? 100 : maximized === 'setup' ? 0 : splitPct;
   const setupWidth  = maximized === 'setup'  ? 100 : maximized === 'camera' ? 0 : 100 - splitPct;

@@ -13,27 +13,30 @@ const listeners = new Set();
 export const onSceneChange = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
 const notify = () => listeners.forEach(fn => fn());
 
+// Counters for generating unique element ids
+let lightCounter = 0;
+let productCounter = 0;
+
 // Scene state 
 export const sceneState = {
   selected: null,
-  product:  { x: PRODUCT.position.x, y: PRODUCT.position.y, z: PRODUCT.position.z },
-  light:    { x: LIGHT.position.x, y: LIGHT.position.y, z: LIGHT.position.z, intensity: LIGHT.intensity, color: '#ffffff' },
+  elements: {},  // keyed by id
   camera:   { x: 0, y: 3, z: 8 },
 };
 
 // Updaters 
-export const updateProduct = (axis, val) => {
-  sceneState.product[axis] = val;
-  sharedInstance.product.position[axis] = val;
-  notify();
-};
-
-export const updateLight = (key, val) => {
-  sceneState.light[key] = val;
-  const { light } = sharedInstance;
-  if (key === 'intensity') light.intensity = val;
-  else if (key === 'color') light.color.set(val);
-  else light.position[key] = val;
+export const updateElement = (id, key, val) => {
+  if (!sceneState.elements[id]) return;
+  sceneState.elements[id][key] = val;
+  const obj = sharedInstance.elementMeshes[id];
+  if (!obj) return;
+  if (obj.isLight) {
+    if (key === 'intensity') obj.intensity = val;
+    else if (key === 'color') obj.color.set(val);
+    else obj.position[key] = val;
+  } else {
+    obj.position[key] = val;
+  }
   notify();
 };
 
@@ -42,12 +45,46 @@ export const updateCamera = (axis, val) => {
   notify();
 };
 
+// Add a new point light to the scene
+export const addPointLight = () => {
+  const id = `light-${lightCounter++}`;
+  const light = new THREE.PointLight(0xffffff, 1.5, 100);
+  light.position.set(0, 5, 0);
+  light.castShadow = true;
+  light.userData.id = id;
+  sharedInstance.scene.add(light);
+  sharedInstance.elementMeshes[id] = light;
+  sceneState.elements[id] = { x: 0, y: 5, z: 0, intensity: 1.5, color: '#ffffff', type: 'point-light' };
+  notify();
+  return id;
+};
+
+// Add a new product cube to the scene
+export const addProductCube = () => {
+  const id = `product-${productCounter++}`;
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(PRODUCT.size, PRODUCT.size, PRODUCT.size),
+    new THREE.MeshStandardMaterial({ color: PRODUCT.color })
+  );
+  mesh.position.set(0, 1, 0);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData.id = id;
+  sharedInstance.scene.add(mesh);
+  sharedInstance.elementMeshes[id] = mesh;
+  sceneState.elements[id] = { x: 0, y: 1, z: 0, type: 'product-cube' };
+  notify();
+  return id;
+};
+
 export const createSharedScene = () => {
   if (sharedInstance) return sharedInstance;
 
   // CREATE SCENE
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SCENE.backgroundColor);
+
+  const elementMeshes = {};
 
   // CREATE FLOOR
   const floor = new THREE.Mesh(
@@ -58,27 +95,25 @@ export const createSharedScene = () => {
   floor.receiveShadow = true;
   scene.add(floor);
 
-  // CREATE PRODUCT 
-  const product = new THREE.Mesh(
-    new THREE.BoxGeometry(PRODUCT.size, PRODUCT.size, PRODUCT.size),
-    new THREE.MeshStandardMaterial({ color: PRODUCT.color })
-  );
-  product.position.set(PRODUCT.position.x, PRODUCT.position.y, PRODUCT.position.z);
-  product.castShadow = true;
-  product.receiveShadow = true;
-  product.userData.id = 'product';
-  scene.add(product);
-
-  // CREATE MAIN LIGHT
-  const light = new THREE.PointLight(LIGHT.color, LIGHT.intensity, 100);
-  light.position.set(LIGHT.position.x, LIGHT.position.y, LIGHT.position.z);
-  light.castShadow = true;
-  scene.add(light);
-
   // CREATE AMBIENT LIGHT
   scene.add(new THREE.AmbientLight(0xffffff, 0.3));
 
-  sharedInstance = { scene, product, light };
+  sharedInstance = { scene, elementMeshes };
+
+  // Add default product and light via the shared adders so theyre tracked
+  addProductCube();
+  addPointLight();
+
+  // Reposition default light to match original config
+  const firstLight = Object.values(elementMeshes).find(o => o.isLight);
+  if (firstLight) {
+    firstLight.position.set(LIGHT.position.x, LIGHT.position.y, LIGHT.position.z);
+    const id = firstLight.userData.id;
+    sceneState.elements[id].x = LIGHT.position.x;
+    sceneState.elements[id].y = LIGHT.position.y;
+    sceneState.elements[id].z = LIGHT.position.z;
+  }
+
   return sharedInstance;
 };
 
@@ -94,5 +129,9 @@ export const destroySharedScene = () => {
     });
     sharedInstance = null;
   }
+  lightCounter = 0;
+  productCounter = 0;
+  sceneState.elements = {};
+  sceneState.selected = null;
   listeners.clear();
 };
