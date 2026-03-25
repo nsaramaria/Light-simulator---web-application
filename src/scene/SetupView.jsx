@@ -12,6 +12,9 @@ const Mount = styled.div`
   cursor: pointer;
 `;
 
+const DEG2RAD = Math.PI / 180;
+const RAD2DEG = 180 / Math.PI;
+
 // Proxy sphere for lights
 const makeLightProxy = (position, id) => {
   const mesh = new THREE.Mesh(
@@ -46,8 +49,8 @@ const makeCameraProxy = (position) => {
   return mesh;
 };
 
-// Build a simple arrow gizmo: cone tip + cylinder shaft per axis
-const makeGizmo = () => {
+// Build a simple arrow gizmo
+const makeMoveGizmo = () => {
   const group = new THREE.Group();
   group.layers.set(1);
 
@@ -65,6 +68,7 @@ const makeGizmo = () => {
     shaft.position.copy(dir.clone().multiplyScalar(0.6));
     shaft.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
     shaft.userData.gizmoAxis = axis;
+    shaft.userData.gizmoType = 'move';
     shaft.layers.set(1);
 
     // Tip (cone)
@@ -72,9 +76,34 @@ const makeGizmo = () => {
     tip.position.copy(dir.clone().multiplyScalar(1.35));
     tip.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
     tip.userData.gizmoAxis = axis;
+    tip.userData.gizmoType = 'move';
     tip.layers.set(1);
 
     group.add(shaft, tip);
+  }
+
+  return group;
+};
+
+// rotation ring gizmo 
+const makeRotateGizmo = () => {
+  const group = new THREE.Group();
+  group.layers.set(1);
+
+  const rings = [
+    { axis: 'rx', color: 0xe05a4e, rot: new THREE.Euler(0, Math.PI / 2, 0) }, // X — red ring in YZ plane
+    { axis: 'ry', color: 0x5aad5a, rot: new THREE.Euler(Math.PI / 2, 0, 0) }, // Y — green ring in XZ plane
+    { axis: 'rz', color: 0x4a90d9, rot: new THREE.Euler(0, 0, 0) },            // Z — blue ring in XY plane
+  ];
+
+  for (const { axis, color, rot } of rings) {
+    const mat = new THREE.MeshBasicMaterial({ color, depthTest: false, side: THREE.DoubleSide });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.04, 8, 48), mat);
+    ring.rotation.copy(rot);
+    ring.userData.gizmoAxis = axis;
+    ring.userData.gizmoType = 'rotate';
+    ring.layers.set(1);
+    group.add(ring);
   }
 
   return group;
@@ -154,20 +183,31 @@ export default function SetupView() {
     // These objects are setup view only, hide from camera view
     [cameraProxy, grid, axesHelper].forEach(o => o.layers.set(1));
 
-    // Gizmo shown on selected object
-    const gizmo = makeGizmo();
-    gizmo.visible = false;
-    scene.add(gizmo);
+    const moveGizmo = makeMoveGizmo();
+    moveGizmo.visible = false;
+    scene.add(moveGizmo);
+
+    const rotateGizmo = makeRotateGizmo();
+    rotateGizmo.visible = false;
+    scene.add(rotateGizmo);
+
+    let gizmoMode = 'move';
+
+    const getActiveGizmo = () => gizmoMode === 'move' ? moveGizmo : rotateGizmo;
 
     const getSelectedPosition = (id) => {
       if (id === 'camera') return photographerCamera.position;
       return elementMeshes[id]?.position ?? null;
     };
 
-    const syncGizmo = (id) => {
+    const syncGizmos = (id) => {
       const pos = getSelectedPosition(id);
-      if (pos) { gizmo.position.copy(pos); gizmo.visible = true; }
-      else gizmo.visible = false;
+      moveGizmo.visible = false;
+      rotateGizmo.visible = false;
+      if (!pos || !id) return;
+      const active = getActiveGizmo();
+      active.position.copy(pos);
+      active.visible = true;
     };
 
     const highlightObject = (id) => {
@@ -179,46 +219,73 @@ export default function SetupView() {
         proxy.material.color.set(state.type === 'point-light' ? 0xffffff : 0xd4a5a5);
         if (proxy.material.emissive) proxy.material.emissive.set(0x000000);
       });
-      // Highlight selected
-      if (id && proxies[id]) {
-        proxies[id].material.color.set(0x4a90d9);
-      }
-      syncGizmo(id);
+     
+      if (id && proxies[id]) proxies[id].material.color.set(0x4a90d9);
+      syncGizmos(id);
     };
 
-    // React to scene state changes 
+    const setMode = (mode) => {
+      gizmoMode = mode;
+      syncGizmos(sceneState.selected);
+      window.dispatchEvent(new CustomEvent('studio:gizmo-mode', { detail: mode }));
+    };
+
+    // external selection
+    const onExternalSelect = (e) => {
+      const id = e.detail;
+      sceneState.selected = id;
+      highlightObject(id);
+    };
+    window.addEventListener('studio:select', onExternalSelect);
+
+    // Sync photographer camera rotation from scene state so the camera Helper updates
+    const syncPhotographerCamera = () => {
+      const { x, y, z, rx, ry, rz } = sceneState.camera;
+      photographerCamera.position.set(x, y, z);
+      if (rx || ry || rz) {
+        photographerCamera.rotation.set(
+          (rx ?? 0) * DEG2RAD,
+          (ry ?? 0) * DEG2RAD,
+          (rz ?? 0) * DEG2RAD
+        );
+      } else {
+        photographerCamera.lookAt(0, 1, 0);
+      }
+    };
+
+    // React to scene state changes
     const unsub = onSceneChange(() => {
-      photographerCamera.position.set(
-        sceneState.camera.x, sceneState.camera.y, sceneState.camera.z
-      );
-      photographerCamera.lookAt(0, 1, 0);
+      syncPhotographerCamera();
       cameraProxy.position.copy(photographerCamera.position);
 
-      // Sync proxy positions and build new ones if elements were added
+      // Sync proxy positions and rotations, build new ones if elements were added
       buildProxies();
       Object.entries(proxies).forEach(([id, proxy]) => {
         if (id === 'camera') return;
         const mesh = elementMeshes[id];
-        if (mesh) proxy.position.copy(mesh.position);
+        if (!mesh) return;
+        proxy.position.copy(mesh.position);
+        proxy.rotation.copy(mesh.rotation); 
       });
 
-      if (sceneState.selected) syncGizmo(sceneState.selected);
+      if (sceneState.selected) syncGizmos(sceneState.selected);
     });
 
     // Raycaster for click selection
     const raycaster = new THREE.Raycaster();
     raycaster.layers.enable(1);
     const mouse = new THREE.Vector2();
-    const gizmoChildren = gizmo.children;
 
     let dragAxis = null;
     let dragStartMouse = new THREE.Vector2();
     let dragStartPos = new THREE.Vector3();
+    let dragStartRot = { rx: 0, ry: 0, rz: 0 };
+    let isDraggingGizmo = false;
 
-    // Project mouse delta onto axis screen direction
+    // Project mouse delta onto axis screen direction 
     const getAxisScreenDir = (axis) => {
-      const origin = gizmo.position.clone().project(helperCamera);
-      const tip = gizmo.position.clone();
+      const origin = moveGizmo.position.clone().project(helperCamera);
+      const tip = moveGizmo.position.clone();
       if (axis === 'x') tip.x += 1;
       if (axis === 'y') tip.y += 1;
       if (axis === 'z') tip.z += 1;
@@ -226,8 +293,19 @@ export default function SetupView() {
       return new THREE.Vector2(tip.x - origin.x, tip.y - origin.y).normalize();
     };
 
+    // Get screen tangent direction for a rotation ring axis (for rotate)
+    const getRotScreenDir = (axis) => {
+      const origin = rotateGizmo.position.clone().project(helperCamera);
+      const ref = rotateGizmo.position.clone();
+
+      if (axis === 'rx') ref.y += 1;
+      if (axis === 'ry') ref.x += 1;
+      if (axis === 'rz') ref.x += 1;
+      ref.project(helperCamera);
+      return new THREE.Vector2(ref.x - origin.x, ref.y - origin.y).normalize();
+    };
+
     let pointerDownPos = { x: 0, y: 0 };
-    let isDraggingGizmo = false;
 
     const onPointerDown = (e) => {
       pointerDownPos = { x: e.clientX, y: e.clientY };
@@ -236,15 +314,23 @@ export default function SetupView() {
       mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
       dragStartMouse.set(e.clientX, e.clientY);
 
-      // Check gizmo arrow first
-      if (gizmo.visible) {
+      const activeGizmo = getActiveGizmo();
+
+      // Check active gizmo first
+      if (activeGizmo.visible) {
         raycaster.setFromCamera(mouse, helperCamera);
-        const hits = raycaster.intersectObjects(gizmoChildren);
+        const hits = raycaster.intersectObjects(activeGizmo.children);
         if (hits.length > 0) {
           dragAxis = hits[0].object.userData.gizmoAxis;
           isDraggingGizmo = true;
           controls.enabled = false;
-          dragStartPos.copy(getSelectedPosition(sceneState.selected));
+          if (gizmoMode === 'move') {
+            dragStartPos.copy(getSelectedPosition(sceneState.selected));
+          } else {
+            const id = sceneState.selected;
+            const state = id === 'camera' ? sceneState.camera : sceneState.elements[id];
+            dragStartRot = { rx: state?.rx ?? 0, ry: state?.ry ?? 0, rz: state?.rz ?? 0 };
+          }
           return;
         }
       }
@@ -255,25 +341,47 @@ export default function SetupView() {
 
       const dx = e.clientX - dragStartMouse.x;
       const dy = e.clientY - dragStartMouse.y;
-      const screenDir = getAxisScreenDir(dragAxis);
-      const mouseDelta = new THREE.Vector2(
-        dx / container.clientWidth  * 2,
-       -dy / container.clientHeight * 2
-      );
-      const movement = mouseDelta.dot(screenDir);
-
-      // Scale by camera distance for consistent drag feel
-      const dist = helperCamera.position.distanceTo(gizmo.position);
-      const newVal = dragStartPos[dragAxis] + movement * dist * 1.2;
       const id = sceneState.selected;
 
-      if (id === 'camera') updateCamera(dragAxis, newVal);
-      else updateElement(id, dragAxis, newVal);
+      if (gizmoMode === 'move') {
+        const screenDir = getAxisScreenDir(dragAxis);
+        const mouseDelta = new THREE.Vector2(
+          dx / container.clientWidth  * 2,
+         -dy / container.clientHeight * 2
+        );
+        const movement = mouseDelta.dot(screenDir);
 
-      // Notify sidebar to sync
-      window.dispatchEvent(new CustomEvent('studio:position-update', {
-        detail: { id, axis: dragAxis, val: newVal }
-      }));
+        const dist = helperCamera.position.distanceTo(moveGizmo.position);
+        const newVal = dragStartPos[dragAxis] + movement * dist * 1.2;
+
+        if (id === 'camera') updateCamera(dragAxis, newVal);
+        else updateElement(id, dragAxis, newVal);
+
+        // sidebar to sync
+        window.dispatchEvent(new CustomEvent('studio:position-update', {
+          detail: { id, axis: dragAxis, val: newVal }
+        }));
+      } else {
+        // Rotation  
+        const screenDir = getRotScreenDir(dragAxis);
+        const mouseDelta = new THREE.Vector2(
+          dx / container.clientWidth  * 2,
+         -dy / container.clientHeight * 2
+        );
+        const movement = mouseDelta.dot(screenDir);
+
+        // 180 degrees per full screen width
+        const deltaDeg = movement * 180;
+        const newVal = (dragStartRot[dragAxis] + deltaDeg) % 360;
+
+        if (id === 'camera') updateCamera(dragAxis, newVal);
+        else updateElement(id, dragAxis, newVal);
+
+        // Notify sidebar to sync rotation
+        window.dispatchEvent(new CustomEvent('studio:position-update', {
+          detail: { id, axis: dragAxis, val: newVal }
+        }));
+      }
     };
 
     const onPointerUp = (e) => {
@@ -284,7 +392,7 @@ export default function SetupView() {
         return;
       }
 
-      // Was a drag not a click
+      // Was a drag, not a click
       const dx = e.clientX - pointerDownPos.x;
       const dy = e.clientY - pointerDownPos.y;
       if (Math.sqrt(dx * dx + dy * dy) > 4) return;
@@ -306,9 +414,20 @@ export default function SetupView() {
       window.dispatchEvent(new CustomEvent('studio:select', { detail: sceneState.selected }));
     };
 
+    const onKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT') return; // don't steal from inputs
+      if (e.key === 'w' || e.key === 'W') setMode('move');
+      if (e.key === 'e' || e.key === 'E') setMode('rotate');
+    };
+
+    // Listen for mode change from sidebar buttons
+    const onModeChange = (e) => setMode(e.detail);
+
     container.addEventListener('pointerdown', onPointerDown);
     container.addEventListener('pointermove', onPointerMove);
     container.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('studio:set-gizmo-mode', onModeChange);
 
     // Animation loop
     let rafId;
@@ -317,11 +436,12 @@ export default function SetupView() {
       controls.update();
       cameraHelper.update();
 
-      // Keep gizmo constant size regardless of zoom
-      if (gizmo.visible) {
-        const dist = helperCamera.position.distanceTo(gizmo.position);
+      // Keep gizmos constant size regardless of zoom
+      const activeGizmo = getActiveGizmo();
+      if (activeGizmo.visible) {
+        const dist = helperCamera.position.distanceTo(activeGizmo.position);
         const s = dist * 0.12;
-        gizmo.scale.set(s, s, s);
+        activeGizmo.scale.set(s, s, s);
       }
 
       renderer.render(scene, helperCamera);
@@ -347,6 +467,9 @@ export default function SetupView() {
       unsub();
       ro.disconnect();
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('studio:set-gizmo-mode', onModeChange);
+      window.removeEventListener('studio:select', onExternalSelect);
       container.removeEventListener('pointerdown', onPointerDown);
       container.removeEventListener('pointermove', onPointerMove);
       container.removeEventListener('pointerup', onPointerUp);

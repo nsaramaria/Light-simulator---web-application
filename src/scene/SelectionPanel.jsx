@@ -80,6 +80,33 @@ const SidebarHint = styled.div`
   line-height: 1.6;
 `;
 
+// Mode toggle buttons (W=move, E=rotate)
+const ModeRow = styled.div`
+  display: flex;
+  gap: 4px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #3d3530;
+  flex-shrink: 0;
+`;
+
+const ModeBtn = styled.button`
+  flex: 1;
+  padding: 4px 0;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: ${({ $active }) => $active ? 'rgba(212,165,116,0.15)' : 'transparent'};
+  border: 1px solid ${({ $active }) => $active ? '#d4a574' : '#3d3530'};
+  color: ${({ $active }) => $active ? '#d4a574' : '#9b8a7a'};
+
+  &:hover {
+    border-color: #d4a574;
+    color: #d4a574;
+  }
+`;
+
 const SliderGroup = styled.div`
   padding: 10px 12px;
   display: flex;
@@ -105,7 +132,9 @@ const AxisLabel = styled.span`
   font-size: 10px;
   font-weight: 600;
   color: ${({ $axis }) =>
-    $axis === 'x' ? '#e05a4e' : $axis === 'y' ? '#5aad5a' : $axis === 'z' ? '#4a90d9' : '#d4a574'};
+    $axis === 'x' || $axis === 'rx' ? '#e05a4e' :
+    $axis === 'y' || $axis === 'ry' ? '#5aad5a' :
+    $axis === 'z' || $axis === 'rz' ? '#4a90d9' : '#d4a574'};
   width: 10px;
   text-transform: uppercase;
   flex-shrink: 0;
@@ -166,8 +195,17 @@ const Divider = styled.div`
   margin: 2px 0;
 `;
 
-// Slider definitions per element type
-const SLIDERS_BY_TYPE = {
+const SectionLabel = styled.div`
+  font-size: 9px;
+  font-weight: 600;
+  color: #9b8a7a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 0 2px;
+`;
+
+// Position sliders per element type
+const POS_SLIDERS = {
   'point-light': [
     { key: 'x', axis: 'x', min: -10, max: 10, step: 0.1 },
     { key: 'y', axis: 'y', min: 0,   max: 12, step: 0.1 },
@@ -186,10 +224,18 @@ const SLIDERS_BY_TYPE = {
   ],
 };
 
+// Rotation sliders : same for all types, degrees 0-360
+const ROT_SLIDERS = [
+  { key: 'rx', axis: 'rx', min: -180, max: 180, step: 1 },
+  { key: 'ry', axis: 'ry', min: -180, max: 180, step: 1 },
+  { key: 'rz', axis: 'rz', min: -180, max: 180, step: 1 },
+];
+
+// Human readable label per element type
 const LABEL_BY_TYPE = {
-  'point-light':   'Point Light',
-  'product-cube':  'Product Cube',
-  camera:          'Camera',
+  'point-light':  'Point Light',
+  'product-cube': 'Product Cube',
+  camera:         'Camera',
 };
 
 // Get current state object for any selected id
@@ -203,6 +249,7 @@ export default function SelectionPanel() {
   const [selected, setSelected] = useState(null);
   const [vals, setVals] = useState({});
   const [collapsed, setCollapsed] = useState(false);
+  const [gizmoMode, setGizmoMode] = useState('move');
 
   // Listen for selection from Setup view
   useEffect(() => {
@@ -213,18 +260,28 @@ export default function SelectionPanel() {
     };
     window.addEventListener('studio:select', handler);
 
-    // Sync sidebar when gizmo moves an object
+    // Sync sidebar when gizmo moves or rotates an object
     const posHandler = (e) => {
       const { axis, val } = e.detail;
       setVals(v => ({ ...v, [axis]: val }));
     };
     window.addEventListener('studio:position-update', posHandler);
 
+    // Sync mode indicator when W/E keys change mode
+    const modeHandler = (e) => setGizmoMode(e.detail);
+    window.addEventListener('studio:gizmo-mode', modeHandler);
+
     return () => {
       window.removeEventListener('studio:select', handler);
       window.removeEventListener('studio:position-update', posHandler);
+      window.removeEventListener('studio:gizmo-mode', modeHandler);
     };
   }, []);
+
+  const switchMode = (mode) => {
+    setGizmoMode(mode);
+    window.dispatchEvent(new CustomEvent('studio:set-gizmo-mode', { detail: mode }));
+  };
 
   // Collapsed state , show thin strip with vertical label
   if (collapsed) return (
@@ -248,8 +305,8 @@ export default function SelectionPanel() {
     </Sidebar>
   );
 
-  const type  = selected === 'camera' ? 'camera' : sceneState.elements[selected]?.type;
-  const sliders = SLIDERS_BY_TYPE[type] ?? [];
+  const type    = selected === 'camera' ? 'camera' : sceneState.elements[selected]?.type;
+  const posSliders = POS_SLIDERS[type] ?? [];
   const label   = LABEL_BY_TYPE[type] ?? selected;
 
   const handleChange = (sl, raw) => {
@@ -278,38 +335,52 @@ export default function SelectionPanel() {
     setVals(v => ({ ...v, [sl.key]: clamped }));
   };
 
+  const renderSlider = (sl, i, arr) => (
+    <React.Fragment key={sl.key}>
+      {i > 0 && sl.axis !== arr[i - 1].axis && <Divider />}
+      <SliderRow>
+        <SliderTop>
+          <AxisLabel $axis={sl.axis}>{sl.axis.replace('r', '')}</AxisLabel>
+          <Slider
+            min={sl.min}
+            max={sl.max}
+            step={sl.step}
+            value={parseFloat(vals[sl.key]) || 0}
+            onChange={e => handleChange(sl, e.target.value)}
+          />
+          <NumInput
+            value={vals[sl.key] !== undefined ? (typeof vals[sl.key] === 'number' ? vals[sl.key].toFixed(1) : vals[sl.key]) : '0.0'}
+            onChange={e => handleNumInput(sl, e.target.value)}
+            onBlur={e => handleNumBlur(sl, e.target.value)}
+            step={sl.step}
+            min={sl.min}
+            max={sl.max}
+          />
+        </SliderTop>
+      </SliderRow>
+    </React.Fragment>
+  );
+
   return (
     <Sidebar $collapsed={false}>
       <SidebarHeader>
         <SidebarTitle>{label}</SidebarTitle>
         <CollapseBtn onClick={() => setCollapsed(true)} title="Collapse">‹</CollapseBtn>
       </SidebarHeader>
+
+      {/* W move, E rotate */}
+      <ModeRow>
+        <ModeBtn $active={gizmoMode === 'move'} onClick={() => switchMode('move')} title="Move (W)">
+          Move <span style={{ opacity: 0.5, fontSize: 9 }}>W</span>
+        </ModeBtn>
+        <ModeBtn $active={gizmoMode === 'rotate'} onClick={() => switchMode('rotate')} title="Rotate (E)">
+          Rotate <span style={{ opacity: 0.5, fontSize: 9 }}>E</span>
+        </ModeBtn>
+      </ModeRow>
+
       <SliderGroup>
-        {sliders.map((sl, i) => (
-          <React.Fragment key={sl.key}>
-            {i > 0 && sl.axis !== sliders[i - 1].axis && <Divider />}
-            <SliderRow>
-              <SliderTop>
-                <AxisLabel $axis={sl.axis}>{sl.axis}</AxisLabel>
-                <Slider
-                  min={sl.min}
-                  max={sl.max}
-                  step={sl.step}
-                  value={parseFloat(vals[sl.key]) || 0}
-                  onChange={e => handleChange(sl, e.target.value)}
-                />
-                <NumInput
-                  value={vals[sl.key] !== undefined ? (typeof vals[sl.key] === 'number' ? vals[sl.key].toFixed(2) : vals[sl.key]) : '0.00'}
-                  onChange={e => handleNumInput(sl, e.target.value)}
-                  onBlur={e => handleNumBlur(sl, e.target.value)}
-                  step={sl.step}
-                  min={sl.min}
-                  max={sl.max}
-                />
-              </SliderTop>
-            </SliderRow>
-          </React.Fragment>
-        ))}
+        <SectionLabel>Position</SectionLabel>
+        {posSliders.map((sl, i) => renderSlider(sl, i, posSliders))}
 
         {type === 'point-light' && (
           <>
@@ -327,6 +398,10 @@ export default function SelectionPanel() {
             </ColorRow>
           </>
         )}
+
+        <Divider />
+        <SectionLabel>Rotation (°)</SectionLabel>
+        {ROT_SLIDERS.map((sl, i) => renderSlider(sl, i, ROT_SLIDERS))}
       </SliderGroup>
     </Sidebar>
   );

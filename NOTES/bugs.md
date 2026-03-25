@@ -1,0 +1,2 @@
+1) for the newly added cubes, gizmo arrows looks differently
+2) when I add a new light/ cube, the slide bar shows me the details of the new element, but the arrows and selection mode is still on the lastly selected one

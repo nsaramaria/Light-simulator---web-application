@@ -10,6 +10,8 @@ const Mount = styled.div`
   background: #000;
 `;
 
+const DEG2RAD = Math.PI / 180;
+
 export default function CameraView() {
   const mountRef = useRef(null);
 
@@ -36,10 +38,18 @@ export default function CameraView() {
     container.appendChild(renderer.domElement);
 
     const unsub = onSceneChange(() => {
-      camera.position.set(
-        sceneState.camera.x, sceneState.camera.y, sceneState.camera.z
-      );
-      camera.lookAt(0, PRODUCT.position.y, 0);
+      const { x, y, z, rx, ry, rz } = sceneState.camera;
+      camera.position.set(x, y, z);
+      // Apply rotation if set  otherwise default to looking at the subject
+      if (rx || ry || rz) {
+        camera.rotation.set(
+          (rx ?? 0) * DEG2RAD,
+          (ry ?? 0) * DEG2RAD,
+          (rz ?? 0) * DEG2RAD
+        );
+      } else {
+        camera.lookAt(0, PRODUCT.position.y, 0);
+      }
     });
 
     let rafId;

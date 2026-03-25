@@ -17,11 +17,13 @@ const notify = () => listeners.forEach(fn => fn());
 let lightCounter = 0;
 let productCounter = 0;
 
+const DEG2RAD = Math.PI / 180;
+
 // Scene state 
 export const sceneState = {
   selected: null,
   elements: {},  // keyed by id
-  camera:   { x: 0, y: 3, z: 8 },
+  camera:   { x: 0, y: 3, z: 8, rx: 0, ry: 0, rz: 0 },
 };
 
 // Updaters 
@@ -33,15 +35,21 @@ export const updateElement = (id, key, val) => {
   if (obj.isLight) {
     if (key === 'intensity') obj.intensity = val;
     else if (key === 'color') obj.color.set(val);
+    else if (key === 'rx') obj.rotation.x = val * DEG2RAD;
+    else if (key === 'ry') obj.rotation.y = val * DEG2RAD;
+    else if (key === 'rz') obj.rotation.z = val * DEG2RAD;
     else obj.position[key] = val;
   } else {
-    obj.position[key] = val;
+    if (key === 'rx') obj.rotation.x = val * DEG2RAD;
+    else if (key === 'ry') obj.rotation.y = val * DEG2RAD;
+    else if (key === 'rz') obj.rotation.z = val * DEG2RAD;
+    else obj.position[key] = val;
   }
   notify();
 };
 
-export const updateCamera = (axis, val) => {
-  sceneState.camera[axis] = val;
+export const updateCamera = (key, val) => {
+  sceneState.camera[key] = val;
   notify();
 };
 
@@ -54,7 +62,7 @@ export const addPointLight = () => {
   light.userData.id = id;
   sharedInstance.scene.add(light);
   sharedInstance.elementMeshes[id] = light;
-  sceneState.elements[id] = { x: 0, y: 5, z: 0, intensity: 1.5, color: '#ffffff', type: 'point-light' };
+  sceneState.elements[id] = { x: 0, y: 5, z: 0, rx: 0, ry: 0, rz: 0, intensity: 1.5, color: '#ffffff', type: 'point-light' };
   notify();
   return id;
 };
@@ -72,7 +80,7 @@ export const addProductCube = () => {
   mesh.userData.id = id;
   sharedInstance.scene.add(mesh);
   sharedInstance.elementMeshes[id] = mesh;
-  sceneState.elements[id] = { x: 0, y: 1, z: 0, type: 'product-cube' };
+  sceneState.elements[id] = { x: 0, y: 1, z: 0, rx: 0, ry: 0, rz: 0, type: 'product-cube' };
   notify();
   return id;
 };
@@ -100,7 +108,6 @@ export const createSharedScene = () => {
 
   sharedInstance = { scene, elementMeshes };
 
-  // Add default product and light via the shared adders so theyre tracked
   addProductCube();
   addPointLight();
 
