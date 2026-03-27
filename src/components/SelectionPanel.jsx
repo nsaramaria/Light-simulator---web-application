@@ -11,7 +11,7 @@ const Sidebar = styled.div`
   flex-direction: column;
   flex-shrink: 0;
   overflow: hidden;
-  transition: width 0.2s ease;
+
 `;
 
 const SidebarHeader = styled.div`
@@ -251,6 +251,13 @@ export default function SelectionPanel() {
   const [collapsed, setCollapsed] = useState(false);
   const [gizmoMode, setGizmoMode] = useState('move');
 
+  const toggleCollapse = (val) => {
+    setCollapsed(val);
+    requestAnimationFrame(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
+  };
+
   // Listen for selection from Setup view
   useEffect(() => {
     const handler = (e) => {
@@ -287,9 +294,9 @@ export default function SelectionPanel() {
   if (collapsed) return (
     <Sidebar $collapsed>
       <SidebarHeader style={{ justifyContent: 'center', padding: '8px 0' }}>
-        <CollapseBtn onClick={() => setCollapsed(false)} title="Expand">›</CollapseBtn>
+        <CollapseBtn onClick={() => toggleCollapse(false)} title="Expand">›</CollapseBtn>
       </SidebarHeader>
-      <CollapsedLabel onClick={() => setCollapsed(false)}>
+      <CollapsedLabel onClick={() => toggleCollapse(false)}>
         {selected ? (LABEL_BY_TYPE[sceneState.elements[selected]?.type ?? selected] ?? 'Details') : 'Details'}
       </CollapsedLabel>
     </Sidebar>
@@ -299,7 +306,7 @@ export default function SelectionPanel() {
     <Sidebar $collapsed={false}>
       <SidebarHeader>
         <SidebarTitle>Details</SidebarTitle>
-        <CollapseBtn onClick={() => setCollapsed(true)} title="Collapse">‹</CollapseBtn>
+        <CollapseBtn onClick={() => toggleCollapse(true)} title="Collapse">‹</CollapseBtn>
       </SidebarHeader>
       <SidebarHint>Click an element in the Setup View to select and move it</SidebarHint>
     </Sidebar>
@@ -365,7 +372,7 @@ export default function SelectionPanel() {
     <Sidebar $collapsed={false}>
       <SidebarHeader>
         <SidebarTitle>{label}</SidebarTitle>
-        <CollapseBtn onClick={() => setCollapsed(true)} title="Collapse">‹</CollapseBtn>
+        <CollapseBtn onClick={() => toggleCollapse(true)} title="Collapse">‹</CollapseBtn>
       </SidebarHeader>
 
       {/* W move, E rotate */}

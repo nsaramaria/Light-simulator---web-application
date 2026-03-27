@@ -129,6 +129,9 @@ export default function SetupView() {
     helperCamera.updateProjectionMatrix();
     container.appendChild(renderer.domElement);
 
+    renderer.domElement.style.width = '100%';
+renderer.domElement.style.height = '100%';
+
     // Remeasure after DOM append so aspect ratio is correct
     const actualW = container.clientWidth, actualH = container.clientHeight;
     renderer.setSize(actualW, actualH);

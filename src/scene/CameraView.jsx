@@ -37,6 +37,9 @@ export default function CameraView() {
     camera.updateProjectionMatrix();
     container.appendChild(renderer.domElement);
 
+    renderer.domElement.style.width = '100%';
+renderer.domElement.style.height = '100%';
+
     const unsub = onSceneChange(() => {
       const { x, y, z, rx, ry, rz } = sceneState.camera;
       camera.position.set(x, y, z);
