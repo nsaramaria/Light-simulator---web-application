@@ -1,16 +1,17 @@
 import React from 'react';
 import styled from 'styled-components';
 import AddMenu from './AddMenu';
+import { colors } from '../styles/theme';
 
 const HeaderBar = styled.div`
-  background: #2d2822;
+  background: ${colors.surface};
   padding: 16px 24px;
-  color: #e8dfd6;
+  color: ${colors.text};
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #3d3530;
+  border-bottom: 1px solid ${colors.border};
 `;
 
 const Title = styled.h1`
@@ -27,8 +28,8 @@ const HeaderRight = styled.div`
 
 const HelpButton = styled.button`
   background: transparent;
-  border: 1px solid #3d3530;
-  color: #e8dfd6;
+  border: 1px solid ${colors.border};
+  color: ${colors.text};
   padding: 8px 16px;
   border-radius: 6px;
   font-size: 14px;
@@ -37,9 +38,9 @@ const HelpButton = styled.button`
   transition: all 0.2s;
 
   &:hover {
-    background: #3d3530;
-    border-color: #d4a574;
-    color: #d4a574;
+    background: ${colors.border};
+    border-color: ${colors.accent};
+    color: ${colors.accent};
   }
 `;
 

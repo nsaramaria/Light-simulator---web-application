@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
+import { colors } from '../styles/theme';
 
 const Wrapper = styled.div`
   position: relative;
@@ -7,8 +8,8 @@ const Wrapper = styled.div`
 
 const AddBtn = styled.button`
   background: ${({ $open }) => $open ? 'rgba(212, 165, 116, 0.08)' : 'transparent'};
-  border: 1px solid ${({ $open }) => $open ? '#d4a574' : '#3d3530'};
-  color: ${({ $open }) => $open ? '#d4a574' : '#e8dfd6'};
+  border: 1px solid ${({ $open }) => $open ? colors.accent : colors.border};
+  color: ${({ $open }) => $open ? colors.accent : colors.text};
   padding: 8px 16px;
   border-radius: 6px;
   font-size: 14px;
@@ -17,8 +18,8 @@ const AddBtn = styled.button`
   transition: all 0.2s;
 
   &:hover {
-    border-color: #d4a574;
-    color: #d4a574;
+    border-color: ${colors.accent};
+    color: ${colors.accent};
   }
 `;
 
@@ -33,8 +34,8 @@ const MenuWrap = styled.div`
 
 const Dropdown = styled.div`
   width: 160px;
-  background: #252019;
-  border: 1px solid #3d3530;
+  background: ${colors.surfaceDark};
+  border: 1px solid ${colors.border};
   border-radius: 6px;
   overflow: hidden;
 `;
@@ -42,8 +43,8 @@ const Dropdown = styled.div`
 const CatItem = styled.div`
   padding: 8px 12px;
   font-size: 13px;
-  color: ${({ $active }) => $active ? '#d4a574' : '#e8dfd6'};
-  background: ${({ $active }) => $active ? '#3d3530' : 'transparent'};
+  color: ${({ $active }) => $active ? colors.accent : colors.text};
+  background: ${({ $active }) => $active ? colors.border : 'transparent'};
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -51,12 +52,12 @@ const CatItem = styled.div`
   transition: background 0.1s;
 
   &:hover {
-    background: #3d3530;
-    color: #d4a574;
+    background: ${colors.border};
+    color: ${colors.accent};
   }
 
   & + & {
-    border-top: 1px solid #3d3530;
+    border-top: 1px solid ${colors.border};
   }
 `;
 
@@ -71,13 +72,13 @@ const CatIcon = styled.div`
 
 const CatArrow = styled.span`
   font-size: 10px;
-  color: #9b8a7a;
+  color: ${colors.textMuted};
 `;
 
 const Flyout = styled.div`
   width: 160px;
-  background: #252019;
-  border: 1px solid #3d3530;
+  background: ${colors.surfaceDark};
+  border: 1px solid ${colors.border};
   border-radius: 6px;
   overflow: hidden;
   align-self: flex-start;
@@ -87,16 +88,16 @@ const FlyoutHeader = styled.div`
   padding: 5px 12px;
   font-size: 9px;
   font-weight: 600;
-  color: #9b8a7a;
+  color: ${colors.textMuted};
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  border-bottom: 1px solid #3d3530;
+  border-bottom: 1px solid ${colors.border};
 `;
 
 const FlyoutItem = styled.div`
   padding: 8px 12px;
   font-size: 13px;
-  color: #e8dfd6;
+  color: ${colors.text};
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -104,12 +105,12 @@ const FlyoutItem = styled.div`
   transition: background 0.1s;
 
   &:hover {
-    background: #3d3530;
-    color: #d4a574;
+    background: ${colors.border};
+    color: ${colors.accent};
   }
 
   & + & {
-    border-top: 1px solid #3d3530;
+    border-top: 1px solid ${colors.border};
   }
 `;
 
@@ -126,19 +127,19 @@ const CATEGORIES = [
   {
     id: 'lights',
     label: 'Lights',
-    iconColor: '#d4a574',
+    iconColor: colors.lightIcon,
     iconRound: true,
     items: [
-      { id: 'point-light', label: 'Point Light', iconColor: '#d4a574', iconRound: true },
+      { id: 'point-light', label: 'Point Light', iconColor: colors.lightIcon, iconRound: true },
     ],
   },
   {
     id: 'props',
     label: 'Props',
-    iconColor: '#d4a5a5',
+    iconColor: colors.productIcon,
     iconRound: false,
     items: [
-      { id: 'product-cube', label: 'Product Cube', iconColor: '#d4a5a5', iconRound: false },
+      { id: 'product-cube', label: 'Product Cube', iconColor: colors.productIcon, iconRound: false },
     ],
   },
 ];

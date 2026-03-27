@@ -1,0 +1,15 @@
+export const colors = {
+  accent:      '#d4a574',
+  border:      '#3d3530',
+  textMuted:   '#9b8a7a',
+  text:        '#e8dfd6',
+  surface:     '#2d2822',
+  surfaceDark: '#252019',
+  background:  '#1e1a16',
+  sceneBg:     '#1a1a1a',
+  axisX:       '#e05a4e',
+  axisY:       '#5aad5a',
+  axisZ:       '#4a90d9',
+  lightIcon:   '#d4a574',
+  productIcon: '#d4a5a5',
+};

@@ -6,6 +6,7 @@ import SelectionPanel from './components/SelectionPanel';
 import Header from './components/Header';
 import HelpModal from './components/Help';
 import { addPointLight, addProductCube } from './scene/sharedScene';
+import { colors } from './styles/theme';
 
 const AppWrapper = styled.div`
   width: 100vw;
@@ -34,7 +35,7 @@ const ViewPanel = styled.div`
 const Divider = styled.div`
   width: 5px;
   height: 100%;
-  background: #3d3530;
+  background: ${colors.border};
   cursor: col-resize;
   flex-shrink: 0;
   transition: background 0.2s;
@@ -43,12 +44,12 @@ const Divider = styled.div`
   justify-content: center;
 
   &:hover, &:active {
-    background: #d4a574;
+    background: ${colors.accent};
   }
 
   &::after {
     content: '⋮';
-    color: #9b8a7a;
+    color: ${colors.textMuted};
     font-size: 14px;
     pointer-events: none;
   }
@@ -59,14 +60,14 @@ const ViewLabel = styled.div`
   top: 10px;
   left: 10px;
   background: rgba(45, 40, 34, 0.85);
-  color: #e8dfd6;
+  color: ${colors.text};
   padding: 6px 12px;
   border-radius: 4px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  border: 1px solid #3d3530;
+  border: 1px solid ${colors.border};
   z-index: 10;
 `;
 
@@ -76,8 +77,8 @@ const MaximizeBtn = styled.button`
   right: 10px;
   z-index: 10;
   background: rgba(45, 40, 34, 0.85);
-  border: 1px solid #3d3530;
-  color: #9b8a7a;
+  border: 1px solid ${colors.border};
+  color: ${colors.textMuted};
   width: 28px;
   height: 28px;
   border-radius: 4px;
@@ -89,8 +90,8 @@ const MaximizeBtn = styled.button`
   transition: all 0.2s;
 
   &:hover {
-    border-color: #d4a574;
-    color: #d4a574;
+    border-color: ${colors.accent};
+    color: ${colors.accent};
   }
 `;
 

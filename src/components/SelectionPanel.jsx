@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { sceneState, updateElement, updateCamera } from '../scene/sharedScene';
+import { colors } from '../styles/theme';
 
 const Sidebar = styled.div`
   width: ${({ $collapsed }) => $collapsed ? '24px' : '220px'};
   height: 100%;
-  background: #1e1a16;
-  border-left: 1px solid #3d3530;
+  background: ${colors.background};
+  border-left: 1px solid ${colors.border};
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -19,7 +20,7 @@ const SidebarHeader = styled.div`
   align-items: center;
   justify-content: space-between;
   padding: 8px 10px;
-  border-bottom: 1px solid #3d3530;
+  border-bottom: 1px solid ${colors.border};
   flex-shrink: 0;
   min-height: 32px;
 `;
@@ -27,7 +28,7 @@ const SidebarHeader = styled.div`
 const SidebarTitle = styled.div`
   font-size: 10px;
   font-weight: 600;
-  color: #d4a574;
+  color: ${colors.accent};
   text-transform: uppercase;
   letter-spacing: 0.6px;
   white-space: nowrap;
@@ -37,7 +38,7 @@ const SidebarTitle = styled.div`
 const CollapseBtn = styled.button`
   background: transparent;
   border: none;
-  color: #9b8a7a;
+  color: ${colors.textMuted};
   cursor: pointer;
   font-size: 14px;
   padding: 0;
@@ -46,7 +47,7 @@ const CollapseBtn = styled.button`
   transition: color 0.2s;
 
   &:hover {
-    color: #d4a574;
+    color: ${colors.accent};
   }
 `;
 
@@ -55,7 +56,7 @@ const CollapsedLabel = styled.div`
   writing-mode: vertical-rl;
   font-size: 9px;
   font-weight: 600;
-  color: #9b8a7a;
+  color: ${colors.textMuted};
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding-top: 10px;
@@ -64,7 +65,7 @@ const CollapsedLabel = styled.div`
   flex: 1;
 
   &:hover {
-    color: #d4a574;
+    color: ${colors.accent};
   }
 `;
 
@@ -74,7 +75,7 @@ const SidebarHint = styled.div`
   align-items: center;
   justify-content: center;
   font-size: 11px;
-  color: #9b8a7a;
+  color: ${colors.textMuted};
   padding: 24px;
   text-align: center;
   line-height: 1.6;
@@ -85,7 +86,7 @@ const ModeRow = styled.div`
   display: flex;
   gap: 4px;
   padding: 8px 10px;
-  border-bottom: 1px solid #3d3530;
+  border-bottom: 1px solid ${colors.border};
   flex-shrink: 0;
 `;
 
@@ -98,12 +99,12 @@ const ModeBtn = styled.button`
   cursor: pointer;
   transition: all 0.15s;
   background: ${({ $active }) => $active ? 'rgba(212,165,116,0.15)' : 'transparent'};
-  border: 1px solid ${({ $active }) => $active ? '#d4a574' : '#3d3530'};
-  color: ${({ $active }) => $active ? '#d4a574' : '#9b8a7a'};
+  border: 1px solid ${({ $active }) => $active ? colors.accent : colors.border};
+  color: ${({ $active }) => $active ? colors.accent : colors.textMuted};
 
   &:hover {
-    border-color: #d4a574;
-    color: #d4a574;
+    border-color: ${colors.accent};
+    color: ${colors.accent};
   }
 `;
 
@@ -132,9 +133,9 @@ const AxisLabel = styled.span`
   font-size: 10px;
   font-weight: 600;
   color: ${({ $axis }) =>
-    $axis === 'x' || $axis === 'rx' ? '#e05a4e' :
-    $axis === 'y' || $axis === 'ry' ? '#5aad5a' :
-    $axis === 'z' || $axis === 'rz' ? '#4a90d9' : '#d4a574'};
+    $axis === 'x' || $axis === 'rx' ? colors.axisX :
+    $axis === 'y' || $axis === 'ry' ? colors.axisY :
+    $axis === 'z' || $axis === 'rz' ? colors.axisZ : colors.accent};
   width: 10px;
   text-transform: uppercase;
   flex-shrink: 0;
@@ -143,16 +144,16 @@ const AxisLabel = styled.span`
 const Slider = styled.input.attrs({ type: 'range' })`
   flex: 1;
   height: 3px;
-  accent-color: #d4a574;
+  accent-color: ${colors.accent};
   cursor: pointer;
   min-width: 0;
 `;
 
 const NumInput = styled.input.attrs({ type: 'number' })`
   width: 52px;
-  background: #2d2822;
-  border: 1px solid #3d3530;
-  color: #e8dfd6;
+  background: ${colors.surface};
+  border: 1px solid ${colors.border};
+  color: ${colors.text};
   font-size: 11px;
   padding: 3px 5px;
   border-radius: 3px;
@@ -162,7 +163,7 @@ const NumInput = styled.input.attrs({ type: 'number' })`
 
   &:focus {
     outline: none;
-    border-color: #d4a574;
+    border-color: ${colors.accent};
   }
 
   /* hide spin arrows */
@@ -191,14 +192,14 @@ const ColorInput = styled.input.attrs({ type: 'color' })`
 
 const Divider = styled.div`
   height: 1px;
-  background: #3d3530;
+  background: ${colors.border};
   margin: 2px 0;
 `;
 
 const SectionLabel = styled.div`
   font-size: 9px;
   font-weight: 600;
-  color: #9b8a7a;
+  color: ${colors.textMuted};
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 4px 0 2px;
@@ -401,7 +402,7 @@ export default function SelectionPanel() {
                   setVals(v => ({ ...v, color: e.target.value }));
                 }}
               />
-              <span style={{ fontSize: '10px', color: '#9b8a7a' }}>Light color</span>
+              <span style={{ fontSize: '10px', color: colors.textMuted }}>Light color</span>
             </ColorRow>
           </>
         )}

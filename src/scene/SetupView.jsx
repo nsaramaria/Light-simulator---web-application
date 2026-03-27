@@ -5,11 +5,12 @@ import { createSharedScene, destroySharedScene, sceneState, onSceneChange, updat
 import { CAMERA } from './sceneConfig';
 import styled from 'styled-components';
 import { DEG2RAD, RAD2DEG } from '../utils/math';
+import { colors } from '../styles/theme';
 
 const Mount = styled.div`
   width: 100%;
   height: 100%;
-  background: #1a1a1a;
+  background: ${colors.sceneBg};
   cursor: pointer;
 `;
 

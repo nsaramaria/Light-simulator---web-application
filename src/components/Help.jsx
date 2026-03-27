@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import { colors } from '../styles/theme';
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -16,7 +17,7 @@ const ModalOverlay = styled.div`
 `;
 
 const ModalBox = styled.div`
-  background: #2d2822;
+  background: ${colors.surface};
   border-radius: 12px;
   padding: 0;
   max-width: 600px;
@@ -24,12 +25,12 @@ const ModalBox = styled.div`
   max-height: 80vh;
   overflow: auto;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-  border: 1px solid #3d3530;
+  border: 1px solid ${colors.border};
 `;
 
 const ModalHeader = styled.div`
   padding: 20px 24px;
-  border-bottom: 1px solid #3d3530;
+  border-bottom: 1px solid ${colors.border};
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -38,14 +39,14 @@ const ModalHeader = styled.div`
 const ModalTitle = styled.h2`
   margin: 0;
   font-size: 20px;
-  color: #e8dfd6;
+  color: ${colors.text};
   font-weight: 600;
 `;
 
 const CloseButton = styled.button`
   background: transparent;
   border: none;
-  color: #9b8a7a;
+  color: ${colors.textMuted};
   font-size: 24px;
   cursor: pointer;
   padding: 0;
@@ -58,14 +59,14 @@ const CloseButton = styled.button`
   transition: all 0.2s;
 
   &:hover {
-    background: #3d3530;
-    color: #e8dfd6;
+    background: ${colors.border};
+    color: ${colors.text};
   }
 `;
 
 const ModalContent = styled.div`
   padding: 24px;
-  color: #e8dfd6;
+  color: ${colors.text};
 `;
 
 const Section = styled.div`
@@ -73,7 +74,7 @@ const Section = styled.div`
 `;
 
 const SectionTitle = styled.h3`
-  color: #e8dfd6;
+  color: ${colors.text};
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 12px;
@@ -88,13 +89,13 @@ const SectionList = styled.ul`
 
 const ModalFooter = styled.div`
   padding: 16px 24px;
-  border-top: 1px solid #3d3530;
+  border-top: 1px solid ${colors.border};
   display: flex;
   justify-content: flex-end;
 `;
 
 const GotItButton = styled.button`
-  background: #d4a574;
+  background: ${colors.accent};
   border: none;
   color: #1a1612;
   padding: 10px 24px;
@@ -121,7 +122,7 @@ export default function HelpModal({ onClose }) {
         <ModalContent>
           <Section>
             <SectionTitle>About</SectionTitle>
-            <p style={{ margin: 0, lineHeight: '1.7', color: '#9b8a7a', fontSize: '14px' }}>
+            <p style={{ margin: 0, lineHeight: '1.7', color: colors.textMuted, fontSize: '14px' }}>
               Plan and visualise your studio photo setup in real time. Arrange the product, light and camera in the Setup View and instantly see the result through the lens in the Camera View.
             </p>
           </Section>
