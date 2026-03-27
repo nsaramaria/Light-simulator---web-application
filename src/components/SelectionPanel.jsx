@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { sceneState, updateElement, updateCamera } from './sharedScene';
+import { sceneState, updateElement, updateCamera } from '../scene/sharedScene';
 
 const Sidebar = styled.div`
   width: ${({ $collapsed }) => $collapsed ? '24px' : '220px'};
