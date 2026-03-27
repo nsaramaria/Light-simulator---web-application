@@ -1,6 +1,7 @@
 // src/scene/sharedScene.js
 import * as THREE from 'three';
 import { SCENE, LIGHT, PRODUCT, FLOOR } from './sceneConfig';
+import { DEG2RAD } from '../utils/math';
 
 let sharedInstance = null;
 
@@ -16,8 +17,6 @@ const notify = () => listeners.forEach(fn => fn());
 // Counters for generating unique element ids
 let lightCounter = 0;
 let productCounter = 0;
-
-const DEG2RAD = Math.PI / 180;
 
 // Scene state 
 export const sceneState = {

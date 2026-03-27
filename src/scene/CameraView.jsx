@@ -3,14 +3,13 @@ import * as THREE from 'three';
 import { createSharedScene, sceneState, onSceneChange } from './sharedScene';
 import { CAMERA, PRODUCT } from './sceneConfig';
 import styled from 'styled-components';
+import { DEG2RAD } from '../utils/math';
 
 const Mount = styled.div`
   width: 100%;
   height: 100%;
   background: #000;
 `;
-
-const DEG2RAD = Math.PI / 180;
 
 export default function CameraView() {
   const mountRef = useRef(null);

@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { createSharedScene, destroySharedScene, sceneState, onSceneChange, updateElement, updateCamera } from './sharedScene';
 import { CAMERA } from './sceneConfig';
 import styled from 'styled-components';
+import { DEG2RAD, RAD2DEG } from '../utils/math';
 
 const Mount = styled.div`
   width: 100%;
@@ -11,9 +12,6 @@ const Mount = styled.div`
   background: #1a1a1a;
   cursor: pointer;
 `;
-
-const DEG2RAD = Math.PI / 180;
-const RAD2DEG = 180 / Math.PI;
 
 // Proxy sphere for lights
 const makeLightProxy = (position, id) => {
