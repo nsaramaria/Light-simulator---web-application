@@ -6,6 +6,9 @@ import { CAMERA } from './sceneConfig';
 import styled from 'styled-components';
 import { DEG2RAD, RAD2DEG } from '../utils/math';
 import { colors } from '../styles/theme';
+import { makeLightProxy, makeProductProxy, makeCameraProxy } from './objects/proxies';
+import { makeMoveGizmo } from './gizmos/move';
+import { makeRotateGizmo } from './gizmos/rotate';
 
 const Mount = styled.div`
   width: 100%;
@@ -13,100 +16,6 @@ const Mount = styled.div`
   background: ${colors.sceneBg};
   cursor: pointer;
 `;
-
-// Proxy sphere for lights
-const makeLightProxy = (position, id) => {
-  const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(0.25, 16, 16),
-    new THREE.MeshBasicMaterial({ color: 0xffffff })
-  );
-  mesh.position.copy(position);
-  mesh.userData.id = id;
-  mesh.userData.proxyFor = id;
-  return mesh;
-};
-
-// Proxy box for product cubes
-const makeProductProxy = (position, id) => {
-  const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 2, 2),
-    new THREE.MeshBasicMaterial({ color: 0xd4a5a5, wireframe: true })
-  );
-  mesh.position.copy(position);
-  mesh.userData.id = id;
-  mesh.userData.proxyFor = id;
-  return mesh;
-};
-
-const makeCameraProxy = (position) => {
-  const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(0.4, 0.3, 0.6),
-    new THREE.MeshBasicMaterial({ color: 0xd4a574 })
-  );
-  mesh.position.copy(position);
-  mesh.userData.id = 'camera';
-  return mesh;
-};
-
-// Build a simple arrow gizmo
-const makeMoveGizmo = () => {
-  const group = new THREE.Group();
-  group.layers.set(1);
-
-  const axes = [
-    { axis: 'x', color: 0xe05a4e, dir: new THREE.Vector3(1, 0, 0) },
-    { axis: 'y', color: 0x5aad5a, dir: new THREE.Vector3(0, 1, 0) },
-    { axis: 'z', color: 0x4a90d9, dir: new THREE.Vector3(0, 0, 1) },
-  ];
-
-  for (const { axis, color, dir } of axes) {
-    const mat = new THREE.MeshBasicMaterial({ color, depthTest: false });
-
-    // Shaft
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.2, 8), mat);
-    shaft.position.copy(dir.clone().multiplyScalar(0.6));
-    shaft.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-    shaft.userData.gizmoAxis = axis;
-    shaft.userData.gizmoType = 'move';
-    shaft.layers.set(1);
-
-    // Tip (cone)
-    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.3, 8), mat);
-    tip.position.copy(dir.clone().multiplyScalar(1.35));
-    tip.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-    tip.userData.gizmoAxis = axis;
-    tip.userData.gizmoType = 'move';
-    tip.layers.set(1);
-
-    group.add(shaft, tip);
-  }
-
-  return group;
-};
-
-// rotation ring gizmo 
-const makeRotateGizmo = () => {
-  const group = new THREE.Group();
-  group.layers.set(1);
-
-  const rings = [
-    { axis: 'rx', color: 0xe05a4e, rot: new THREE.Euler(0, Math.PI / 2, 0) }, // X — red ring in YZ plane
-    { axis: 'ry', color: 0x5aad5a, rot: new THREE.Euler(Math.PI / 2, 0, 0) }, // Y — green ring in XZ plane
-    { axis: 'rz', color: 0x4a90d9, rot: new THREE.Euler(0, 0, 0) },            // Z — blue ring in XY plane
-  ];
-
-  for (const { axis, color, rot } of rings) {
-    const mat = new THREE.MeshBasicMaterial({ color, depthTest: false, side: THREE.DoubleSide });
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.04, 8, 48), mat);
-    ring.rotation.copy(rot);
-    ring.userData.gizmoAxis = axis;
-    ring.userData.gizmoType = 'rotate';
-    ring.layers.set(1);
-    group.add(ring);
-  }
-
-  return group;
-};
 
 export default function SetupView() {
   const mountRef = useRef(null);
@@ -129,7 +38,7 @@ export default function SetupView() {
     container.appendChild(renderer.domElement);
 
     renderer.domElement.style.width = '100%';
-renderer.domElement.style.height = '100%';
+    renderer.domElement.style.height = '100%';
 
     // Remeasure after DOM append so aspect ratio is correct
     const actualW = container.clientWidth, actualH = container.clientHeight;

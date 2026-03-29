@@ -1,7 +1,9 @@
 // src/scene/sharedScene.js
 import * as THREE from 'three';
-import { SCENE, LIGHT, PRODUCT, FLOOR } from './sceneConfig';
+import { SCENE, LIGHT, FLOOR } from './sceneConfig';
 import { DEG2RAD } from '../utils/math';
+import { createPointLight, resetLightCounter } from './objects/lights';
+import { createProductCube, resetProductCounter } from './objects/products';
 
 let sharedInstance = null;
 
@@ -13,10 +15,6 @@ if (import.meta.hot) {
 const listeners = new Set();
 export const onSceneChange = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
 const notify = () => listeners.forEach(fn => fn());
-
-// Counters for generating unique element ids
-let lightCounter = 0;
-let productCounter = 0;
 
 // Scene state 
 export const sceneState = {
@@ -52,36 +50,13 @@ export const updateCamera = (key, val) => {
   notify();
 };
 
-// Add a new point light to the scene
+// Wrappers that pass the singleton context
 export const addPointLight = () => {
-  const id = `light-${lightCounter++}`;
-  const light = new THREE.PointLight(0xffffff, 1.5, 100);
-  light.position.set(0, 5, 0);
-  light.castShadow = true;
-  light.userData.id = id;
-  sharedInstance.scene.add(light);
-  sharedInstance.elementMeshes[id] = light;
-  sceneState.elements[id] = { x: 0, y: 5, z: 0, rx: 0, ry: 0, rz: 0, intensity: 1.5, color: '#ffffff', type: 'point-light' };
-  notify();
-  return id;
+  return createPointLight(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
 };
 
-// Add a new product cube to the scene
 export const addProductCube = () => {
-  const id = `product-${productCounter++}`;
-  const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(PRODUCT.size, PRODUCT.size, PRODUCT.size),
-    new THREE.MeshStandardMaterial({ color: PRODUCT.color })
-  );
-  mesh.position.set(0, 1, 0);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  mesh.userData.id = id;
-  sharedInstance.scene.add(mesh);
-  sharedInstance.elementMeshes[id] = mesh;
-  sceneState.elements[id] = { x: 0, y: 1, z: 0, rx: 0, ry: 0, rz: 0, type: 'product-cube' };
-  notify();
-  return id;
+  return createProductCube(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
 };
 
 export const createSharedScene = () => {
@@ -135,8 +110,8 @@ export const destroySharedScene = () => {
     });
     sharedInstance = null;
   }
-  lightCounter = 0;
-  productCounter = 0;
+  resetLightCounter();
+  resetProductCounter();
   sceneState.elements = {};
   sceneState.selected = null;
   listeners.clear();
