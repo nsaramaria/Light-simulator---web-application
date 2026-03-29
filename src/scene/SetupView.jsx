@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { createSharedScene, destroySharedScene, sceneState, onSceneChange, updateElement, updateCamera } from './sharedScene';
@@ -10,6 +10,12 @@ import { makeLightProxy, makeProductProxy, makeCameraProxy } from './objects/pro
 import { makeMoveGizmo } from './gizmos/move';
 import { makeRotateGizmo } from './gizmos/rotate';
 
+const Wrapper = styled.div`
+  width: 100%;
+  height: 100%;
+  position: relative;
+`;
+
 const Mount = styled.div`
   width: 100%;
   height: 100%;
@@ -17,8 +23,72 @@ const Mount = styled.div`
   cursor: pointer;
 `;
 
+// Blender-style vertical toolbar on left side of viewport
+const Toolbar = styled.div`
+  position: absolute;
+  top: 40px;
+  left: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 10;
+  background: rgba(30, 26, 22, 0.85);
+  border: 1px solid ${colors.border};
+  border-radius: 4px;
+  padding: 3px;
+`;
+
+const ToolBtn = styled.button`
+  width: 28px;
+  height: 28px;
+  background: ${({ $active }) => $active ? 'rgba(212,165,116,0.2)' : 'transparent'};
+  border: 1px solid ${({ $active }) => $active ? colors.accent : 'transparent'};
+  border-radius: 3px;
+  color: ${({ $active }) => $active ? colors.accent : colors.textMuted};
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+
+  &:hover {
+    background: rgba(212,165,116,0.15);
+    color: ${colors.accent};
+  }
+`;
+
+// Move icon (cross arrows)
+const MoveIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+    <line x1="8" y1="1" x2="8" y2="15" />
+    <line x1="1" y1="8" x2="15" y2="8" />
+    <polyline points="5,3 8,1 11,3" />
+    <polyline points="5,13 8,15 11,13" />
+    <polyline points="3,5 1,8 3,11" />
+    <polyline points="13,5 15,8 13,11" />
+  </svg>
+);
+
+// Rotate icon (curved arrow)
+const RotateIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+    <path d="M13 8a5 5 0 1 1-1.5-3.5" />
+    <polyline points="13,2 13,5.5 9.5,5.5" />
+  </svg>
+);
+
+// Original colors per gizmo axis for reset after drag
+const AXIS_COLORS = {
+  x:  0xe05a4e, y:  0x5aad5a, z:  0x4a90d9,
+  rx: 0xe05a4e, ry: 0x5aad5a, rz: 0x4a90d9,
+};
+const HIGHLIGHT_COLOR = 0xffffff;
+
 export default function SetupView() {
   const mountRef = useRef(null);
+  const [activeMode, setActiveMode] = useState('move');
 
   useEffect(() => {
     const { scene, elementMeshes } = createSharedScene();
@@ -73,7 +143,7 @@ export default function SetupView() {
     // Build proxies for all existing elements
     const buildProxies = () => {
       Object.entries(sceneState.elements).forEach(([id, state]) => {
-        if (proxies[id]) return; // already exists
+        if (proxies[id]) return;
         const pos = new THREE.Vector3(state.x, state.y, state.z);
         const proxy = state.type === 'point-light'
           ? makeLightProxy(pos, id)
@@ -91,7 +161,6 @@ export default function SetupView() {
     const axesHelper = new THREE.AxesHelper(5);
     scene.add(axesHelper);
 
-    // These objects are setup view only, hide from camera view
     [cameraProxy, grid, axesHelper].forEach(o => o.layers.set(1));
 
     const moveGizmo = makeMoveGizmo();
@@ -121,8 +190,32 @@ export default function SetupView() {
       active.visible = true;
     };
 
+    const highlightGizmoAxis = (axis) => {
+      const gizmo = getActiveGizmo();
+      gizmo.children.forEach(child => {
+        const a = child.userData.gizmoAxis;
+        if (a === axis) {
+          child.material.color.setHex(HIGHLIGHT_COLOR);
+        } else {
+          child.material.color.setHex(AXIS_COLORS[a] ?? 0x888888);
+          child.material.opacity = 0.3;
+          child.material.transparent = true;
+        }
+      });
+    };
+
+    const resetGizmoColors = () => {
+      [moveGizmo, rotateGizmo].forEach(gizmo => {
+        gizmo.children.forEach(child => {
+          const a = child.userData.gizmoAxis;
+          child.material.color.setHex(AXIS_COLORS[a] ?? 0x888888);
+          child.material.opacity = 1;
+          child.material.transparent = false;
+        });
+      });
+    };
+
     const highlightObject = (id) => {
-      // Reset all proxy highlights
       Object.entries(proxies).forEach(([pid, proxy]) => {
         if (pid === 'camera') { proxy.material.color.set(0xd4a574); return; }
         const state = sceneState.elements[pid];
@@ -130,15 +223,14 @@ export default function SetupView() {
         proxy.material.color.set(state.type === 'point-light' ? 0xffffff : 0xd4a5a5);
         if (proxy.material.emissive) proxy.material.emissive.set(0x000000);
       });
-     
       if (id && proxies[id]) proxies[id].material.color.set(0x4a90d9);
       syncGizmos(id);
     };
 
     const setMode = (mode) => {
       gizmoMode = mode;
+      setActiveMode(mode);
       syncGizmos(sceneState.selected);
-      window.dispatchEvent(new CustomEvent('studio:gizmo-mode', { detail: mode }));
     };
 
     // external selection
@@ -149,7 +241,10 @@ export default function SetupView() {
     };
     window.addEventListener('studio:select', onExternalSelect);
 
-    // Sync photographer camera rotation from scene state so the camera Helper updates
+    // Listen for toolbar clicks
+    const onToolbarMode = (e) => setMode(e.detail);
+    window.addEventListener('studio:set-gizmo-mode', onToolbarMode);
+
     const syncPhotographerCamera = () => {
       const { x, y, z, rx, ry, rz } = sceneState.camera;
       photographerCamera.position.set(x, y, z);
@@ -164,25 +259,23 @@ export default function SetupView() {
       }
     };
 
-    // React to scene state changes
     const unsub = onSceneChange(() => {
       syncPhotographerCamera();
       cameraProxy.position.copy(photographerCamera.position);
 
-      // Sync proxy positions and rotations, build new ones if elements were added
       buildProxies();
       Object.entries(proxies).forEach(([id, proxy]) => {
         if (id === 'camera') return;
         const mesh = elementMeshes[id];
         if (!mesh) return;
         proxy.position.copy(mesh.position);
-        proxy.rotation.copy(mesh.rotation); 
+        proxy.rotation.copy(mesh.rotation);
+        proxy.scale.copy(mesh.scale);
       });
 
       if (sceneState.selected) syncGizmos(sceneState.selected);
     });
 
-    // Raycaster for click selection
     const raycaster = new THREE.Raycaster();
     raycaster.layers.enable(1);
     const mouse = new THREE.Vector2();
@@ -193,7 +286,6 @@ export default function SetupView() {
     let dragStartRot = { rx: 0, ry: 0, rz: 0 };
     let isDraggingGizmo = false;
 
-    // Project mouse delta onto axis screen direction 
     const getAxisScreenDir = (axis) => {
       const origin = moveGizmo.position.clone().project(helperCamera);
       const tip = moveGizmo.position.clone();
@@ -204,11 +296,9 @@ export default function SetupView() {
       return new THREE.Vector2(tip.x - origin.x, tip.y - origin.y).normalize();
     };
 
-    // Get screen tangent direction for a rotation ring axis (for rotate)
     const getRotScreenDir = (axis) => {
       const origin = rotateGizmo.position.clone().project(helperCamera);
       const ref = rotateGizmo.position.clone();
-
       if (axis === 'rx') ref.y += 1;
       if (axis === 'ry') ref.x += 1;
       if (axis === 'rz') ref.x += 1;
@@ -227,7 +317,6 @@ export default function SetupView() {
 
       const activeGizmo = getActiveGizmo();
 
-      // Check active gizmo first
       if (activeGizmo.visible) {
         raycaster.setFromCamera(mouse, helperCamera);
         const hits = raycaster.intersectObjects(activeGizmo.children);
@@ -235,6 +324,7 @@ export default function SetupView() {
           dragAxis = hits[0].object.userData.gizmoAxis;
           isDraggingGizmo = true;
           controls.enabled = false;
+          highlightGizmoAxis(dragAxis);
           if (gizmoMode === 'move') {
             dragStartPos.copy(getSelectedPosition(sceneState.selected));
           } else {
@@ -261,34 +351,28 @@ export default function SetupView() {
          -dy / container.clientHeight * 2
         );
         const movement = mouseDelta.dot(screenDir);
-
         const dist = helperCamera.position.distanceTo(moveGizmo.position);
         const newVal = dragStartPos[dragAxis] + movement * dist * 1.2;
 
         if (id === 'camera') updateCamera(dragAxis, newVal);
         else updateElement(id, dragAxis, newVal);
 
-        // sidebar to sync
         window.dispatchEvent(new CustomEvent('studio:position-update', {
           detail: { id, axis: dragAxis, val: newVal }
         }));
       } else {
-        // Rotation  
         const screenDir = getRotScreenDir(dragAxis);
         const mouseDelta = new THREE.Vector2(
           dx / container.clientWidth  * 2,
          -dy / container.clientHeight * 2
         );
         const movement = mouseDelta.dot(screenDir);
-
-        // 180 degrees per full screen width
         const deltaDeg = movement * 180;
         const newVal = (dragStartRot[dragAxis] + deltaDeg) % 360;
 
         if (id === 'camera') updateCamera(dragAxis, newVal);
         else updateElement(id, dragAxis, newVal);
 
-        // Notify sidebar to sync rotation
         window.dispatchEvent(new CustomEvent('studio:position-update', {
           detail: { id, axis: dragAxis, val: newVal }
         }));
@@ -300,10 +384,10 @@ export default function SetupView() {
         isDraggingGizmo = false;
         dragAxis = null;
         controls.enabled = true;
+        resetGizmoColors();
         return;
       }
 
-      // Was a drag, not a click
       const dx = e.clientX - pointerDownPos.x;
       const dy = e.clientY - pointerDownPos.y;
       if (Math.sqrt(dx * dx + dy * dy) > 4) return;
@@ -313,7 +397,6 @@ export default function SetupView() {
       mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
       raycaster.setFromCamera(mouse, helperCamera);
 
-      // Collect all clickable proxies dynamically
       const clickables = Object.values(proxies);
       const hits = raycaster.intersectObjects(clickables);
       if (hits.length > 0) {
@@ -326,28 +409,22 @@ export default function SetupView() {
     };
 
     const onKeyDown = (e) => {
-      if (e.target.tagName === 'INPUT') return; // don't steal from inputs
+      if (e.target.tagName === 'INPUT') return;
       if (e.key === 'w' || e.key === 'W') setMode('move');
       if (e.key === 'e' || e.key === 'E') setMode('rotate');
     };
-
-    // Listen for mode change from sidebar buttons
-    const onModeChange = (e) => setMode(e.detail);
 
     container.addEventListener('pointerdown', onPointerDown);
     container.addEventListener('pointermove', onPointerMove);
     container.addEventListener('pointerup', onPointerUp);
     window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('studio:set-gizmo-mode', onModeChange);
 
-    // Animation loop
     let rafId;
     const animate = () => {
       rafId = requestAnimationFrame(animate);
       controls.update();
       cameraHelper.update();
 
-      // Keep gizmos constant size regardless of zoom
       const activeGizmo = getActiveGizmo();
       if (activeGizmo.visible) {
         const dist = helperCamera.position.distanceTo(activeGizmo.position);
@@ -359,7 +436,6 @@ export default function SetupView() {
     };
     animate();
 
-    // Handle resize
     const onResize = () => {
       const w = container.clientWidth, h = container.clientHeight;
       helperCamera.aspect = w / h;
@@ -368,18 +444,16 @@ export default function SetupView() {
     };
     window.addEventListener('resize', onResize);
 
-    // ResizeObserver catches panel size changes (maximize/restore/drag)
     const ro = new ResizeObserver(onResize);
     ro.observe(container);
 
-    // Cleanup
     return () => {
       cancelAnimationFrame(rafId);
       unsub();
       ro.disconnect();
       window.removeEventListener('resize', onResize);
       window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('studio:set-gizmo-mode', onModeChange);
+      window.removeEventListener('studio:set-gizmo-mode', onToolbarMode);
       window.removeEventListener('studio:select', onExternalSelect);
       container.removeEventListener('pointerdown', onPointerDown);
       container.removeEventListener('pointermove', onPointerMove);
@@ -392,5 +466,29 @@ export default function SetupView() {
     };
   }, []);
 
-  return <Mount ref={mountRef} />;
+  const handleToolClick = (mode) => {
+    window.dispatchEvent(new CustomEvent('studio:set-gizmo-mode', { detail: mode }));
+  };
+
+  return (
+    <Wrapper>
+      <Toolbar>
+        <ToolBtn
+          $active={activeMode === 'move'}
+          onClick={() => handleToolClick('move')}
+          title="Move (W)"
+        >
+          <MoveIcon />
+        </ToolBtn>
+        <ToolBtn
+          $active={activeMode === 'rotate'}
+          onClick={() => handleToolClick('rotate')}
+          title="Rotate (E)"
+        >
+          <RotateIcon />
+        </ToolBtn>
+      </Toolbar>
+      <Mount ref={mountRef} />
+    </Wrapper>
+  );
 }

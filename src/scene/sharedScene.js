@@ -40,6 +40,9 @@ export const updateElement = (id, key, val) => {
     if (key === 'rx') obj.rotation.x = val * DEG2RAD;
     else if (key === 'ry') obj.rotation.y = val * DEG2RAD;
     else if (key === 'rz') obj.rotation.z = val * DEG2RAD;
+    else if (key === 'sx') obj.scale.x = val;
+    else if (key === 'sy') obj.scale.y = val;
+    else if (key === 'sz') obj.scale.z = val;
     else obj.position[key] = val;
   }
   notify();

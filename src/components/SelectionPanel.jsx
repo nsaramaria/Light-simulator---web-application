@@ -12,7 +12,6 @@ const Sidebar = styled.div`
   flex-direction: column;
   flex-shrink: 0;
   overflow: hidden;
-
 `;
 
 const SidebarHeader = styled.div`
@@ -51,7 +50,6 @@ const CollapseBtn = styled.button`
   }
 `;
 
-// Vertical label shown when collapsed
 const CollapsedLabel = styled.div`
   writing-mode: vertical-rl;
   font-size: 9px;
@@ -81,92 +79,51 @@ const SidebarHint = styled.div`
   line-height: 1.6;
 `;
 
-// Mode toggle buttons (W=move, E=rotate)
-const ModeRow = styled.div`
-  display: flex;
-  gap: 4px;
-  padding: 8px 10px;
-  border-bottom: 1px solid ${colors.border};
-  flex-shrink: 0;
-`;
-
-const ModeBtn = styled.button`
-  flex: 1;
-  padding: 4px 0;
-  font-size: 10px;
-  font-weight: 600;
-  border-radius: 3px;
-  cursor: pointer;
-  transition: all 0.15s;
-  background: ${({ $active }) => $active ? 'rgba(212,165,116,0.15)' : 'transparent'};
-  border: 1px solid ${({ $active }) => $active ? colors.accent : colors.border};
-  color: ${({ $active }) => $active ? colors.accent : colors.textMuted};
-
-  &:hover {
-    border-color: ${colors.accent};
-    color: ${colors.accent};
-  }
-`;
-
-const SliderGroup = styled.div`
+const PropsGroup = styled.div`
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   overflow-y: auto;
   flex: 1;
 `;
 
-const SliderRow = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-`;
-
-const SliderTop = styled.div`
+const FieldRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 `;
 
 const AxisLabel = styled.span`
   font-size: 10px;
   font-weight: 600;
   color: ${({ $axis }) =>
-    $axis === 'x' || $axis === 'rx' ? colors.axisX :
-    $axis === 'y' || $axis === 'ry' ? colors.axisY :
-    $axis === 'z' || $axis === 'rz' ? colors.axisZ : colors.accent};
-  width: 10px;
+    $axis === 'x' || $axis === 'rx' || $axis === 'sx' ? colors.axisX :
+    $axis === 'y' || $axis === 'ry' || $axis === 'sy' ? colors.axisY :
+    $axis === 'z' || $axis === 'rz' || $axis === 'sz' ? colors.axisZ : colors.accent};
+  width: 14px;
   text-transform: uppercase;
   flex-shrink: 0;
+  text-align: center;
 `;
 
-const Slider = styled.input.attrs({ type: 'range' })`
+const FieldInput = styled.input.attrs({ type: 'number' })`
   flex: 1;
-  height: 3px;
-  accent-color: ${colors.accent};
-  cursor: pointer;
-  min-width: 0;
-`;
-
-const NumInput = styled.input.attrs({ type: 'number' })`
-  width: 52px;
   background: ${colors.surface};
   border: 1px solid ${colors.border};
   color: ${colors.text};
   font-size: 11px;
-  padding: 3px 5px;
+  padding: 5px 8px;
   border-radius: 3px;
-  text-align: right;
+  text-align: left;
   font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
+  min-width: 0;
 
   &:focus {
     outline: none;
     border-color: ${colors.accent};
   }
 
-  /* hide spin arrows */
   -moz-appearance: textfield;
   &::-webkit-outer-spin-button,
   &::-webkit-inner-spin-button {
@@ -205,52 +162,52 @@ const SectionLabel = styled.div`
   padding: 4px 0 2px;
 `;
 
-// Position sliders per element type
-const POS_SLIDERS = {
+const POS_FIELDS = {
   'point-light': [
-    { key: 'x', axis: 'x', min: -10, max: 10, step: 0.1 },
-    { key: 'y', axis: 'y', min: 0,   max: 12, step: 0.1 },
-    { key: 'z', axis: 'z', min: -10, max: 10, step: 0.1 },
-    { key: 'intensity', axis: 'i', min: 0, max: 5, step: 0.05 },
+    { key: 'x', axis: 'x', step: 0.1 },
+    { key: 'y', axis: 'y', step: 0.1 },
+    { key: 'z', axis: 'z', step: 0.1 },
+    { key: 'intensity', axis: 'i', step: 0.05 },
   ],
   'product-cube': [
-    { key: 'x', axis: 'x', min: -8, max: 8, step: 0.1 },
-    { key: 'y', axis: 'y', min: 0,  max: 6, step: 0.1 },
-    { key: 'z', axis: 'z', min: -8, max: 8, step: 0.1 },
+    { key: 'x', axis: 'x', step: 0.1 },
+    { key: 'y', axis: 'y', step: 0.1 },
+    { key: 'z', axis: 'z', step: 0.1 },
   ],
   camera: [
-    { key: 'x', axis: 'x', min: -12, max: 12, step: 0.1 },
-    { key: 'y', axis: 'y', min: 1,   max: 14, step: 0.1 },
-    { key: 'z', axis: 'z', min: -12, max: 14, step: 0.1 },
+    { key: 'x', axis: 'x', step: 0.1 },
+    { key: 'y', axis: 'y', step: 0.1 },
+    { key: 'z', axis: 'z', step: 0.1 },
   ],
 };
 
-// Rotation sliders : same for all types, degrees 0-360
-const ROT_SLIDERS = [
-  { key: 'rx', axis: 'rx', min: -180, max: 180, step: 1 },
-  { key: 'ry', axis: 'ry', min: -180, max: 180, step: 1 },
-  { key: 'rz', axis: 'rz', min: -180, max: 180, step: 1 },
+const ROT_FIELDS = [
+  { key: 'rx', axis: 'rx', step: 1 },
+  { key: 'ry', axis: 'ry', step: 1 },
+  { key: 'rz', axis: 'rz', step: 1 },
 ];
 
-// Human readable label per element type
+const SCALE_FIELDS = [
+  { key: 'sx', axis: 'sx', step: 0.1 },
+  { key: 'sy', axis: 'sy', step: 0.1 },
+  { key: 'sz', axis: 'sz', step: 0.1 },
+];
+
 const LABEL_BY_TYPE = {
   'point-light':  'Point Light',
   'product-cube': 'Product Cube',
   camera:         'Camera',
 };
 
-// Get current state object for any selected id
 const getStateForId = (id) => {
   if (id === 'camera') return sceneState.camera;
   return sceneState.elements[id] ?? null;
 };
 
-// Component
 export default function SelectionPanel() {
   const [selected, setSelected] = useState(null);
   const [vals, setVals] = useState({});
   const [collapsed, setCollapsed] = useState(false);
-  const [gizmoMode, setGizmoMode] = useState('move');
 
   const toggleCollapse = (val) => {
     setCollapsed(val);
@@ -259,7 +216,6 @@ export default function SelectionPanel() {
     });
   };
 
-  // Listen for selection from Setup view
   useEffect(() => {
     const handler = (e) => {
       const id = e.detail;
@@ -268,30 +224,18 @@ export default function SelectionPanel() {
     };
     window.addEventListener('studio:select', handler);
 
-    // Sync sidebar when gizmo moves or rotates an object
     const posHandler = (e) => {
       const { axis, val } = e.detail;
       setVals(v => ({ ...v, [axis]: val }));
     };
     window.addEventListener('studio:position-update', posHandler);
 
-    // Sync mode indicator when W/E keys change mode
-    const modeHandler = (e) => setGizmoMode(e.detail);
-    window.addEventListener('studio:gizmo-mode', modeHandler);
-
     return () => {
       window.removeEventListener('studio:select', handler);
       window.removeEventListener('studio:position-update', posHandler);
-      window.removeEventListener('studio:gizmo-mode', modeHandler);
     };
   }, []);
 
-  const switchMode = (mode) => {
-    setGizmoMode(mode);
-    window.dispatchEvent(new CustomEvent('studio:set-gizmo-mode', { detail: mode }));
-  };
-
-  // Collapsed state , show thin strip with vertical label
   if (collapsed) return (
     <Sidebar $collapsed>
       <SidebarHeader style={{ justifyContent: 'center', padding: '8px 0' }}>
@@ -313,60 +257,44 @@ export default function SelectionPanel() {
     </Sidebar>
   );
 
-  const type    = selected === 'camera' ? 'camera' : sceneState.elements[selected]?.type;
-  const posSliders = POS_SLIDERS[type] ?? [];
-  const label   = LABEL_BY_TYPE[type] ?? selected;
+  const type = selected === 'camera' ? 'camera' : sceneState.elements[selected]?.type;
+  const posFields = POS_FIELDS[type] ?? [];
+  const label = LABEL_BY_TYPE[type] ?? selected;
 
-  const handleChange = (sl, raw) => {
-    const num = parseFloat(raw);
-    if (isNaN(num)) return;
-    const clamped = Math.min(Math.max(num, sl.min), sl.max);
-    if (selected === 'camera') updateCamera(sl.key, clamped);
-    else updateElement(selected, sl.key, clamped);
-    setVals(v => ({ ...v, [sl.key]: clamped }));
+  const handleFieldInput = (field, raw) => {
+    setVals(v => ({ ...v, [field.key]: raw }));
   };
 
-  const handleNumInput = (sl, raw) => {
-    // Allow free typing, only clamp and apply on blur
-    setVals(v => ({ ...v, [sl.key]: raw }));
-  };
-
-  const handleNumBlur = (sl, raw) => {
+  const handleFieldBlur = (field, raw) => {
     const num = parseFloat(raw);
     if (isNaN(num)) {
-      setVals(v => ({ ...v, [sl.key]: getStateForId(selected)?.[sl.key] ?? 0 }));
+      setVals(v => ({ ...v, [field.key]: getStateForId(selected)?.[field.key] ?? 0 }));
       return;
     }
-    const clamped = Math.min(Math.max(num, sl.min), sl.max);
-    if (selected === 'camera') updateCamera(sl.key, clamped);
-    else updateElement(selected, sl.key, clamped);
-    setVals(v => ({ ...v, [sl.key]: clamped }));
+    if (selected === 'camera') updateCamera(field.key, num);
+    else updateElement(selected, field.key, num);
+    setVals(v => ({ ...v, [field.key]: num }));
   };
 
-  const renderSlider = (sl, i, arr) => (
-    <React.Fragment key={sl.key}>
-      {i > 0 && sl.axis !== arr[i - 1].axis && <Divider />}
-      <SliderRow>
-        <SliderTop>
-          <AxisLabel $axis={sl.axis}>{sl.axis.replace('r', '')}</AxisLabel>
-          <Slider
-            min={sl.min}
-            max={sl.max}
-            step={sl.step}
-            value={parseFloat(vals[sl.key]) || 0}
-            onChange={e => handleChange(sl, e.target.value)}
-          />
-          <NumInput
-            value={vals[sl.key] !== undefined ? (typeof vals[sl.key] === 'number' ? vals[sl.key].toFixed(1) : vals[sl.key]) : '0.0'}
-            onChange={e => handleNumInput(sl, e.target.value)}
-            onBlur={e => handleNumBlur(sl, e.target.value)}
-            step={sl.step}
-            min={sl.min}
-            max={sl.max}
-          />
-        </SliderTop>
-      </SliderRow>
-    </React.Fragment>
+  const handleFieldKeyDown = (field, e) => {
+    if (e.key === 'Enter') {
+      e.target.blur();
+    }
+  };
+
+  const renderField = (field) => (
+    <FieldRow key={field.key}>
+      <AxisLabel $axis={field.axis}>
+        {field.key === 'intensity' ? 'I' : field.axis.replace('r', '').replace('s', '')}
+      </AxisLabel>
+      <FieldInput
+        value={vals[field.key] !== undefined ? (typeof vals[field.key] === 'number' ? vals[field.key].toFixed(field.step < 1 ? 1 : 0) : vals[field.key]) : '0'}
+        onChange={e => handleFieldInput(field, e.target.value)}
+        onBlur={e => handleFieldBlur(field, e.target.value)}
+        onKeyDown={e => handleFieldKeyDown(field, e)}
+        step={field.step}
+      />
+    </FieldRow>
   );
 
   return (
@@ -376,19 +304,9 @@ export default function SelectionPanel() {
         <CollapseBtn onClick={() => toggleCollapse(true)} title="Collapse">‹</CollapseBtn>
       </SidebarHeader>
 
-      {/* W move, E rotate */}
-      <ModeRow>
-        <ModeBtn $active={gizmoMode === 'move'} onClick={() => switchMode('move')} title="Move (W)">
-          Move <span style={{ opacity: 0.5, fontSize: 9 }}>W</span>
-        </ModeBtn>
-        <ModeBtn $active={gizmoMode === 'rotate'} onClick={() => switchMode('rotate')} title="Rotate (E)">
-          Rotate <span style={{ opacity: 0.5, fontSize: 9 }}>E</span>
-        </ModeBtn>
-      </ModeRow>
-
-      <SliderGroup>
+      <PropsGroup>
         <SectionLabel>Position</SectionLabel>
-        {posSliders.map((sl, i) => renderSlider(sl, i, posSliders))}
+        {posFields.map(renderField)}
 
         {type === 'point-light' && (
           <>
@@ -409,8 +327,16 @@ export default function SelectionPanel() {
 
         <Divider />
         <SectionLabel>Rotation (°)</SectionLabel>
-        {ROT_SLIDERS.map((sl, i) => renderSlider(sl, i, ROT_SLIDERS))}
-      </SliderGroup>
+        {ROT_FIELDS.map(renderField)}
+
+        {type === 'product-cube' && (
+          <>
+            <Divider />
+            <SectionLabel>Scale</SectionLabel>
+            {SCALE_FIELDS.map(renderField)}
+          </>
+        )}
+      </PropsGroup>
     </Sidebar>
   );
 }
