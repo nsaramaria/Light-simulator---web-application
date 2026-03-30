@@ -195,13 +195,12 @@ const SCALE_FIELDS = [
 ];
 
 const LABEL_BY_TYPE = {
-  'point-light':       'Point Light',
-  'spot-light':        'Spot Light',
-  'directional-light': 'Directional Light',
-  'area-light':        'Area Light',
-  'hemisphere-light':  'Hemisphere Light',
+  'point-light':       'Spot Light',
+  'spot-light':        'Focused Light',
+  'area-light':        'Softbox',
+  'hemisphere-light':  'Environment Light',
   'product-cube':      'Product Cube',
-  camera:              'Camera',
+   camera:              'Camera',
 };
 
 // Which types get a single color picker

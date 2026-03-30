@@ -122,6 +122,53 @@ const ItemIcon = styled.div`
   background: ${({ $color }) => $color};
 `;
 
+const ItemLabel = styled.span`
+  flex: 1;
+  min-width: 0;
+`;
+
+const InfoIconWrap = styled.div`
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 700;
+  color: ${colors.textMuted};
+  border: 1px solid ${colors.textMuted};
+  cursor: default;
+  transition: all 0.15s;
+
+  &:hover {
+    color: ${colors.accent};
+    border-color: ${colors.accent};
+  }
+`;
+
+const InfoIcon = ({ text }) => (
+  <InfoIconWrap title={text} onClick={(e) => e.stopPropagation()}>
+    i
+  </InfoIconWrap>
+);
+
+// Descriptions per item id
+const DESCRIPTIONS = {
+  'point-light':      'Emits light in all directions, like a bare studio strobe without modifiers',
+  'spot-light':       'Projects a concentrated cone beam, ideal for highlighting specific areas',
+  'area-light':       'Rectangular diffused light source, produces soft even illumination',
+  'hemisphere-light': 'Simulates ambient room lighting with separate sky and ground tones',
+  'flag':             'Black panel that blocks light, used to create shadows and control spill',
+  'reflector':        'Bounces light back onto the subject to fill shadows',
+  'diffuser':         'Translucent panel that softens light passing through it',
+  'v-flat':           'Large foldable board, black side absorbs light, white side bounces it',
+  'backdrop':         'Seamless background paper or fabric behind the subject',
+  'table':            'Surface for placing and photographing products',
+  'pedestal':         'Raised platform to elevate the product',
+};
+
 // Category definitions
 const CATEGORIES = [
   {
@@ -130,11 +177,33 @@ const CATEGORIES = [
     iconColor: colors.lightIcon,
     iconRound: true,
     items: [
-      { id: 'point-light',       label: 'Point Light',       iconColor: '#ffffff',  iconRound: true },
-      { id: 'spot-light',        label: 'Spot Light',        iconColor: '#ffdd44',  iconRound: true },
-      { id: 'directional-light', label: 'Directional Light', iconColor: '#ffaa00',  iconRound: true },
-      { id: 'area-light',        label: 'Area Light',        iconColor: '#44aaff',  iconRound: false },
-      { id: 'hemisphere-light',  label: 'Hemisphere Light',  iconColor: '#87ceeb',  iconRound: true },
+      { id: 'point-light',       label: 'Spot Light',        iconColor: '#ffffff',  iconRound: true },
+      { id: 'spot-light',        label: 'Focused Light',     iconColor: '#ffdd44',  iconRound: true },
+      { id: 'area-light',        label: 'Softbox',           iconColor: '#44aaff',  iconRound: false },
+      { id: 'hemisphere-light',  label: 'Environment Light', iconColor: '#87ceeb',  iconRound: true },
+    ],
+  },
+  {
+    id: 'grip',
+    label: 'Grip',
+    iconColor: '#888888',
+    iconRound: false,
+    items: [
+      { id: 'flag',      label: 'Flag',      iconColor: '#1a1a1a', iconRound: false },
+      { id: 'reflector',  label: 'Reflector',  iconColor: '#e0e0e0', iconRound: false },
+      { id: 'diffuser',   label: 'Diffuser',   iconColor: '#f5f0e8', iconRound: false },
+      { id: 'v-flat',     label: 'V-Flat',     iconColor: '#555555', iconRound: false },
+    ],
+  },
+  {
+    id: 'set',
+    label: 'Set',
+    iconColor: '#8b7d6b',
+    iconRound: false,
+    items: [
+      { id: 'backdrop',  label: 'Backdrop',  iconColor: '#8b7d6b', iconRound: false },
+      { id: 'table',     label: 'Table',     iconColor: '#6b5d4b', iconRound: false },
+      { id: 'pedestal',  label: 'Pedestal',  iconColor: '#7b6d5b', iconRound: false },
     ],
   },
   {
@@ -198,7 +267,8 @@ export default function AddMenu({ onAdd }) {
               {currentCat.items.map(item => (
                 <FlyoutItem key={item.id} onClick={() => handleAdd(item.id)}>
                   <ItemIcon $color={item.iconColor} $round={item.iconRound} />
-                  {item.label}
+                  <ItemLabel>{item.label}</ItemLabel>
+                  {DESCRIPTIONS[item.id] && <InfoIcon text={DESCRIPTIONS[item.id]} />}
                 </FlyoutItem>
               ))}
             </Flyout>
