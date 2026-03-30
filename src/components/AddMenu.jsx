@@ -154,7 +154,7 @@ const InfoIcon = ({ text }) => (
   </InfoIconWrap>
 );
 
-// Descriptions per item id
+// descriptions per item id
 const DESCRIPTIONS = {
   'point-light':      'Emits light in all directions, like a bare studio strobe without modifiers',
   'spot-light':       'Projects a concentrated cone beam, ideal for highlighting specific areas',
@@ -177,7 +177,7 @@ const CATEGORIES = [
     iconColor: colors.lightIcon,
     iconRound: true,
     items: [
-      { id: 'point-light',       label: 'Spot Light',        iconColor: '#ffffff',  iconRound: true },
+      { id: 'point-light',       label: 'Point Light',       iconColor: '#ffffff',  iconRound: true },
       { id: 'spot-light',        label: 'Focused Light',     iconColor: '#ffdd44',  iconRound: true },
       { id: 'area-light',        label: 'Softbox',           iconColor: '#44aaff',  iconRound: false },
       { id: 'hemisphere-light',  label: 'Environment Light', iconColor: '#87ceeb',  iconRound: true },

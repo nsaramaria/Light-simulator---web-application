@@ -6,7 +6,7 @@ import { CAMERA } from './sceneConfig';
 import styled from 'styled-components';
 import { DEG2RAD, RAD2DEG } from '../utils/math';
 import { colors } from '../styles/theme';
-import { makeLightProxy, makeSpotProxy, makeDirectionalProxy, makeAreaProxy, makeHemisphereProxy, makeProductProxy, makeCameraProxy } from './objects/proxies';
+import { makeLightProxy, makeSpotProxy, makeAreaProxy, makeHemisphereProxy, makeProductProxy, makeCameraProxy } from './objects/proxies';
 import { makeMoveGizmo } from './gizmos/move';
 import { makeRotateGizmo } from './gizmos/rotate';
 
@@ -23,6 +23,7 @@ const Mount = styled.div`
   cursor: pointer;
 `;
 
+// Blender-style vertical toolbar on left side of viewport
 const Toolbar = styled.div`
   position: absolute;
   top: 40px;
@@ -76,6 +77,7 @@ const RotateIcon = () => (
   </svg>
 );
 
+// Original colors per gizmo axis for reset after drag
 const AXIS_COLORS = {
   x:  0xe05a4e, y:  0x5aad5a, z:  0x4a90d9,
   rx: 0xe05a4e, ry: 0x5aad5a, rz: 0x4a90d9,
@@ -98,7 +100,6 @@ const createProxyForType = (type, pos, id) => {
   switch (type) {
     case 'point-light':       return makeLightProxy(pos, id);
     case 'spot-light':        return makeSpotProxy(pos, id);
-    case 'directional-light': return makeDirectionalProxy(pos, id);
     case 'area-light':        return makeAreaProxy(pos, id);
     case 'hemisphere-light':  return makeHemisphereProxy(pos, id);
     case 'product-cube':      return makeProductProxy(pos, id);
@@ -153,26 +154,26 @@ export default function SetupView() {
 
     const proxies = {};
 
+    // Camera proxy
     const cameraProxy = makeCameraProxy(photographerCamera.position);
+    cameraProxy.traverse(child => { child.layers.set(1); });
     scene.add(cameraProxy);
     proxies['camera'] = cameraProxy;
 
+    // Build proxies for all existing elements
     const buildProxies = () => {
       Object.entries(sceneState.elements).forEach(([id, state]) => {
         if (proxies[id]) return;
         const pos = new THREE.Vector3(state.x, state.y, state.z);
         const proxy = createProxyForType(state.type, pos, id);
-        proxy.layers.set(1);
-        // For groups (directional proxy), set layers on children too
-        if (proxy.isGroup) {
-          proxy.traverse(child => { child.layers.set(1); });
-        }
+        proxy.traverse(child => { child.layers.set(1); });
         scene.add(proxy);
         proxies[id] = proxy;
       });
     };
     buildProxies();
 
+    // Helpers
     const grid = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
     scene.add(grid);
     const axesHelper = new THREE.AxesHelper(5);
@@ -207,6 +208,7 @@ export default function SetupView() {
       active.visible = true;
     };
 
+    // Highlight a single gizmo axis (white) and dim the others
     const highlightGizmoAxis = (axis) => {
       const gizmo = getActiveGizmo();
       gizmo.children.forEach(child => {
@@ -221,6 +223,7 @@ export default function SetupView() {
       });
     };
 
+    // Reset all gizmo axes back to their original colors
     const resetGizmoColors = () => {
       [moveGizmo, rotateGizmo].forEach(gizmo => {
         gizmo.children.forEach(child => {
@@ -232,24 +235,36 @@ export default function SetupView() {
       });
     };
 
+    // Tint a proxy with emissive color (preserves model textures)
     const setProxyColor = (proxy, color) => {
-      if (proxy.isGroup) {
-        proxy.traverse(child => {
-          if (child.material) child.material.color.setHex(color);
-        });
-      } else {
-        proxy.material.color.setHex(color);
-      }
+      proxy.traverse(child => {
+        if (child.isMesh && child.material) {
+          if (child.material.emissive) {
+            child.material.emissive.setHex(color);
+            child.material.emissiveIntensity = 0.3;
+          } else if (child.material.color) {
+            child.material.color.setHex(color);
+          }
+        }
+      });
+    };
+
+    // Clear emissive tint on a proxy
+    const resetProxyColor = (proxy) => {
+      proxy.traverse(child => {
+        if (child.isMesh && child.material && child.material.emissive) {
+          child.material.emissive.setHex(0x000000);
+          child.material.emissiveIntensity = 0;
+        }
+      });
     };
 
     const highlightObject = (id) => {
-      // Reset all proxy colors to defaults
+      // Reset all proxies
       Object.entries(proxies).forEach(([pid, proxy]) => {
-        const type = pid === 'camera' ? 'camera' : sceneState.elements[pid]?.type;
-        const defaultColor = PROXY_DEFAULT_COLORS[type] ?? 0xd4a5a5;
-        setProxyColor(proxy, defaultColor);
+        resetProxyColor(proxy);
       });
-      // Highlight selected
+      // Highlight selected with blue tint
       if (id && proxies[id]) setProxyColor(proxies[id], 0x4a90d9);
       syncGizmos(id);
     };
@@ -260,6 +275,7 @@ export default function SetupView() {
       syncGizmos(sceneState.selected);
     };
 
+    // external selection
     const onExternalSelect = (e) => {
       const id = e.detail;
       sceneState.selected = id;
@@ -267,6 +283,7 @@ export default function SetupView() {
     };
     window.addEventListener('studio:select', onExternalSelect);
 
+    // Listen for toolbar clicks
     const onToolbarMode = (e) => setMode(e.detail);
     window.addEventListener('studio:set-gizmo-mode', onToolbarMode);
 
@@ -287,20 +304,27 @@ export default function SetupView() {
     const unsub = onSceneChange(() => {
       syncPhotographerCamera();
       cameraProxy.position.copy(photographerCamera.position);
+      cameraProxy.rotation.copy(photographerCamera.rotation);
 
       buildProxies();
       Object.entries(proxies).forEach(([id, proxy]) => {
         if (id === 'camera') return;
+        const state = sceneState.elements[id];
         const mesh = elementMeshes[id];
-        if (!mesh) return;
+        if (!mesh || !state) return;
         proxy.position.copy(mesh.position);
-        proxy.rotation.copy(mesh.rotation);
+        proxy.rotation.set(
+          (state.rx ?? 0) * DEG2RAD,
+          (state.ry ?? 0) * DEG2RAD,
+          (state.rz ?? 0) * DEG2RAD
+        );
         if (mesh.scale) proxy.scale.copy(mesh.scale);
       });
 
       if (sceneState.selected) syncGizmos(sceneState.selected);
     });
 
+    // Raycaster for click selection
     const raycaster = new THREE.Raycaster();
     raycaster.layers.enable(1);
     const mouse = new THREE.Vector2();
@@ -311,6 +335,7 @@ export default function SetupView() {
     let dragStartRot = { rx: 0, ry: 0, rz: 0 };
     let isDraggingGizmo = false;
 
+    // Project mouse delta onto axis screen direction 
     const getAxisScreenDir = (axis) => {
       const origin = moveGizmo.position.clone().project(helperCamera);
       const tip = moveGizmo.position.clone();
@@ -321,6 +346,7 @@ export default function SetupView() {
       return new THREE.Vector2(tip.x - origin.x, tip.y - origin.y).normalize();
     };
 
+    // Get screen tangent direction for a rotation ring axis (for rotate)
     const getRotScreenDir = (axis) => {
       const origin = rotateGizmo.position.clone().project(helperCamera);
       const ref = rotateGizmo.position.clone();
@@ -422,14 +448,12 @@ export default function SetupView() {
       mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
       raycaster.setFromCamera(mouse, helperCamera);
 
-      // For groups (directional proxy), we need to check children too
+      // Collect all meshes from proxies (including loaded model children)
       const clickables = [];
       Object.values(proxies).forEach(proxy => {
-        if (proxy.isGroup) {
-          proxy.children.forEach(child => clickables.push(child));
-        } else {
-          clickables.push(proxy);
-        }
+        proxy.traverse(child => {
+          if (child.isMesh) clickables.push(child);
+        });
       });
 
       const hits = raycaster.intersectObjects(clickables);

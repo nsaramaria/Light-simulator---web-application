@@ -195,7 +195,7 @@ const SCALE_FIELDS = [
 ];
 
 const LABEL_BY_TYPE = {
-  'point-light':       'Spot Light',
+  'point-light':       'Point Light',
   'spot-light':        'Focused Light',
   'area-light':        'Softbox',
   'hemisphere-light':  'Environment Light',

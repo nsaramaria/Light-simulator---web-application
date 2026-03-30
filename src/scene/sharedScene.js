@@ -1,4 +1,3 @@
-// src/scene/sharedScene.js
 import * as THREE from 'three';
 import { SCENE, LIGHT, FLOOR } from './sceneConfig';
 import { DEG2RAD } from '../utils/math';
@@ -23,6 +22,18 @@ export const sceneState = {
   camera:   { x: 0, y: 3, z: 8, rx: 0, ry: 0, rz: 0 },
 };
 
+// Compute a target position from light position + rotation
+const computeLightTarget = (state) => {
+  const dir = new THREE.Vector3(0, -1, 0);
+  const euler = new THREE.Euler(
+    (state.rx ?? 0) * DEG2RAD,
+    (state.ry ?? 0) * DEG2RAD,
+    (state.rz ?? 0) * DEG2RAD
+  );
+  dir.applyEuler(euler);
+  return new THREE.Vector3(state.x, state.y, state.z).add(dir.multiplyScalar(5));
+};
+
 // Updaters 
 export const updateElement = (id, key, val) => {
   if (!sceneState.elements[id]) return;
@@ -33,14 +44,35 @@ export const updateElement = (id, key, val) => {
   // Position
   if (key === 'x' || key === 'y' || key === 'z') {
     obj.position[key] = val;
+    // Update target for directional lights
+    if (obj.target) {
+      const target = computeLightTarget(sceneState.elements[id]);
+      obj.target.position.copy(target);
+    }
+    // Update lookAt for area lights
+    if (obj.isRectAreaLight) {
+      const target = computeLightTarget(sceneState.elements[id]);
+      obj.lookAt(target);
+    }
     notify();
     return;
   }
 
   // Rotation
-  if (key === 'rx') { obj.rotation.x = val * DEG2RAD; notify(); return; }
-  if (key === 'ry') { obj.rotation.y = val * DEG2RAD; notify(); return; }
-  if (key === 'rz') { obj.rotation.z = val * DEG2RAD; notify(); return; }
+  if (key === 'rx' || key === 'ry' || key === 'rz') {
+    // For targeted lights, update the target based on rotation
+    if (obj.target) {
+      const target = computeLightTarget(sceneState.elements[id]);
+      obj.target.position.copy(target);
+    } else if (obj.isRectAreaLight) {
+      const target = computeLightTarget(sceneState.elements[id]);
+      obj.lookAt(target);
+    } else {
+      obj.rotation[key === 'rx' ? 'x' : key === 'ry' ? 'y' : 'z'] = val * DEG2RAD;
+    }
+    notify();
+    return;
+  }
 
   // Scale (products only)
   if (key === 'sx') { obj.scale.x = val; notify(); return; }
