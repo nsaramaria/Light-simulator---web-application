@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { SCENE, LIGHT, FLOOR } from './sceneConfig';
 import { DEG2RAD } from '../utils/math';
-import { createPointLight, resetLightCounter } from './objects/lights';
+import { createPointLight, createSpotLight, createDirectionalLight, createAreaLight, createHemisphereLight, resetLightCounter } from './objects/lights';
 import { createProductCube, resetProductCounter } from './objects/products';
 
 let sharedInstance = null;
@@ -29,22 +29,38 @@ export const updateElement = (id, key, val) => {
   sceneState.elements[id][key] = val;
   const obj = sharedInstance.elementMeshes[id];
   if (!obj) return;
-  if (obj.isLight) {
-    if (key === 'intensity') obj.intensity = val;
-    else if (key === 'color') obj.color.set(val);
-    else if (key === 'rx') obj.rotation.x = val * DEG2RAD;
-    else if (key === 'ry') obj.rotation.y = val * DEG2RAD;
-    else if (key === 'rz') obj.rotation.z = val * DEG2RAD;
-    else obj.position[key] = val;
-  } else {
-    if (key === 'rx') obj.rotation.x = val * DEG2RAD;
-    else if (key === 'ry') obj.rotation.y = val * DEG2RAD;
-    else if (key === 'rz') obj.rotation.z = val * DEG2RAD;
-    else if (key === 'sx') obj.scale.x = val;
-    else if (key === 'sy') obj.scale.y = val;
-    else if (key === 'sz') obj.scale.z = val;
-    else obj.position[key] = val;
+
+  // Position
+  if (key === 'x' || key === 'y' || key === 'z') {
+    obj.position[key] = val;
+    notify();
+    return;
   }
+
+  // Rotation
+  if (key === 'rx') { obj.rotation.x = val * DEG2RAD; notify(); return; }
+  if (key === 'ry') { obj.rotation.y = val * DEG2RAD; notify(); return; }
+  if (key === 'rz') { obj.rotation.z = val * DEG2RAD; notify(); return; }
+
+  // Scale (products only)
+  if (key === 'sx') { obj.scale.x = val; notify(); return; }
+  if (key === 'sy') { obj.scale.y = val; notify(); return; }
+  if (key === 'sz') { obj.scale.z = val; notify(); return; }
+
+  // Common light properties
+  if (key === 'intensity') { obj.intensity = val; }
+  else if (key === 'color') { obj.color.set(val); }
+  else if (key === 'distance' && obj.distance !== undefined) { obj.distance = val; }
+  // Spot light
+  else if (key === 'angle' && obj.isSpotLight) { obj.angle = (val * Math.PI) / 180; }
+  else if (key === 'penumbra' && obj.isSpotLight) { obj.penumbra = val; }
+  // Area light
+  else if (key === 'width' && obj.isRectAreaLight) { obj.width = val; }
+  else if (key === 'height' && obj.isRectAreaLight) { obj.height = val; }
+  // Hemisphere light
+  else if (key === 'skyColor' && obj.isHemisphereLight) { obj.color.set(val); }
+  else if (key === 'groundColor' && obj.isHemisphereLight) { obj.groundColor.set(val); }
+
   notify();
 };
 
@@ -56,6 +72,22 @@ export const updateCamera = (key, val) => {
 // Wrappers that pass the singleton context
 export const addPointLight = () => {
   return createPointLight(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
+};
+
+export const addSpotLight = () => {
+  return createSpotLight(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
+};
+
+export const addDirectionalLight = () => {
+  return createDirectionalLight(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
+};
+
+export const addAreaLight = () => {
+  return createAreaLight(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
+};
+
+export const addHemisphereLight = () => {
+  return createHemisphereLight(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
 };
 
 export const addProductCube = () => {

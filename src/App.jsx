@@ -5,7 +5,7 @@ import SetupView from './scene/SetupView';
 import SelectionPanel from './components/SelectionPanel';
 import Header from './components/Header';
 import HelpModal from './components/Help';
-import { addPointLight, addProductCube } from './scene/sharedScene';
+import { addPointLight, addSpotLight, addDirectionalLight, addAreaLight, addHemisphereLight, addProductCube } from './scene/sharedScene';
 import { colors } from './styles/theme';
 
 const AppWrapper = styled.div`
@@ -95,6 +95,15 @@ const MaximizeBtn = styled.button`
   }
 `;
 
+const ADD_HANDLERS = {
+  'point-light':       addPointLight,
+  'spot-light':        addSpotLight,
+  'directional-light': addDirectionalLight,
+  'area-light':        addAreaLight,
+  'hemisphere-light':  addHemisphereLight,
+  'product-cube':      addProductCube,
+};
+
 export default function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [splitPct, setSplitPct] = useState(50);
@@ -134,9 +143,9 @@ export default function App() {
   };
 
   const handleAdd = (itemId) => {
-    let newId;
-    if (itemId === 'point-light') newId = addPointLight();
-    if (itemId === 'product-cube') newId = addProductCube();
+    const factory = ADD_HANDLERS[itemId];
+    if (!factory) return;
+    const newId = factory();
     if (newId) {
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('studio:select', { detail: newId }));

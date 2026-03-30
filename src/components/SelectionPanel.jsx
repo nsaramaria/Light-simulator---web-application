@@ -162,23 +162,24 @@ const SectionLabel = styled.div`
   padding: 4px 0 2px;
 `;
 
+// Position fields per type
 const POS_FIELDS = {
-  'point-light': [
-    { key: 'x', axis: 'x', step: 0.1 },
-    { key: 'y', axis: 'y', step: 0.1 },
-    { key: 'z', axis: 'z', step: 0.1 },
-    { key: 'intensity', axis: 'i', step: 0.05 },
-  ],
-  'product-cube': [
-    { key: 'x', axis: 'x', step: 0.1 },
-    { key: 'y', axis: 'y', step: 0.1 },
-    { key: 'z', axis: 'z', step: 0.1 },
-  ],
-  camera: [
-    { key: 'x', axis: 'x', step: 0.1 },
-    { key: 'y', axis: 'y', step: 0.1 },
-    { key: 'z', axis: 'z', step: 0.1 },
-  ],
+  'point-light':       [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
+  'spot-light':        [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
+  'directional-light': [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
+  'area-light':        [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
+  'hemisphere-light':  [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
+  'product-cube':      [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
+  camera:              [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
+};
+
+// Extra light-specific fields per type
+const LIGHT_FIELDS = {
+  'point-light':       [{ key: 'intensity', label: 'Intensity', step: 0.05 }, { key: 'distance', label: 'Distance', step: 1 }],
+  'spot-light':        [{ key: 'intensity', label: 'Intensity', step: 0.05 }, { key: 'distance', label: 'Distance', step: 1 }, { key: 'angle', label: 'Angle (°)', step: 1 }, { key: 'penumbra', label: 'Penumbra', step: 0.05 }],
+  'directional-light': [{ key: 'intensity', label: 'Intensity', step: 0.05 }],
+  'area-light':        [{ key: 'intensity', label: 'Intensity', step: 0.1 }, { key: 'width', label: 'Width', step: 0.1 }, { key: 'height', label: 'Height', step: 0.1 }],
+  'hemisphere-light':  [{ key: 'intensity', label: 'Intensity', step: 0.05 }],
 };
 
 const ROT_FIELDS = [
@@ -194,10 +195,17 @@ const SCALE_FIELDS = [
 ];
 
 const LABEL_BY_TYPE = {
-  'point-light':  'Point Light',
-  'product-cube': 'Product Cube',
-  camera:         'Camera',
+  'point-light':       'Point Light',
+  'spot-light':        'Spot Light',
+  'directional-light': 'Directional Light',
+  'area-light':        'Area Light',
+  'hemisphere-light':  'Hemisphere Light',
+  'product-cube':      'Product Cube',
+  camera:              'Camera',
 };
+
+// Which types get a single color picker
+const SINGLE_COLOR_TYPES = ['point-light', 'spot-light', 'directional-light', 'area-light'];
 
 const getStateForId = (id) => {
   if (id === 'camera') return sceneState.camera;
@@ -259,6 +267,7 @@ export default function SelectionPanel() {
 
   const type = selected === 'camera' ? 'camera' : sceneState.elements[selected]?.type;
   const posFields = POS_FIELDS[type] ?? [];
+  const lightFields = LIGHT_FIELDS[type] ?? [];
   const label = LABEL_BY_TYPE[type] ?? selected;
 
   const handleFieldInput = (field, raw) => {
@@ -277,18 +286,16 @@ export default function SelectionPanel() {
   };
 
   const handleFieldKeyDown = (field, e) => {
-    if (e.key === 'Enter') {
-      e.target.blur();
-    }
+    if (e.key === 'Enter') e.target.blur();
   };
 
   const renderField = (field) => (
     <FieldRow key={field.key}>
-      <AxisLabel $axis={field.axis}>
-        {field.key === 'intensity' ? 'I' : field.axis.replace('r', '').replace('s', '')}
+      <AxisLabel $axis={field.axis || 'i'}>
+        {field.label ? field.label.charAt(0) : field.axis.replace('r', '').replace('s', '')}
       </AxisLabel>
       <FieldInput
-        value={vals[field.key] !== undefined ? (typeof vals[field.key] === 'number' ? vals[field.key].toFixed(field.step < 1 ? 1 : 0) : vals[field.key]) : '0'}
+        value={vals[field.key] !== undefined ? (typeof vals[field.key] === 'number' ? vals[field.key].toFixed(field.step < 1 ? (field.step < 0.1 ? 2 : 1) : 0) : vals[field.key]) : '0'}
         onChange={e => handleFieldInput(field, e.target.value)}
         onBlur={e => handleFieldBlur(field, e.target.value)}
         onKeyDown={e => handleFieldKeyDown(field, e)}
@@ -296,6 +303,24 @@ export default function SelectionPanel() {
       />
     </FieldRow>
   );
+
+  const renderLabeledField = (field) => (
+    <FieldRow key={field.key}>
+      <span style={{ fontSize: '10px', color: colors.textMuted, width: '60px', flexShrink: 0 }}>{field.label}</span>
+      <FieldInput
+        value={vals[field.key] !== undefined ? (typeof vals[field.key] === 'number' ? vals[field.key].toFixed(field.step < 1 ? (field.step < 0.1 ? 2 : 1) : 0) : vals[field.key]) : '0'}
+        onChange={e => handleFieldInput(field, e.target.value)}
+        onBlur={e => handleFieldBlur(field, e.target.value)}
+        onKeyDown={e => handleFieldKeyDown(field, e)}
+        step={field.step}
+      />
+    </FieldRow>
+  );
+
+  const handleColorChange = (key, value) => {
+    updateElement(selected, key, value);
+    setVals(v => ({ ...v, [key]: value }));
+  };
 
   return (
     <Sidebar $collapsed={false}>
@@ -308,23 +333,6 @@ export default function SelectionPanel() {
         <SectionLabel>Position</SectionLabel>
         {posFields.map(renderField)}
 
-        {type === 'point-light' && (
-          <>
-            <Divider />
-            <ColorRow>
-              <AxisLabel $axis="c">C</AxisLabel>
-              <ColorInput
-                value={vals.color ?? '#ffffff'}
-                onChange={e => {
-                  updateElement(selected, 'color', e.target.value);
-                  setVals(v => ({ ...v, color: e.target.value }));
-                }}
-              />
-              <span style={{ fontSize: '10px', color: colors.textMuted }}>Light color</span>
-            </ColorRow>
-          </>
-        )}
-
         <Divider />
         <SectionLabel>Rotation (°)</SectionLabel>
         {ROT_FIELDS.map(renderField)}
@@ -334,6 +342,43 @@ export default function SelectionPanel() {
             <Divider />
             <SectionLabel>Scale</SectionLabel>
             {SCALE_FIELDS.map(renderField)}
+          </>
+        )}
+
+        {lightFields.length > 0 && (
+          <>
+            <Divider />
+            <SectionLabel>Light Properties</SectionLabel>
+            {lightFields.map(renderLabeledField)}
+          </>
+        )}
+
+        {SINGLE_COLOR_TYPES.includes(type) && (
+          <ColorRow>
+            <span style={{ fontSize: '10px', color: colors.textMuted, width: '60px', flexShrink: 0 }}>Color</span>
+            <ColorInput
+              value={vals.color ?? '#ffffff'}
+              onChange={e => handleColorChange('color', e.target.value)}
+            />
+          </ColorRow>
+        )}
+
+        {type === 'hemisphere-light' && (
+          <>
+            <ColorRow>
+              <span style={{ fontSize: '10px', color: colors.textMuted, width: '60px', flexShrink: 0 }}>Sky</span>
+              <ColorInput
+                value={vals.skyColor ?? '#87ceeb'}
+                onChange={e => handleColorChange('skyColor', e.target.value)}
+              />
+            </ColorRow>
+            <ColorRow>
+              <span style={{ fontSize: '10px', color: colors.textMuted, width: '60px', flexShrink: 0 }}>Ground</span>
+              <ColorInput
+                value={vals.groundColor ?? '#362a1e'}
+                onChange={e => handleColorChange('groundColor', e.target.value)}
+              />
+            </ColorRow>
           </>
         )}
       </PropsGroup>

@@ -6,7 +6,7 @@ import { CAMERA } from './sceneConfig';
 import styled from 'styled-components';
 import { DEG2RAD, RAD2DEG } from '../utils/math';
 import { colors } from '../styles/theme';
-import { makeLightProxy, makeProductProxy, makeCameraProxy } from './objects/proxies';
+import { makeLightProxy, makeSpotProxy, makeDirectionalProxy, makeAreaProxy, makeHemisphereProxy, makeProductProxy, makeCameraProxy } from './objects/proxies';
 import { makeMoveGizmo } from './gizmos/move';
 import { makeRotateGizmo } from './gizmos/rotate';
 
@@ -23,7 +23,6 @@ const Mount = styled.div`
   cursor: pointer;
 `;
 
-// Blender-style vertical toolbar on left side of viewport
 const Toolbar = styled.div`
   position: absolute;
   top: 40px;
@@ -59,7 +58,6 @@ const ToolBtn = styled.button`
   }
 `;
 
-// Move icon (cross arrows)
 const MoveIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
     <line x1="8" y1="1" x2="8" y2="15" />
@@ -71,7 +69,6 @@ const MoveIcon = () => (
   </svg>
 );
 
-// Rotate icon (curved arrow)
 const RotateIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
     <path d="M13 8a5 5 0 1 1-1.5-3.5" />
@@ -79,12 +76,35 @@ const RotateIcon = () => (
   </svg>
 );
 
-// Original colors per gizmo axis for reset after drag
 const AXIS_COLORS = {
   x:  0xe05a4e, y:  0x5aad5a, z:  0x4a90d9,
   rx: 0xe05a4e, ry: 0x5aad5a, rz: 0x4a90d9,
 };
 const HIGHLIGHT_COLOR = 0xffffff;
+
+// Default proxy colors per type for highlight reset
+const PROXY_DEFAULT_COLORS = {
+  'point-light':       0xffffff,
+  'spot-light':        0xffdd44,
+  'directional-light': 0xffaa00,
+  'area-light':        0x44aaff,
+  'hemisphere-light':  0x87ceeb,
+  'product-cube':      0xd4a5a5,
+  camera:              0xd4a574,
+};
+
+// Create the right proxy based on element type
+const createProxyForType = (type, pos, id) => {
+  switch (type) {
+    case 'point-light':       return makeLightProxy(pos, id);
+    case 'spot-light':        return makeSpotProxy(pos, id);
+    case 'directional-light': return makeDirectionalProxy(pos, id);
+    case 'area-light':        return makeAreaProxy(pos, id);
+    case 'hemisphere-light':  return makeHemisphereProxy(pos, id);
+    case 'product-cube':      return makeProductProxy(pos, id);
+    default:                  return makeProductProxy(pos, id);
+  }
+};
 
 export default function SetupView() {
   const mountRef = useRef(null);
@@ -110,7 +130,6 @@ export default function SetupView() {
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
 
-    // Remeasure after DOM append so aspect ratio is correct
     const actualW = container.clientWidth, actualH = container.clientHeight;
     renderer.setSize(actualW, actualH);
     helperCamera.aspect = actualW / actualH;
@@ -121,7 +140,6 @@ export default function SetupView() {
     controls.target.set(0, 0, 0);
     controls.update();
 
-    // Photographer camera helper
     const photographerCamera = new THREE.PerspectiveCamera(
       CAMERA.fov, 16 / 9, CAMERA.near, CAMERA.far
     );
@@ -135,27 +153,26 @@ export default function SetupView() {
 
     const proxies = {};
 
-    // Camera proxy
     const cameraProxy = makeCameraProxy(photographerCamera.position);
     scene.add(cameraProxy);
     proxies['camera'] = cameraProxy;
 
-    // Build proxies for all existing elements
     const buildProxies = () => {
       Object.entries(sceneState.elements).forEach(([id, state]) => {
         if (proxies[id]) return;
         const pos = new THREE.Vector3(state.x, state.y, state.z);
-        const proxy = state.type === 'point-light'
-          ? makeLightProxy(pos, id)
-          : makeProductProxy(pos, id);
+        const proxy = createProxyForType(state.type, pos, id);
         proxy.layers.set(1);
+        // For groups (directional proxy), set layers on children too
+        if (proxy.isGroup) {
+          proxy.traverse(child => { child.layers.set(1); });
+        }
         scene.add(proxy);
         proxies[id] = proxy;
       });
     };
     buildProxies();
 
-    // Helpers
     const grid = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
     scene.add(grid);
     const axesHelper = new THREE.AxesHelper(5);
@@ -215,15 +232,25 @@ export default function SetupView() {
       });
     };
 
+    const setProxyColor = (proxy, color) => {
+      if (proxy.isGroup) {
+        proxy.traverse(child => {
+          if (child.material) child.material.color.setHex(color);
+        });
+      } else {
+        proxy.material.color.setHex(color);
+      }
+    };
+
     const highlightObject = (id) => {
+      // Reset all proxy colors to defaults
       Object.entries(proxies).forEach(([pid, proxy]) => {
-        if (pid === 'camera') { proxy.material.color.set(0xd4a574); return; }
-        const state = sceneState.elements[pid];
-        if (!state) return;
-        proxy.material.color.set(state.type === 'point-light' ? 0xffffff : 0xd4a5a5);
-        if (proxy.material.emissive) proxy.material.emissive.set(0x000000);
+        const type = pid === 'camera' ? 'camera' : sceneState.elements[pid]?.type;
+        const defaultColor = PROXY_DEFAULT_COLORS[type] ?? 0xd4a5a5;
+        setProxyColor(proxy, defaultColor);
       });
-      if (id && proxies[id]) proxies[id].material.color.set(0x4a90d9);
+      // Highlight selected
+      if (id && proxies[id]) setProxyColor(proxies[id], 0x4a90d9);
       syncGizmos(id);
     };
 
@@ -233,7 +260,6 @@ export default function SetupView() {
       syncGizmos(sceneState.selected);
     };
 
-    // external selection
     const onExternalSelect = (e) => {
       const id = e.detail;
       sceneState.selected = id;
@@ -241,7 +267,6 @@ export default function SetupView() {
     };
     window.addEventListener('studio:select', onExternalSelect);
 
-    // Listen for toolbar clicks
     const onToolbarMode = (e) => setMode(e.detail);
     window.addEventListener('studio:set-gizmo-mode', onToolbarMode);
 
@@ -270,7 +295,7 @@ export default function SetupView() {
         if (!mesh) return;
         proxy.position.copy(mesh.position);
         proxy.rotation.copy(mesh.rotation);
-        proxy.scale.copy(mesh.scale);
+        if (mesh.scale) proxy.scale.copy(mesh.scale);
       });
 
       if (sceneState.selected) syncGizmos(sceneState.selected);
@@ -397,10 +422,22 @@ export default function SetupView() {
       mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
       raycaster.setFromCamera(mouse, helperCamera);
 
-      const clickables = Object.values(proxies);
+      // For groups (directional proxy), we need to check children too
+      const clickables = [];
+      Object.values(proxies).forEach(proxy => {
+        if (proxy.isGroup) {
+          proxy.children.forEach(child => clickables.push(child));
+        } else {
+          clickables.push(proxy);
+        }
+      });
+
       const hits = raycaster.intersectObjects(clickables);
       if (hits.length > 0) {
-        sceneState.selected = hits[0].object.userData.id;
+        // Walk up to find the proxy with userData.id
+        let obj = hits[0].object;
+        while (obj && !obj.userData.id) obj = obj.parent;
+        sceneState.selected = obj?.userData.id ?? null;
       } else {
         sceneState.selected = null;
       }

@@ -76,7 +76,7 @@ const CatArrow = styled.span`
 `;
 
 const Flyout = styled.div`
-  width: 160px;
+  width: 180px;
   background: ${colors.surfaceDark};
   border: 1px solid ${colors.border};
   border-radius: 6px;
@@ -122,7 +122,7 @@ const ItemIcon = styled.div`
   background: ${({ $color }) => $color};
 `;
 
-// Category definitions , add new categories and items here
+// Category definitions
 const CATEGORIES = [
   {
     id: 'lights',
@@ -130,7 +130,11 @@ const CATEGORIES = [
     iconColor: colors.lightIcon,
     iconRound: true,
     items: [
-      { id: 'point-light', label: 'Point Light', iconColor: colors.lightIcon, iconRound: true },
+      { id: 'point-light',       label: 'Point Light',       iconColor: '#ffffff',  iconRound: true },
+      { id: 'spot-light',        label: 'Spot Light',        iconColor: '#ffdd44',  iconRound: true },
+      { id: 'directional-light', label: 'Directional Light', iconColor: '#ffaa00',  iconRound: true },
+      { id: 'area-light',        label: 'Area Light',        iconColor: '#44aaff',  iconRound: false },
+      { id: 'hemisphere-light',  label: 'Hemisphere Light',  iconColor: '#87ceeb',  iconRound: true },
     ],
   },
   {
@@ -149,7 +153,6 @@ export default function AddMenu({ onAdd }) {
   const [activeCat, setActiveCat] = useState('lights');
   const wrapperRef = useRef(null);
 
-  // Close menu when clicking outside
   useEffect(() => {
     const handler = (e) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
@@ -173,7 +176,6 @@ export default function AddMenu({ onAdd }) {
 
       {open && (
         <MenuWrap>
-          {/* Main category list */}
           <Dropdown>
             {CATEGORIES.map(cat => (
               <CatItem
@@ -190,7 +192,6 @@ export default function AddMenu({ onAdd }) {
             ))}
           </Dropdown>
 
-          {/* Flyout for active category */}
           {currentCat && (
             <Flyout>
               <FlyoutHeader>{currentCat.label}</FlyoutHeader>

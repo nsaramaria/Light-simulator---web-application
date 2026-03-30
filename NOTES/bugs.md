@@ -9,3 +9,6 @@ feedback:
 7) rotate it or move to its own current axes. rn they are always in globals
 depth testing
 8) make it an application , needs to save, try local storage
+
+
+9) make a better representation for each light
