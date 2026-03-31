@@ -23,7 +23,6 @@ const Mount = styled.div`
   cursor: pointer;
 `;
 
-// Blender-style vertical toolbar on left side of viewport
 const Toolbar = styled.div`
   position: absolute;
   top: 40px;
@@ -77,25 +76,12 @@ const RotateIcon = () => (
   </svg>
 );
 
-// Original colors per gizmo axis for reset after drag
 const AXIS_COLORS = {
   x:  0xe05a4e, y:  0x5aad5a, z:  0x4a90d9,
   rx: 0xe05a4e, ry: 0x5aad5a, rz: 0x4a90d9,
 };
 const HIGHLIGHT_COLOR = 0xffffff;
 
-// Default proxy colors per type for highlight reset
-const PROXY_DEFAULT_COLORS = {
-  'point-light':       0xffffff,
-  'spot-light':        0xffdd44,
-  'directional-light': 0xffaa00,
-  'area-light':        0x44aaff,
-  'hemisphere-light':  0x87ceeb,
-  'product-cube':      0xd4a5a5,
-  camera:              0xd4a574,
-};
-
-// Create the right proxy based on element type
 const createProxyForType = (type, pos, id) => {
   switch (type) {
     case 'point-light':       return makeLightProxy(pos, id);
@@ -154,13 +140,11 @@ export default function SetupView() {
 
     const proxies = {};
 
-    // Camera proxy
     const cameraProxy = makeCameraProxy(photographerCamera.position);
     cameraProxy.traverse(child => { child.layers.set(1); });
     scene.add(cameraProxy);
     proxies['camera'] = cameraProxy;
 
-    // Build proxies for all existing elements
     const buildProxies = () => {
       Object.entries(sceneState.elements).forEach(([id, state]) => {
         if (proxies[id]) return;
@@ -173,7 +157,6 @@ export default function SetupView() {
     };
     buildProxies();
 
-    // Helpers
     const grid = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
     scene.add(grid);
     const axesHelper = new THREE.AxesHelper(5);
@@ -208,7 +191,6 @@ export default function SetupView() {
       active.visible = true;
     };
 
-    // Highlight a single gizmo axis (white) and dim the others
     const highlightGizmoAxis = (axis) => {
       const gizmo = getActiveGizmo();
       gizmo.children.forEach(child => {
@@ -223,7 +205,6 @@ export default function SetupView() {
       });
     };
 
-    // Reset all gizmo axes back to their original colors
     const resetGizmoColors = () => {
       [moveGizmo, rotateGizmo].forEach(gizmo => {
         gizmo.children.forEach(child => {
@@ -235,24 +216,22 @@ export default function SetupView() {
       });
     };
 
-    // Tint a proxy with emissive color (preserves model textures)
     const setProxyColor = (proxy, color) => {
       proxy.traverse(child => {
-        if (child.isMesh && child.material) {
-          if (child.material.emissive) {
-            child.material.emissive.setHex(color);
-            child.material.emissiveIntensity = 0.3;
-          } else if (child.material.color) {
-            child.material.color.setHex(color);
-          }
+        if (!child.isMesh || !child.material || child.userData.skipHighlight) return;
+        if (child.material.emissive) {
+          child.material.emissive.setHex(color);
+          child.material.emissiveIntensity = 0.3;
+        } else if (child.material.color) {
+          child.material.color.setHex(color);
         }
       });
     };
 
-    // Clear emissive tint on a proxy
     const resetProxyColor = (proxy) => {
       proxy.traverse(child => {
-        if (child.isMesh && child.material && child.material.emissive) {
+        if (!child.isMesh || !child.material || child.userData.skipHighlight) return;
+        if (child.material.emissive) {
           child.material.emissive.setHex(0x000000);
           child.material.emissiveIntensity = 0;
         }
@@ -260,11 +239,9 @@ export default function SetupView() {
     };
 
     const highlightObject = (id) => {
-      // Reset all proxies
       Object.entries(proxies).forEach(([pid, proxy]) => {
         resetProxyColor(proxy);
       });
-      // Highlight selected with blue tint
       if (id && proxies[id]) setProxyColor(proxies[id], 0x4a90d9);
       syncGizmos(id);
     };
@@ -275,7 +252,6 @@ export default function SetupView() {
       syncGizmos(sceneState.selected);
     };
 
-    // external selection
     const onExternalSelect = (e) => {
       const id = e.detail;
       sceneState.selected = id;
@@ -283,7 +259,6 @@ export default function SetupView() {
     };
     window.addEventListener('studio:select', onExternalSelect);
 
-    // Listen for toolbar clicks
     const onToolbarMode = (e) => setMode(e.detail);
     window.addEventListener('studio:set-gizmo-mode', onToolbarMode);
 
@@ -324,7 +299,6 @@ export default function SetupView() {
       if (sceneState.selected) syncGizmos(sceneState.selected);
     });
 
-    // Raycaster for click selection
     const raycaster = new THREE.Raycaster();
     raycaster.layers.enable(1);
     const mouse = new THREE.Vector2();
@@ -335,7 +309,6 @@ export default function SetupView() {
     let dragStartRot = { rx: 0, ry: 0, rz: 0 };
     let isDraggingGizmo = false;
 
-    // Project mouse delta onto axis screen direction 
     const getAxisScreenDir = (axis) => {
       const origin = moveGizmo.position.clone().project(helperCamera);
       const tip = moveGizmo.position.clone();
@@ -346,7 +319,6 @@ export default function SetupView() {
       return new THREE.Vector2(tip.x - origin.x, tip.y - origin.y).normalize();
     };
 
-    // Get screen tangent direction for a rotation ring axis (for rotate)
     const getRotScreenDir = (axis) => {
       const origin = rotateGizmo.position.clone().project(helperCamera);
       const ref = rotateGizmo.position.clone();
@@ -448,7 +420,6 @@ export default function SetupView() {
       mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
       raycaster.setFromCamera(mouse, helperCamera);
 
-      // Collect all meshes from proxies (including loaded model children)
       const clickables = [];
       Object.values(proxies).forEach(proxy => {
         proxy.traverse(child => {
@@ -458,7 +429,6 @@ export default function SetupView() {
 
       const hits = raycaster.intersectObjects(clickables);
       if (hits.length > 0) {
-        // Walk up to find the proxy with userData.id
         let obj = hits[0].object;
         while (obj && !obj.userData.id) obj = obj.parent;
         sceneState.selected = obj?.userData.id ?? null;

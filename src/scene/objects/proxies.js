@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { createSoftboxGeometry } from './geometries';
 
 const loader = new GLTFLoader();
 const modelCache = {};
@@ -36,14 +37,12 @@ const makeModelProxy = (position, id, modelPath, fallbackColor, fallbackGeo, mod
     const fb = group.children.find(c => c.userData.isFallback);
     if (fb) group.remove(fb);
 
-    // Wrap model in a pivot for base rotation without affecting user rotation
     const pivot = new THREE.Group();
     pivot.userData.isModelPivot = true;
     model.scale.set(modelScale, modelScale, modelScale);
     if (modelRotation) pivot.rotation.copy(modelRotation);
     pivot.add(model);
     group.add(pivot);
-
     pivot.traverse(child => { child.layers.set(1); });
   }).catch(() => {});
 
@@ -59,7 +58,28 @@ export const makeSpotProxy = (position, id) => {
 };
 
 export const makeAreaProxy = (position, id) => {
-  return makeModelProxy(position, id, '/models/softbox.glb', 0x44aaff, new THREE.PlaneGeometry(2, 2), 0.005);
+  const group = new THREE.Group();
+  group.position.copy(position);
+  group.userData.id = id;
+  group.userData.proxyFor = id;
+
+  const { geo, depth, frontW, frontH } = createSoftboxGeometry();
+
+  const body = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+    color: 0x111111, roughness: 0.8, metalness: 0.1
+  }));
+  group.add(body);
+
+  const panel = new THREE.Mesh(
+    new THREE.PlaneGeometry(frontW * 0.92, frontH * 0.92),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, side: THREE.DoubleSide })
+  );
+  panel.position.z = depth / 2 + 0.01;
+  panel.userData.skipHighlight = true;
+  group.add(panel);
+
+  group.traverse(child => { child.layers.set(1); });
+  return group;
 };
 
 export const makeHemisphereProxy = (position, id) => {

@@ -34,6 +34,8 @@ const computeLightTarget = (state) => {
   return new THREE.Vector3(state.x, state.y, state.z).add(dir.multiplyScalar(5));
 };
 
+const AREA_LIGHT_BASE = new THREE.Euler(0, Math.PI, 0);
+
 // Updaters 
 export const updateElement = (id, key, val) => {
   if (!sceneState.elements[id]) return;
@@ -44,15 +46,9 @@ export const updateElement = (id, key, val) => {
   // Position
   if (key === 'x' || key === 'y' || key === 'z') {
     obj.position[key] = val;
-    // Update target for directional lights
     if (obj.target) {
       const target = computeLightTarget(sceneState.elements[id]);
       obj.target.position.copy(target);
-    }
-    // Update lookAt for area lights
-    if (obj.isRectAreaLight) {
-      const target = computeLightTarget(sceneState.elements[id]);
-      obj.lookAt(target);
     }
     notify();
     return;
@@ -60,13 +56,17 @@ export const updateElement = (id, key, val) => {
 
   // Rotation
   if (key === 'rx' || key === 'ry' || key === 'rz') {
-    // For targeted lights, update the target based on rotation
     if (obj.target) {
       const target = computeLightTarget(sceneState.elements[id]);
       obj.target.position.copy(target);
     } else if (obj.isRectAreaLight) {
-      const target = computeLightTarget(sceneState.elements[id]);
-      obj.lookAt(target);
+      // user rotation on top of the base orientation
+      const state = sceneState.elements[id];
+      obj.rotation.set(
+        AREA_LIGHT_BASE.x + (state.rx ?? 0) * DEG2RAD,
+        AREA_LIGHT_BASE.y + (state.ry ?? 0) * DEG2RAD,
+        AREA_LIGHT_BASE.z + (state.rz ?? 0) * DEG2RAD
+      );
     } else {
       obj.rotation[key === 'rx' ? 'x' : key === 'ry' ? 'y' : 'z'] = val * DEG2RAD;
     }
@@ -79,7 +79,7 @@ export const updateElement = (id, key, val) => {
   if (key === 'sy') { obj.scale.y = val; notify(); return; }
   if (key === 'sz') { obj.scale.z = val; notify(); return; }
 
-  // Common light properties
+
   if (key === 'intensity') { obj.intensity = val; }
   else if (key === 'color') { obj.color.set(val); }
   else if (key === 'distance' && obj.distance !== undefined) { obj.distance = val; }

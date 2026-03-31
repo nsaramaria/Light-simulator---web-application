@@ -74,7 +74,8 @@ export const createAreaLight = (scene, elementMeshes, sceneState, notify) => {
   const id = `light-${lightCounter++}`;
   const light = new THREE.RectAreaLight(0xffffff, 5, 2, 2);
   light.position.set(0, 5, 0);
-  light.lookAt(0, 0, 0);
+  // Default facing: -Z direction (matches the softbox proxy front face)
+  light.rotation.set(0, Math.PI, 0);
   light.userData.id = id;
   scene.add(light);
   elementMeshes[id] = light;
