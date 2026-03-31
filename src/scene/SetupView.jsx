@@ -6,7 +6,7 @@ import { CAMERA } from './sceneConfig';
 import styled from 'styled-components';
 import { DEG2RAD, RAD2DEG } from '../utils/math';
 import { colors } from '../styles/theme';
-import { makeLightProxy, makeSpotProxy, makeAreaProxy, makeHemisphereProxy, makeProductProxy, makeCameraProxy } from './objects/proxies';
+import { makeLightProxy, makeSpotProxy, makeAreaProxy, makeHemisphereProxy, makeProductProxy, makeCycloramaProxy, makeCameraProxy } from './objects/proxies';
 import { makeMoveGizmo } from './gizmos/move';
 import { makeRotateGizmo } from './gizmos/rotate';
 
@@ -89,6 +89,7 @@ const createProxyForType = (type, pos, id) => {
     case 'area-light':        return makeAreaProxy(pos, id);
     case 'hemisphere-light':  return makeHemisphereProxy(pos, id);
     case 'product-cube':      return makeProductProxy(pos, id);
+    case 'cyclorama':         return makeCycloramaProxy(pos, id);
     default:                  return makeProductProxy(pos, id);
   }
 };

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { SCENE, LIGHT, FLOOR } from './sceneConfig';
 import { DEG2RAD } from '../utils/math';
 import { createPointLight, createSpotLight, createDirectionalLight, createAreaLight, createHemisphereLight, resetLightCounter } from './objects/lights';
-import { createProductCube, resetProductCounter } from './objects/products';
+import { createProductCube, createCyclorama, resetProductCounter, resetCycloramaCounter } from './objects/products';
 
 let sharedInstance = null;
 
@@ -79,7 +79,6 @@ export const updateElement = (id, key, val) => {
   if (key === 'sy') { obj.scale.y = val; notify(); return; }
   if (key === 'sz') { obj.scale.z = val; notify(); return; }
 
-
   if (key === 'intensity') { obj.intensity = val; }
   else if (key === 'color') { obj.color.set(val); }
   else if (key === 'distance' && obj.distance !== undefined) { obj.distance = val; }
@@ -146,6 +145,10 @@ export const addProductCube = () => {
   return createProductCube(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
 };
 
+export const addCyclorama = () => {
+  return createCyclorama(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
+};
+
 export const createSharedScene = () => {
   if (sharedInstance) return sharedInstance;
 
@@ -156,9 +159,29 @@ export const createSharedScene = () => {
   const elementMeshes = {};
 
   // CREATE FLOOR
+  const texLoader = new THREE.TextureLoader();
+  const floorRepeat = 4;
+
+  const colorMap = texLoader.load('/textures/floor/Tiles013_4K-PNG_Color.png');
+  colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
+  colorMap.repeat.set(floorRepeat, floorRepeat);
+
+  const normalMap = texLoader.load('/textures/floor/Tiles013_4K-PNG_NormalGL.png');
+  normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
+  normalMap.repeat.set(floorRepeat, floorRepeat);
+
+  const roughnessMap = texLoader.load('/textures/floor/Tiles013_4K-PNG_Roughness.png');
+  roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
+  roughnessMap.repeat.set(floorRepeat, floorRepeat);
+
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(FLOOR.width, FLOOR.height),
-    new THREE.MeshStandardMaterial({ color: FLOOR.color, roughness: 0.8 })
+    new THREE.MeshStandardMaterial({
+      map: colorMap,
+      normalMap: normalMap,
+      roughnessMap: roughnessMap,
+      roughness: 1,
+    })
   );
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
@@ -199,6 +222,7 @@ export const destroySharedScene = () => {
   }
   resetLightCounter();
   resetProductCounter();
+  resetCycloramaCounter();
   sceneState.elements = {};
   sceneState.selected = null;
   listeners.clear();

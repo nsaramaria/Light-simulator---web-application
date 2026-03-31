@@ -167,6 +167,7 @@ const DESCRIPTIONS = {
   'backdrop':         'Seamless background paper or fabric behind the subject',
   'table':            'Surface for placing and photographing products',
   'pedestal':         'Raised platform to elevate the product',
+  'cyclorama':        'Seamless corner wall with curved floor transition for clean backgrounds',
 };
 
 // Category definitions
@@ -201,9 +202,10 @@ const CATEGORIES = [
     iconColor: '#8b7d6b',
     iconRound: false,
     items: [
-      { id: 'backdrop',  label: 'Backdrop',  iconColor: '#8b7d6b', iconRound: false },
-      { id: 'table',     label: 'Table',     iconColor: '#6b5d4b', iconRound: false },
-      { id: 'pedestal',  label: 'Pedestal',  iconColor: '#7b6d5b', iconRound: false },
+      { id: 'backdrop',   label: 'Backdrop',   iconColor: '#8b7d6b', iconRound: false },
+      { id: 'cyclorama',  label: 'Cyclorama',  iconColor: '#f0f0f0', iconRound: false },
+      { id: 'table',      label: 'Table',      iconColor: '#6b5d4b', iconRound: false },
+      { id: 'pedestal',   label: 'Pedestal',   iconColor: '#7b6d5b', iconRound: false },
     ],
   },
   {

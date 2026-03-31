@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-import { createSoftboxGeometry } from './geometries';
+import { createSoftboxGeometry, createCornerCycloramaGeometry } from './geometries';
 
 const loader = new GLTFLoader();
 const modelCache = {};
@@ -77,6 +77,28 @@ export const makeAreaProxy = (position, id) => {
   panel.position.z = depth / 2 + 0.01;
   panel.userData.skipHighlight = true;
   group.add(panel);
+
+  group.traverse(child => { child.layers.set(1); });
+  return group;
+};
+
+export const makeCycloramaProxy = (position, id) => {
+  const group = new THREE.Group();
+  group.position.copy(position);
+  group.userData.id = id;
+  group.userData.proxyFor = id;
+
+  const { geo } = createCornerCycloramaGeometry(7, 6, 0.5);
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+    color: 0xf0f0f0,
+    transparent: true,
+    opacity: 0.08,
+    roughness: 0.8,
+    metalness: 0.0,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  }));
+  group.add(mesh);
 
   group.traverse(child => { child.layers.set(1); });
   return group;

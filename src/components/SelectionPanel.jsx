@@ -170,6 +170,7 @@ const POS_FIELDS = {
   'area-light':        [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
   'hemisphere-light':  [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
   'product-cube':      [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
+  'cyclorama':         [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
   camera:              [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
 };
 
@@ -200,6 +201,7 @@ const LABEL_BY_TYPE = {
   'area-light':        'Softbox',
   'hemisphere-light':  'Environment Light',
   'product-cube':      'Product Cube',
+  'cyclorama':         'Cyclorama',
    camera:              'Camera',
 };
 
@@ -336,7 +338,7 @@ export default function SelectionPanel() {
         <SectionLabel>Rotation (°)</SectionLabel>
         {ROT_FIELDS.map(renderField)}
 
-        {type === 'product-cube' && (
+        {(type === 'product-cube' || type === 'cyclorama') && (
           <>
             <Divider />
             <SectionLabel>Scale</SectionLabel>

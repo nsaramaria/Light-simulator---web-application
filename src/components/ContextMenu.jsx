@@ -59,6 +59,7 @@ const LABEL_BY_TYPE = {
   'area-light':       'Softbox',
   'hemisphere-light': 'Environment Light',
   'product-cube':     'Product Cube',
+  'cyclorama':        'Cyclorama',
   camera:             'Camera',
 };
 

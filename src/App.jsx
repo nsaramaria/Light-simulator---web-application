@@ -6,7 +6,7 @@ import SelectionPanel from './components/SelectionPanel';
 import Header from './components/Header';
 import HelpModal from './components/Help';
 import ContextMenu from './components/ContextMenu';
-import { addPointLight, addSpotLight, addDirectionalLight, addAreaLight, addHemisphereLight, addProductCube } from './scene/sharedScene';
+import { addPointLight, addSpotLight, addDirectionalLight, addAreaLight, addHemisphereLight, addProductCube, addCyclorama } from './scene/sharedScene';
 import { colors } from './styles/theme';
 
 const AppWrapper = styled.div`
@@ -103,6 +103,7 @@ const ADD_HANDLERS = {
   'area-light':        addAreaLight,
   'hemisphere-light':  addHemisphereLight,
   'product-cube':      addProductCube,
+  'cyclorama':         addCyclorama,
 };
 
 export default function App() {
@@ -185,7 +186,7 @@ export default function App() {
       </ViewsContainer>
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
-        <ContextMenu />
+      <ContextMenu />
     </AppWrapper>
   );
 }
