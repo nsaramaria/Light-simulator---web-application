@@ -5,6 +5,7 @@ import SetupView from './scene/SetupView';
 import SelectionPanel from './components/SelectionPanel';
 import Header from './components/Header';
 import HelpModal from './components/Help';
+import ContextMenu from './components/ContextMenu';
 import { addPointLight, addSpotLight, addDirectionalLight, addAreaLight, addHemisphereLight, addProductCube } from './scene/sharedScene';
 import { colors } from './styles/theme';
 
@@ -184,6 +185,7 @@ export default function App() {
       </ViewsContainer>
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+        <ContextMenu />
     </AppWrapper>
   );
 }

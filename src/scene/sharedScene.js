@@ -96,6 +96,26 @@ export const updateElement = (id, key, val) => {
   notify();
 };
 
+export const removeElement = (id) => {
+  if (!sharedInstance || !sceneState.elements[id]) return;
+  const obj = sharedInstance.elementMeshes[id];
+  if (obj) {
+    if (obj.target) sharedInstance.scene.remove(obj.target);
+    sharedInstance.scene.remove(obj);
+    obj.traverse?.((child) => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+        else child.material.dispose();
+      }
+    });
+  }
+  delete sharedInstance.elementMeshes[id];
+  delete sceneState.elements[id];
+  if (sceneState.selected === id) sceneState.selected = null;
+  notify();
+};
+
 export const updateCamera = (key, val) => {
   sceneState.camera[key] = val;
   notify();

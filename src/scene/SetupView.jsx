@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { createSharedScene, destroySharedScene, sceneState, onSceneChange, updateElement, updateCamera } from './sharedScene';
+import { createSharedScene, destroySharedScene, sceneState, onSceneChange, updateElement, updateCamera, removeElement } from './sharedScene';
 import { CAMERA } from './sceneConfig';
 import styled from 'styled-components';
 import { DEG2RAD, RAD2DEG } from '../utils/math';
@@ -445,9 +445,57 @@ export default function SetupView() {
       if (e.key === 'e' || e.key === 'E') setMode('rotate');
     };
 
+   const onContextMenu = (e) => {
+      e.preventDefault();
+      const rect = container.getBoundingClientRect();
+      mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+      mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, helperCamera);
+
+      const clickables = [];
+      Object.values(proxies).forEach(proxy => {
+        proxy.traverse(child => { if (child.isMesh) clickables.push(child); });
+      });
+
+      const hits = raycaster.intersectObjects(clickables);
+      if (hits.length > 0) {
+        let obj = hits[0].object;
+        while (obj && !obj.userData.id) obj = obj.parent;
+        const id = obj?.userData.id;
+        if (id) {
+          const type = id === 'camera' ? 'camera' : sceneState.elements[id]?.type;
+          window.dispatchEvent(new CustomEvent('studio:context-menu', {
+            detail: { id, type, x: e.clientX, y: e.clientY }
+          }));
+        }
+      }
+    };
+
+    const onDeleteElement = (e) => {
+      const id = e.detail;
+      if (!id || id === 'camera') return;
+      const proxy = proxies[id];
+      if (proxy) {
+        scene.remove(proxy);
+        proxy.traverse(child => {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) {
+            if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+            else child.material.dispose();
+          }
+        });
+        delete proxies[id];
+      }
+      removeElement(id);
+      highlightObject(null);
+      window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
+    };
+
     container.addEventListener('pointerdown', onPointerDown);
     container.addEventListener('pointermove', onPointerMove);
     container.addEventListener('pointerup', onPointerUp);
+    container.addEventListener('contextmenu', onContextMenu);
+    window.addEventListener('studio:delete-element', onDeleteElement);
     window.addEventListener('keydown', onKeyDown);
 
     let rafId;
@@ -489,6 +537,8 @@ export default function SetupView() {
       container.removeEventListener('pointerdown', onPointerDown);
       container.removeEventListener('pointermove', onPointerMove);
       container.removeEventListener('pointerup', onPointerUp);
+      container.removeEventListener('contextmenu', onContextMenu);
+      window.removeEventListener('studio:delete-element', onDeleteElement);
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
