@@ -310,25 +310,8 @@ export default function SetupView() {
     let dragStartRot = { rx: 0, ry: 0, rz: 0 };
     let isDraggingGizmo = false;
 
-    const getAxisScreenDir = (axis) => {
-      const origin = moveGizmo.position.clone().project(helperCamera);
-      const tip = moveGizmo.position.clone();
-      if (axis === 'x') tip.x += 1;
-      if (axis === 'y') tip.y += 1;
-      if (axis === 'z') tip.z += 1;
-      tip.project(helperCamera);
-      return new THREE.Vector2(tip.x - origin.x, tip.y - origin.y).normalize();
-    };
-
-    const getRotScreenDir = (axis) => {
-      const origin = rotateGizmo.position.clone().project(helperCamera);
-      const ref = rotateGizmo.position.clone();
-      if (axis === 'rx') ref.y += 1;
-      if (axis === 'ry') ref.x += 1;
-      if (axis === 'rz') ref.x += 1;
-      ref.project(helperCamera);
-      return new THREE.Vector2(ref.x - origin.x, ref.y - origin.y).normalize();
-    };
+    // --- OLD getAxisScreenDir and getRotScreenDir removed ---
+    // Replaced by proper screen-to-world projection in onPointerMove
 
     let pointerDownPos = { x: 0, y: 0 };
 
@@ -369,14 +352,31 @@ export default function SetupView() {
       const id = sceneState.selected;
 
       if (gizmoMode === 'move') {
-        const screenDir = getAxisScreenDir(dragAxis);
-        const mouseDelta = new THREE.Vector2(
-          dx / container.clientWidth  * 2,
-         -dy / container.clientHeight * 2
+        // --- FIX: proper screen-to-world projection for move ---
+        // Project 1 world unit along the drag axis onto screen space
+        // to find the exact pixels-per-unit ratio for this axis
+        const axisDir = new THREE.Vector3();
+        if (dragAxis === 'x') axisDir.set(1, 0, 0);
+        if (dragAxis === 'y') axisDir.set(0, 1, 0);
+        if (dragAxis === 'z') axisDir.set(0, 0, 1);
+
+        const startScreen = dragStartPos.clone().project(helperCamera);
+        const endScreen = dragStartPos.clone().add(axisDir).project(helperCamera);
+
+        const axisScreenDelta = new THREE.Vector2(
+          (endScreen.x - startScreen.x) * container.clientWidth / 2,
+          (endScreen.y - startScreen.y) * container.clientHeight / 2
         );
-        const movement = mouseDelta.dot(screenDir);
-        const dist = helperCamera.position.distanceTo(moveGizmo.position);
-        const newVal = dragStartPos[dragAxis] + movement * dist * 1.2;
+        const pixelsPerUnit = axisScreenDelta.length();
+
+        if (pixelsPerUnit < 0.001) return; // axis pointing at camera, skip
+
+        const axisScreenDir = axisScreenDelta.normalize();
+        const mousePx = new THREE.Vector2(dx, -dy);
+        const projectedPixels = mousePx.dot(axisScreenDir);
+
+        const units = projectedPixels / pixelsPerUnit;
+        const newVal = dragStartPos[dragAxis] + units;
 
         if (id === 'camera') updateCamera(dragAxis, newVal);
         else updateElement(id, dragAxis, newVal);
@@ -385,13 +385,34 @@ export default function SetupView() {
           detail: { id, axis: dragAxis, val: newVal }
         }));
       } else {
-        const screenDir = getRotScreenDir(dragAxis);
-        const mouseDelta = new THREE.Vector2(
-          dx / container.clientWidth  * 2,
-         -dy / container.clientHeight * 2
+        // --- FIX: proper screen-to-world projection for rotation ---
+        // Project the rotation axis into screen space to determine
+        // how mouse movement maps to degrees of rotation
+        const gizmoPos = rotateGizmo.position.clone();
+
+        // Pick a reference point 1 unit away along the rotation plane
+        const ref = gizmoPos.clone();
+        if (dragAxis === 'rx') ref.y += 1; // Y-Z plane
+        if (dragAxis === 'ry') ref.x += 1; // X-Z plane
+        if (dragAxis === 'rz') ref.x += 1; // X-Y plane
+
+        const originScreen = gizmoPos.project(helperCamera);
+        const refScreen = ref.project(helperCamera);
+
+        const screenDir = new THREE.Vector2(
+          (refScreen.x - originScreen.x) * container.clientWidth / 2,
+          (refScreen.y - originScreen.y) * container.clientHeight / 2
         );
-        const movement = mouseDelta.dot(screenDir);
-        const deltaDeg = movement * 180;
+        const pixelsDist = screenDir.length();
+
+        if (pixelsDist < 0.001) return; // axis pointing at camera, skip
+
+        const screenDirNorm = screenDir.normalize();
+        const mousePx = new THREE.Vector2(dx, -dy);
+        const projectedPixels = mousePx.dot(screenDirNorm);
+
+        // Map projected pixels to degrees — scale by the pixels-per-unit ratio
+        const deltaDeg = (projectedPixels / pixelsDist) * 180;
         const newVal = (dragStartRot[dragAxis] + deltaDeg) % 360;
 
         if (id === 'camera') updateCamera(dragAxis, newVal);
