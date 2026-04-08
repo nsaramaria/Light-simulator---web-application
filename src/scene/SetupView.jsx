@@ -173,6 +173,17 @@ export default function SetupView() {
     rotateGizmo.visible = false;
     scene.add(rotateGizmo);
 
+    [moveGizmo, rotateGizmo].forEach(gizmo => {
+      gizmo.renderOrder = 999;
+      gizmo.traverse(child => {
+        if (child.isMesh && child.material) {
+          child.material.depthTest = false;
+          child.material.depthWrite = false;
+          child.renderOrder = 999;
+        }
+      });
+    });
+
     let gizmoMode = 'move';
 
     const getActiveGizmo = () => gizmoMode === 'move' ? moveGizmo : rotateGizmo;
@@ -310,8 +321,7 @@ export default function SetupView() {
     let dragStartRot = { rx: 0, ry: 0, rz: 0 };
     let isDraggingGizmo = false;
 
-    // --- OLD getAxisScreenDir and getRotScreenDir removed ---
-    // Replaced by proper screen-to-world projection in onPointerMove
+  
 
     let pointerDownPos = { x: 0, y: 0 };
 
@@ -352,9 +362,7 @@ export default function SetupView() {
       const id = sceneState.selected;
 
       if (gizmoMode === 'move') {
-        // --- FIX: proper screen-to-world projection for move ---
-        // Project 1 world unit along the drag axis onto screen space
-        // to find the exact pixels-per-unit ratio for this axis
+       
         const axisDir = new THREE.Vector3();
         if (dragAxis === 'x') axisDir.set(1, 0, 0);
         if (dragAxis === 'y') axisDir.set(0, 1, 0);
@@ -369,7 +377,7 @@ export default function SetupView() {
         );
         const pixelsPerUnit = axisScreenDelta.length();
 
-        if (pixelsPerUnit < 0.001) return; // axis pointing at camera, skip
+        if (pixelsPerUnit < 0.001) return;
 
         const axisScreenDir = axisScreenDelta.normalize();
         const mousePx = new THREE.Vector2(dx, -dy);
@@ -385,16 +393,13 @@ export default function SetupView() {
           detail: { id, axis: dragAxis, val: newVal }
         }));
       } else {
-        // --- FIX: proper screen-to-world projection for rotation ---
-        // Project the rotation axis into screen space to determine
-        // how mouse movement maps to degrees of rotation
+       
         const gizmoPos = rotateGizmo.position.clone();
 
-        // Pick a reference point 1 unit away along the rotation plane
         const ref = gizmoPos.clone();
-        if (dragAxis === 'rx') ref.y += 1; // Y-Z plane
-        if (dragAxis === 'ry') ref.x += 1; // X-Z plane
-        if (dragAxis === 'rz') ref.x += 1; // X-Y plane
+        if (dragAxis === 'rx') ref.y += 1;
+        if (dragAxis === 'ry') ref.x += 1;
+        if (dragAxis === 'rz') ref.x += 1;
 
         const originScreen = gizmoPos.project(helperCamera);
         const refScreen = ref.project(helperCamera);
@@ -405,13 +410,12 @@ export default function SetupView() {
         );
         const pixelsDist = screenDir.length();
 
-        if (pixelsDist < 0.001) return; // axis pointing at camera, skip
+        if (pixelsDist < 0.001) return;
 
         const screenDirNorm = screenDir.normalize();
         const mousePx = new THREE.Vector2(dx, -dy);
         const projectedPixels = mousePx.dot(screenDirNorm);
 
-        // Map projected pixels to degrees — scale by the pixels-per-unit ratio
         const deltaDeg = (projectedPixels / pixelsDist) * 180;
         const newVal = (dragStartRot[dragAxis] + deltaDeg) % 360;
 
