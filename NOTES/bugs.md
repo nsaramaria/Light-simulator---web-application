@@ -1,4 +1,4 @@
-1) for the newly added cubes, gizmo arrows looks differently
+1) for the newly added cubes, gizmo arrows looks differently DONE
 2) when I add a new light/ cube, the slide bar shows me the details of the new element, but the arrows and selection mode is still on the lastly selected one
 
 feedback: 
@@ -12,3 +12,8 @@ depth testing
 
 
 9) make a better representation for each light
+
+move more axes in the same time - plane box like blener
+rotation and move in local and global
+add shortcuts
+MeshStandardMaterial- expose some?
