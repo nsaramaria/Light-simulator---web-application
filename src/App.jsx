@@ -6,6 +6,7 @@ import SelectionPanel from './components/SelectionPanel';
 import Header from './components/Header';
 import HelpModal from './components/Help';
 import ContextMenu from './components/ContextMenu';
+import Auth from './components/Auth';
 import { addPointLight, addSpotLight, addDirectionalLight, addAreaLight, addHemisphereLight, addProductCube, addCyclorama } from './scene/sharedScene';
 import { colors } from './styles/theme';
 
@@ -107,11 +108,23 @@ const ADD_HANDLERS = {
 };
 
 export default function App() {
+  // Check if user is already logged in
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
   const [showHelp, setShowHelp] = useState(false);
   const [splitPct, setSplitPct] = useState(50);
   const [dragging, setDragging] = useState(false);
   const [maximized, setMaximized] = useState(null);
   const containerRef = useRef(null);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+  };
 
   const onDividerMouseDown = useCallback((e) => {
     e.preventDefault();
@@ -155,13 +168,18 @@ export default function App() {
     }
   };
 
+  // Show login screen if not logged in
+  if (!user) {
+    return <Auth onLogin={setUser} />;
+  }
+
   const cameraWidth = maximized === 'camera' ? 100 : maximized === 'setup' ? 0 : splitPct;
   const setupWidth  = maximized === 'setup'  ? 100 : maximized === 'camera' ? 0 : 100 - splitPct;
   const showDivider = maximized === null;
 
   return (
     <AppWrapper>
-      <Header onAdd={handleAdd} onShowHelp={() => setShowHelp(true)} />
+      <Header onAdd={handleAdd} onShowHelp={() => setShowHelp(true)} user={user} onLogout={handleLogout} />
 
       <ViewsContainer ref={containerRef} $dragging={dragging}>
         <ViewPanel $width={cameraWidth}>

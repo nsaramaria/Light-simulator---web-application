@@ -26,7 +26,12 @@ const HeaderRight = styled.div`
   gap: 10px;
 `;
 
-const HelpButton = styled.button`
+const UserEmail = styled.span`
+  font-size: 12px;
+  color: ${colors.textMuted};
+`;
+
+const HeaderButton = styled.button`
   background: transparent;
   border: 1px solid ${colors.border};
   color: ${colors.text};
@@ -44,13 +49,31 @@ const HelpButton = styled.button`
   }
 `;
 
-export default function Header({ onAdd, onShowHelp }) {
+const LogoutBtn = styled.button`
+  background: transparent;
+  border: 1px solid ${colors.border};
+  color: ${colors.textMuted};
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: #e05a4e;
+    color: #e05a4e;
+  }
+`;
+
+export default function Header({ onAdd, onShowHelp, user, onLogout }) {
   return (
     <HeaderBar>
       <Title>Studio Simulator</Title>
       <HeaderRight>
         <AddMenu onAdd={onAdd} />
-        <HelpButton onClick={onShowHelp}>How to use</HelpButton>
+        <HeaderButton onClick={onShowHelp}>How to use</HeaderButton>
+        {user && <UserEmail>{user.email}</UserEmail>}
+        {user && <LogoutBtn onClick={onLogout}>Log out</LogoutBtn>}
       </HeaderRight>
     </HeaderBar>
   );
