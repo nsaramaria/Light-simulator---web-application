@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { createSharedScene, destroySharedScene, sceneState, onSceneChange, updateElement, updateCamera, removeElement } from './sharedScene';
 import { CAMERA } from './sceneConfig';
+import renderLoop from './renderLoop';
 import styled from 'styled-components';
 import { DEG2RAD, RAD2DEG } from '../utils/math';
 import { colors } from '../styles/theme';
@@ -127,6 +128,16 @@ export default function SetupView() {
     controls.enableDamping = true;
     controls.target.set(0, 0, 0);
     controls.update();
+
+    let orbitActive = false;
+    controls.addEventListener('start', () => {
+      if (!orbitActive) { orbitActive = true; renderLoop.enterContinuous(); }
+    });
+    controls.addEventListener('end', () => {
+      setTimeout(() => {
+        if (orbitActive) { orbitActive = false; renderLoop.exitContinuous(); }
+      }, 600);
+    });
 
     const photographerCamera = new THREE.PerspectiveCamera(
       CAMERA.fov, 16 / 9, CAMERA.near, CAMERA.far
@@ -262,12 +273,14 @@ export default function SetupView() {
       gizmoMode = mode;
       setActiveMode(mode);
       syncGizmos(sceneState.selected);
+      renderLoop.markDirty();
     };
 
     const onExternalSelect = (e) => {
       const id = e.detail;
       sceneState.selected = id;
       highlightObject(id);
+      renderLoop.markDirty();
     };
     window.addEventListener('studio:select', onExternalSelect);
 
@@ -288,10 +301,13 @@ export default function SetupView() {
       }
     };
 
+    let cameraHelperDirty = true;
+
     const unsub = onSceneChange(() => {
       syncPhotographerCamera();
       cameraProxy.position.copy(photographerCamera.position);
       cameraProxy.rotation.copy(photographerCamera.rotation);
+      cameraHelperDirty = true;
 
       buildProxies();
       Object.entries(proxies).forEach(([id, proxy]) => {
@@ -321,8 +337,6 @@ export default function SetupView() {
     let dragStartRot = { rx: 0, ry: 0, rz: 0 };
     let isDraggingGizmo = false;
 
-  
-
     let pointerDownPos = { x: 0, y: 0 };
 
     const onPointerDown = (e) => {
@@ -342,6 +356,7 @@ export default function SetupView() {
           isDraggingGizmo = true;
           controls.enabled = false;
           highlightGizmoAxis(dragAxis);
+          renderLoop.enterContinuous();
           if (gizmoMode === 'move') {
             dragStartPos.copy(getSelectedPosition(sceneState.selected));
           } else {
@@ -362,7 +377,6 @@ export default function SetupView() {
       const id = sceneState.selected;
 
       if (gizmoMode === 'move') {
-       
         const axisDir = new THREE.Vector3();
         if (dragAxis === 'x') axisDir.set(1, 0, 0);
         if (dragAxis === 'y') axisDir.set(0, 1, 0);
@@ -393,7 +407,6 @@ export default function SetupView() {
           detail: { id, axis: dragAxis, val: newVal }
         }));
       } else {
-       
         const gizmoPos = rotateGizmo.position.clone();
 
         const ref = gizmoPos.clone();
@@ -434,6 +447,8 @@ export default function SetupView() {
         dragAxis = null;
         controls.enabled = true;
         resetGizmoColors();
+        renderLoop.exitContinuous();
+        renderLoop.markDirty();
         return;
       }
 
@@ -524,11 +539,13 @@ export default function SetupView() {
     window.addEventListener('studio:delete-element', onDeleteElement);
     window.addEventListener('keydown', onKeyDown);
 
-    let rafId;
-    const animate = () => {
-      rafId = requestAnimationFrame(animate);
+    const renderLoopId = renderLoop.register(() => {
       controls.update();
-      cameraHelper.update();
+
+      if (cameraHelperDirty) {
+        cameraHelper.update();
+        cameraHelperDirty = false;
+      }
 
       const activeGizmo = getActiveGizmo();
       if (activeGizmo.visible) {
@@ -538,14 +555,15 @@ export default function SetupView() {
       }
 
       renderer.render(scene, helperCamera);
-    };
-    animate();
+    }, 0);
 
     const onResize = () => {
       const w = container.clientWidth, h = container.clientHeight;
+      if (w === 0 || h === 0) return;
       helperCamera.aspect = w / h;
       helperCamera.updateProjectionMatrix();
       renderer.setSize(w, h);
+      renderLoop.markDirty();
     };
     window.addEventListener('resize', onResize);
 
@@ -553,7 +571,7 @@ export default function SetupView() {
     ro.observe(container);
 
     return () => {
-      cancelAnimationFrame(rafId);
+      renderLoop.unregister(renderLoopId);
       unsub();
       ro.disconnect();
       window.removeEventListener('resize', onResize);

@@ -41,7 +41,7 @@ export const createCornerCycloramaGeometry = (w = 7, h = 6, depth = 0.08) => {
   const rightWall = new THREE.BoxGeometry(depth, h, w);
   rightWall.translate(0, h / 2, w / 2);
 
-  // Floor
+  // Floor - wall 
   const floor = new THREE.BoxGeometry(w, depth, w);
   floor.translate(-w / 2, 0, w / 2);
 

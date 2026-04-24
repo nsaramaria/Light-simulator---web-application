@@ -3,6 +3,7 @@ import { SCENE, LIGHT, FLOOR } from './sceneConfig';
 import { DEG2RAD } from '../utils/math';
 import { createPointLight, createSpotLight, createDirectionalLight, createAreaLight, createHemisphereLight, resetLightCounter } from './objects/lights';
 import { createProductCube, createCyclorama, resetProductCounter, resetCycloramaCounter } from './objects/products';
+import renderLoop from './renderLoop';
 
 let sharedInstance = null;
 
@@ -13,7 +14,17 @@ if (import.meta.hot) {
 
 const listeners = new Set();
 export const onSceneChange = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
-const notify = () => listeners.forEach(fn => fn());
+
+let notifyQueued = false;
+const notify = () => {
+  renderLoop.markDirty();
+  if (notifyQueued) return;
+  notifyQueued = true;
+  Promise.resolve().then(() => {
+    notifyQueued = false;
+    listeners.forEach(fn => fn());
+  });
+};
 
 // Scene state 
 export const sceneState = {
@@ -226,4 +237,5 @@ export const destroySharedScene = () => {
   sceneState.elements = {};
   sceneState.selected = null;
   listeners.clear();
+  notifyQueued = false;
 };

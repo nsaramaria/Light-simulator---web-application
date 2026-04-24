@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { createSharedScene, sceneState, onSceneChange } from './sharedScene';
 import { CAMERA, PRODUCT } from './sceneConfig';
+import renderLoop from './renderLoop';
 import styled from 'styled-components';
 import { DEG2RAD } from '../utils/math';
 
@@ -37,12 +38,11 @@ export default function CameraView() {
     container.appendChild(renderer.domElement);
 
     renderer.domElement.style.width = '100%';
-renderer.domElement.style.height = '100%';
+    renderer.domElement.style.height = '100%';
 
     const unsub = onSceneChange(() => {
       const { x, y, z, rx, ry, rz } = sceneState.camera;
       camera.position.set(x, y, z);
-      // Apply rotation if set  otherwise default to looking at the subject
       if (rx || ry || rz) {
         camera.rotation.set(
           (rx ?? 0) * DEG2RAD,
@@ -54,27 +54,25 @@ renderer.domElement.style.height = '100%';
       }
     });
 
-    let rafId;
-    const animate = () => {
-      rafId = requestAnimationFrame(animate);
+    const renderLoopId = renderLoop.register(() => {
       renderer.render(scene, camera);
-    };
-    animate();
+    }, 1);
 
     const onResize = () => {
       const w = container.clientWidth, h = container.clientHeight;
+      if (w === 0 || h === 0) return;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
+      renderLoop.markDirty();
     };
     window.addEventListener('resize', onResize);
 
-    // ResizeObserver catches panel size changes (maximize/restore/drag)
     const ro = new ResizeObserver(onResize);
     ro.observe(container);
 
     return () => {
-      cancelAnimationFrame(rafId);
+      renderLoop.unregister(renderLoopId);
       unsub();
       ro.disconnect();
       window.removeEventListener('resize', onResize);
