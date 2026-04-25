@@ -7,7 +7,7 @@ const Wrapper = styled.div`
 `;
 
 const AddBtn = styled.button`
-  background: ${({ $open }) => $open ? 'rgba(212, 165, 116, 0.08)' : 'transparent'};
+  background: ${({ $open }) => $open ? 'rgba(232,168,85,0.08)' : 'transparent'};
   border: 1px solid ${({ $open }) => $open ? colors.accent : colors.border};
   color: ${({ $open }) => $open ? colors.accent : colors.text};
   padding: 8px 16px;
@@ -23,80 +23,106 @@ const AddBtn = styled.button`
   }
 `;
 
-const MenuWrap = styled.div`
+const DropdownWrap = styled.div`
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  display: flex;
-  gap: 4px;
   z-index: 200;
+  display: flex;
+  flex-direction: column;
+  width: 260px;
+  background: rgba(12,11,9,0.97);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 16px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04);
 `;
 
-const Dropdown = styled.div`
-  width: 160px;
-  background: ${colors.surfaceDark};
-  border: 1px solid ${colors.border};
-  border-radius: 6px;
-  overflow: hidden;
+const SearchRow = styled.div`
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const SearchIcon = styled.span`
+  font-size: 13px;
+  color: #555;
+`;
+
+const SearchInput = styled.input`
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 12px;
+  color: ${colors.text};
+  font-family: inherit;
+
+  &::placeholder {
+    color: rgba(255,255,255,0.2);
+  }
+`;
+
+const MenuBody = styled.div`
+  display: flex;
+  max-height: 320px;
+`;
+
+const CatList = styled.div`
+  width: 100px;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
 `;
 
 const CatItem = styled.div`
-  padding: 8px 12px;
-  font-size: 13px;
+  padding: 8px 10px;
+  font-size: 12px;
   color: ${({ $active }) => $active ? colors.accent : colors.text};
-  background: ${({ $active }) => $active ? colors.border : 'transparent'};
+  background: ${({ $active }) => $active ? 'rgba(232,168,85,0.06)' : 'transparent'};
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   transition: background 0.1s;
 
   &:hover {
-    background: ${colors.border};
+    background: rgba(255,255,255,0.03);
     color: ${colors.accent};
   }
 
   & + & {
-    border-top: 1px solid ${colors.border};
+    border-top: 1px solid rgba(255,255,255,0.03);
   }
 `;
 
 const CatIcon = styled.div`
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   flex-shrink: 0;
-  margin-right: 8px;
-  border-radius: ${({ $round }) => $round ? '50%' : '1px'};
+  border-radius: ${({ $round }) => $round ? '50%' : '2px'};
   background: ${({ $color }) => $color};
 `;
 
-const CatArrow = styled.span`
-  font-size: 10px;
-  color: ${colors.textMuted};
+const ItemList = styled.div`
+  flex: 1;
+  overflow-y: auto;
 `;
 
-const Flyout = styled.div`
-  width: 180px;
-  background: ${colors.surfaceDark};
-  border: 1px solid ${colors.border};
-  border-radius: 6px;
-  overflow: hidden;
-  align-self: flex-start;
-`;
-
-const FlyoutHeader = styled.div`
-  padding: 5px 12px;
+const ItemHeader = styled.div`
+  padding: 6px 10px;
   font-size: 9px;
   font-weight: 600;
-  color: ${colors.textMuted};
+  color: #555;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
-  border-bottom: 1px solid ${colors.border};
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
 `;
 
-const FlyoutItem = styled.div`
-  padding: 8px 12px;
-  font-size: 13px;
+const Item = styled.div`
+  padding: 8px 10px;
+  font-size: 12px;
   color: ${colors.text};
   cursor: pointer;
   display: flex;
@@ -105,20 +131,20 @@ const FlyoutItem = styled.div`
   transition: background 0.1s;
 
   &:hover {
-    background: ${colors.border};
+    background: rgba(232,168,85,0.06);
     color: ${colors.accent};
   }
 
   & + & {
-    border-top: 1px solid ${colors.border};
+    border-top: 1px solid rgba(255,255,255,0.03);
   }
 `;
 
 const ItemIcon = styled.div`
-  width: 11px;
-  height: 11px;
+  width: 10px;
+  height: 10px;
   flex-shrink: 0;
-  border-radius: ${({ $round }) => $round ? '50%' : '1px'};
+  border-radius: ${({ $round }) => $round ? '50%' : '2px'};
   background: ${({ $color }) => $color};
 `;
 
@@ -137,8 +163,8 @@ const InfoIconWrap = styled.div`
   border-radius: 50%;
   font-size: 9px;
   font-weight: 700;
-  color: ${colors.textMuted};
-  border: 1px solid ${colors.textMuted};
+  color: #555;
+  border: 1px solid #555;
   cursor: default;
   transition: all 0.15s;
 
@@ -154,7 +180,45 @@ const InfoIcon = ({ text }) => (
   </InfoIconWrap>
 );
 
-// descriptions per item id
+const SearchResults = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+`;
+
+const SearchResultItem = styled.div`
+  padding: 8px 12px;
+  font-size: 12px;
+  color: ${colors.text};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.1s;
+
+  &:hover {
+    background: rgba(232,168,85,0.06);
+    color: ${colors.accent};
+  }
+
+  & + & {
+    border-top: 1px solid rgba(255,255,255,0.03);
+  }
+`;
+
+const SearchResultCat = styled.span`
+  font-size: 9px;
+  color: #555;
+  margin-left: auto;
+`;
+
+const NoResults = styled.div`
+  padding: 20px;
+  text-align: center;
+  font-size: 11px;
+  color: #555;
+`;
+
 const DESCRIPTIONS = {
   'point-light':      'Emits light in all directions, like a bare studio strobe without modifiers',
   'spot-light':       'Projects a concentrated cone beam, ideal for highlighting specific areas',
@@ -168,9 +232,9 @@ const DESCRIPTIONS = {
   'table':            'Surface for placing and photographing products',
   'pedestal':         'Raised platform to elevate the product',
   'cyclorama':        'Seamless corner wall with curved floor transition for clean backgrounds',
+  'product-cube':     'Simple cube to represent the product being photographed',
 };
 
-// Category definitions
 const CATEGORIES = [
   {
     id: 'lights',
@@ -219,63 +283,115 @@ const CATEGORIES = [
   },
 ];
 
+// Flatten all items for search
+const ALL_ITEMS = CATEGORIES.flatMap(cat =>
+  cat.items.map(item => ({ ...item, catLabel: cat.label }))
+);
+
 export default function AddMenu({ onAdd }) {
   const [open, setOpen] = useState(false);
   const [activeCat, setActiveCat] = useState('lights');
+  const [search, setSearch] = useState('');
   const wrapperRef = useRef(null);
+  const searchRef = useRef(null);
 
   useEffect(() => {
     const handler = (e) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
         setOpen(false);
+        setSearch('');
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => searchRef.current?.focus(), 50);
+    } else {
+      setSearch('');
+    }
+  }, [open]);
+
   const handleAdd = (itemId) => {
     onAdd(itemId);
     setOpen(false);
+    setSearch('');
   };
 
   const currentCat = CATEGORIES.find(c => c.id === activeCat);
+  const isSearching = search.trim().length > 0;
+
+  const searchResults = isSearching
+    ? ALL_ITEMS.filter(item =>
+        item.label.toLowerCase().includes(search.toLowerCase()) ||
+        item.catLabel.toLowerCase().includes(search.toLowerCase()) ||
+        (DESCRIPTIONS[item.id] || '').toLowerCase().includes(search.toLowerCase())
+      )
+    : [];
 
   return (
     <Wrapper ref={wrapperRef}>
       <AddBtn $open={open} onClick={() => setOpen(v => !v)}>+ Add</AddBtn>
 
       {open && (
-        <MenuWrap>
-          <Dropdown>
-            {CATEGORIES.map(cat => (
-              <CatItem
-                key={cat.id}
-                $active={activeCat === cat.id}
-                onMouseEnter={() => setActiveCat(cat.id)}
-              >
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <CatIcon $color={cat.iconColor} $round={cat.iconRound} />
-                  {cat.label}
-                </div>
-                <CatArrow>›</CatArrow>
-              </CatItem>
-            ))}
-          </Dropdown>
+        <DropdownWrap>
+          <SearchRow>
+            <SearchIcon>⌕</SearchIcon>
+            <SearchInput
+              ref={searchRef}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search objects..."
+            />
+          </SearchRow>
 
-          {currentCat && (
-            <Flyout>
-              <FlyoutHeader>{currentCat.label}</FlyoutHeader>
-              {currentCat.items.map(item => (
-                <FlyoutItem key={item.id} onClick={() => handleAdd(item.id)}>
+          {isSearching ? (
+            <SearchResults>
+              {searchResults.length === 0 && (
+                <NoResults>No objects matching "{search}"</NoResults>
+              )}
+              {searchResults.map(item => (
+                <SearchResultItem key={item.id} onClick={() => handleAdd(item.id)}>
                   <ItemIcon $color={item.iconColor} $round={item.iconRound} />
                   <ItemLabel>{item.label}</ItemLabel>
-                  {DESCRIPTIONS[item.id] && <InfoIcon text={DESCRIPTIONS[item.id]} />}
-                </FlyoutItem>
+                  <SearchResultCat>{item.catLabel}</SearchResultCat>
+                </SearchResultItem>
               ))}
-            </Flyout>
+            </SearchResults>
+          ) : (
+            <MenuBody>
+              <CatList>
+                {CATEGORIES.map(cat => (
+                  <CatItem
+                    key={cat.id}
+                    $active={activeCat === cat.id}
+                    onMouseEnter={() => setActiveCat(cat.id)}
+                  >
+                    <CatIcon $color={cat.iconColor} $round={cat.iconRound} />
+                    {cat.label}
+                  </CatItem>
+                ))}
+              </CatList>
+
+              <ItemList>
+                {currentCat && (
+                  <>
+                    <ItemHeader>{currentCat.label}</ItemHeader>
+                    {currentCat.items.map(item => (
+                      <Item key={item.id} onClick={() => handleAdd(item.id)}>
+                        <ItemIcon $color={item.iconColor} $round={item.iconRound} />
+                        <ItemLabel>{item.label}</ItemLabel>
+                        {DESCRIPTIONS[item.id] && <InfoIcon text={DESCRIPTIONS[item.id]} />}
+                      </Item>
+                    ))}
+                  </>
+                )}
+              </ItemList>
+            </MenuBody>
           )}
-        </MenuWrap>
+        </DropdownWrap>
       )}
     </Wrapper>
   );
