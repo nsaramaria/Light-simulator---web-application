@@ -8,7 +8,7 @@ const sceneRoutes = require('./routes/scenes');
 const app = express();
 
 // Allow frontend to talk to backend
-app.use(cors({ origin: 'http://localhost:5173' }));
+app.use(cors());
 
 // Parse JSON request bodies
 app.use(express.json({ limit: '10mb' }));
