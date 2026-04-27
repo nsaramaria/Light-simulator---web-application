@@ -30,34 +30,36 @@ const Toolbar = styled.div`
   left: 10px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   z-index: 10;
-  background: rgba(30, 26, 22, 0.85);
-  border: 1px solid ${colors.border};
-  border-radius: 4px;
+  background: rgba(12,11,9,0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
   padding: 3px;
 `;
 
 const ToolBtn = styled.button`
-  width: 28px;
-  height: 28px;
-  background: ${({ $active }) => $active ? 'rgba(212,165,116,0.2)' : 'transparent'};
-  border: 1px solid ${({ $active }) => $active ? colors.accent : 'transparent'};
-  border-radius: 3px;
+  height: 30px;
+  padding: 0 10px;
+  background: ${({ $active }) => $active ? 'rgba(232,168,85,0.12)' : 'transparent'};
+  border: none;
+  border-radius: 6px;
   color: ${({ $active }) => $active ? colors.accent : colors.textMuted};
-  font-size: 16px;
+  font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
   transition: all 0.15s;
-  padding: 0;
 
   &:hover {
-    background: rgba(212,165,116,0.15);
+    background: rgba(232,168,85,0.08);
     color: ${colors.accent};
   }
 `;
+
 
 const MoveIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
