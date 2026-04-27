@@ -1,37 +1,53 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import styled from 'styled-components';
 import { sceneState, updateElement, updateCamera } from '../scene/sharedScene';
 import { colors } from '../styles/theme';
 
 const Sidebar = styled.div`
-  width: ${({ $collapsed }) => $collapsed ? '24px' : '220px'};
+  width: ${({ $collapsed }) => $collapsed ? '24px' : '240px'};
   height: 100%;
-  background: ${colors.background};
+  background: rgba(12,11,9,0.95);
+  backdrop-filter: blur(16px);
   border-left: 1px solid ${colors.border};
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   overflow: hidden;
+  transition: width 0.25s cubic-bezier(0.16,1,0.3,1);
 `;
 
 const SidebarHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 10px;
+  padding: 10px 14px;
   border-bottom: 1px solid ${colors.border};
   flex-shrink: 0;
-  min-height: 32px;
+  min-height: 42px;
 `;
 
-const SidebarTitle = styled.div`
-  font-size: 10px;
+const HeaderLeft = styled.div`
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+`;
+
+const SidebarLabel = styled.div`
+  font-size: 9px;
+  font-weight: 600;
+  color: ${colors.textMuted};
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+`;
+
+const SelectedName = styled.div`
+  font-size: 14px;
   font-weight: 600;
   color: ${colors.accent};
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
+  margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 const CollapseBtn = styled.button`
@@ -40,13 +56,15 @@ const CollapseBtn = styled.button`
   color: ${colors.textMuted};
   cursor: pointer;
   font-size: 14px;
-  padding: 0;
+  padding: 4px;
   line-height: 1;
   flex-shrink: 0;
-  transition: color 0.2s;
+  border-radius: 4px;
+  transition: all 0.2s;
 
   &:hover {
     color: ${colors.accent};
+    background: rgba(232,168,85,0.08);
   }
 `;
 
@@ -79,88 +97,242 @@ const SidebarHint = styled.div`
   line-height: 1.6;
 `;
 
-const PropsGroup = styled.div`
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow-y: auto;
+const PropsScroll = styled.div`
   flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
 `;
 
-const FieldRow = styled.div`
+const SectionWrap = styled.div`
+  border-bottom: 1px solid ${colors.border};
+`;
+
+const SectionHeader = styled.div`
+  padding: 8px 14px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.1s;
+
+  &:hover {
+    background: rgba(255,255,255,0.02);
+  }
 `;
 
-const AxisLabel = styled.span`
-  font-size: 10px;
-  font-weight: 600;
-  color: ${({ $axis }) =>
-    $axis === 'x' || $axis === 'rx' || $axis === 'sx' ? colors.axisX :
-    $axis === 'y' || $axis === 'ry' || $axis === 'sy' ? colors.axisY :
-    $axis === 'z' || $axis === 'rz' || $axis === 'sz' ? colors.axisZ : colors.accent};
-  width: 14px;
+const SectionArrow = styled.span`
+  font-size: 8px;
+  color: ${colors.textMuted};
+  display: inline-block;
+  transform: ${({ $open }) => $open ? 'rotate(90deg)' : 'none'};
+  transition: transform 0.15s;
+`;
+
+const SectionTitle = styled.span`
+  font-size: 9px;
+  font-weight: 700;
+  color: ${colors.textMuted};
   text-transform: uppercase;
-  flex-shrink: 0;
-  text-align: center;
+  letter-spacing: 0.08em;
+  flex: 1;
 `;
 
-const FieldInput = styled.input.attrs({ type: 'number' })`
-  flex: 1;
-  background: ${colors.surface};
-  border: 1px solid ${colors.border};
-  color: ${colors.text};
-  font-size: 11px;
-  padding: 5px 8px;
+const SectionBadge = styled.span`
+  font-size: 8px;
+  color: ${colors.textMuted};
+  padding: 1px 6px;
+  background: rgba(255,255,255,0.04);
   border-radius: 3px;
-  text-align: left;
-  font-variant-numeric: tabular-nums;
-  min-width: 0;
+`;
 
-  &:focus {
-    outline: none;
-    border-color: ${colors.accent};
-  }
-
-  -moz-appearance: textfield;
-  &::-webkit-outer-spin-button,
-  &::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-  }
+const SectionBody = styled.div`
+  padding: 4px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 `;
 
 const ColorRow = styled.div`
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 0;
+  padding: 2px 0;
 `;
 
-const ColorInput = styled.input.attrs({ type: 'color' })`
-  width: 32px;
-  height: 22px;
-  border: none;
+const PropLabel = styled.span`
+  font-size: 10px;
+  color: ${colors.textMuted};
+  width: 60px;
+  flex-shrink: 0;
+`;
+
+const ColorSwatch = styled.input.attrs({ type: 'color' })`
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
   background: none;
   cursor: pointer;
   padding: 0;
+  transition: border-color 0.15s;
+
+  &:hover {
+    border-color: rgba(255,255,255,0.2);
+  }
 `;
 
-const Divider = styled.div`
-  height: 1px;
-  background: ${colors.border};
-  margin: 2px 0;
-`;
-
-const SectionLabel = styled.div`
-  font-size: 9px;
-  font-weight: 600;
+const ColorHex = styled.span`
+  font-size: 10px;
   color: ${colors.textMuted};
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 4px 0 2px;
+  font-family: 'JetBrains Mono', monospace;
 `;
+
+const ScrubFieldWrap = styled.div`
+  display: flex;
+  align-items: center;
+  height: 26px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid ${({ $active }) => $active ? colors.accent : colors.border};
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: ew-resize;
+  transition: border-color 0.15s;
+  position: relative;
+
+  &:hover {
+    border-color: rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.04);
+  }
+`;
+
+const ScrubLabelText = styled.div`
+  font-size: 10px;
+  color: ${({ $color }) => $color || colors.textMuted};
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 0 8px;
+  flex-shrink: 0;
+  user-select: none;
+  pointer-events: none;
+  min-width: ${({ $wide }) => $wide ? '60px' : '20px'};
+`;
+
+const ScrubValue = styled.div`
+  flex: 1;
+  font-size: 11px;
+  color: ${colors.text};
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  padding-right: 8px;
+  user-select: none;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+`;
+
+const ScrubInput = styled.input`
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.4);
+  border: none;
+  outline: none;
+  color: ${colors.text};
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: right;
+  padding: 0 8px;
+  z-index: 2;
+`;
+
+function ScrubField({ label, labelColor, value, step, wideLabel, onChange, onCommit }) {
+  const [editing, setEditing] = useState(false);
+  const [editVal, setEditVal] = useState('');
+  const [dragging, setDragging] = useState(false);
+  const dragStartX = useRef(0);
+  const dragStartVal = useRef(0);
+  const hasDragged = useRef(false);
+  const inputRef = useRef(null);
+
+  const numValue = typeof value === 'number' ? value : parseFloat(value) || 0;
+
+  const formatDisplay = () => {
+    if (step < 0.1) return numValue.toFixed(2);
+    if (step < 1) return numValue.toFixed(1);
+    return numValue.toFixed(0);
+  };
+
+  const handleMouseDown = (e) => {
+    if (editing) return;
+    e.preventDefault();
+    dragStartX.current = e.clientX;
+    dragStartVal.current = numValue;
+    hasDragged.current = false;
+    setDragging(true);
+
+    const onMove = (e) => {
+      const dx = e.clientX - dragStartX.current;
+      if (Math.abs(dx) > 2) hasDragged.current = true;
+      if (!hasDragged.current) return;
+      const sensitivity = e.shiftKey ? step * 0.1 : step;
+      const delta = dx * sensitivity;
+      const newVal = parseFloat((dragStartVal.current + delta).toFixed(4));
+      onChange(newVal);
+    };
+
+    const onUp = () => {
+      setDragging(false);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+
+      if (!hasDragged.current) {
+        setEditVal(formatDisplay());
+        setEditing(true);
+        setTimeout(() => inputRef.current?.select(), 0);
+      } else {
+        onCommit(numValue);
+      }
+    };
+
+    document.body.style.cursor = 'ew-resize';
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  const handleEditBlur = () => {
+    setEditing(false);
+    const num = parseFloat(editVal);
+    if (!isNaN(num)) {
+      onChange(num);
+      onCommit(num);
+    }
+  };
+
+  const handleEditKeyDown = (e) => {
+    if (e.key === 'Enter') inputRef.current?.blur();
+    else if (e.key === 'Escape') setEditing(false);
+  };
+
+  return (
+    <ScrubFieldWrap $active={editing || dragging} onMouseDown={handleMouseDown}>
+      <ScrubLabelText $color={labelColor} $wide={wideLabel}>{label}</ScrubLabelText>
+      <ScrubValue>{formatDisplay()}</ScrubValue>
+      {editing && (
+        <ScrubInput
+          ref={inputRef}
+          value={editVal}
+          onChange={e => setEditVal(e.target.value)}
+          onBlur={handleEditBlur}
+          onKeyDown={handleEditKeyDown}
+          autoFocus
+        />
+      )}
+    </ScrubFieldWrap>
+  );
+}
 
 // Position fields per type
 const POS_FIELDS = {
@@ -177,7 +349,7 @@ const POS_FIELDS = {
 // Extra light-specific fields per type
 const LIGHT_FIELDS = {
   'point-light':       [{ key: 'intensity', label: 'Intensity', step: 0.05 }, { key: 'distance', label: 'Distance', step: 1 }],
-  'spot-light':        [{ key: 'intensity', label: 'Intensity', step: 0.05 }, { key: 'distance', label: 'Distance', step: 1 }, { key: 'angle', label: 'Angle (°)', step: 1 }, { key: 'penumbra', label: 'Penumbra', step: 0.05 }],
+  'spot-light':        [{ key: 'intensity', label: 'Intensity', step: 0.05 }, { key: 'distance', label: 'Distance', step: 1 }, { key: 'angle', label: 'Angle', step: 1 }, { key: 'penumbra', label: 'Penumbra', step: 0.05 }],
   'directional-light': [{ key: 'intensity', label: 'Intensity', step: 0.05 }],
   'area-light':        [{ key: 'intensity', label: 'Intensity', step: 0.1 }, { key: 'width', label: 'Width', step: 0.1 }, { key: 'height', label: 'Height', step: 0.1 }],
   'hemisphere-light':  [{ key: 'intensity', label: 'Intensity', step: 0.05 }],
@@ -205,6 +377,22 @@ const LABEL_BY_TYPE = {
    camera:              'Camera',
 };
 
+const TYPE_ICON = {
+  'point-light':       '☀',
+  'spot-light':        '◐',
+  'area-light':        '▬',
+  'hemisphere-light':  '◑',
+  'product-cube':      '■',
+  'cyclorama':         '⌐',
+   camera:              '◎',
+};
+
+const AXIS_COLORS = {
+  x: colors.axisX, rx: colors.axisX, sx: colors.axisX,
+  y: colors.axisY, ry: colors.axisY, sy: colors.axisY,
+  z: colors.axisZ, rz: colors.axisZ, sz: colors.axisZ,
+};
+
 // Which types get a single color picker
 const SINGLE_COLOR_TYPES = ['point-light', 'spot-light', 'directional-light', 'area-light'];
 
@@ -213,10 +401,28 @@ const getStateForId = (id) => {
   return sceneState.elements[id] ?? null;
 };
 
+const THROTTLE_MS = 66;
+
+function AccordionSection({ title, badge, defaultOpen = true, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <SectionWrap>
+      <SectionHeader onClick={() => setOpen(!open)}>
+        <SectionArrow $open={open}>▶</SectionArrow>
+        <SectionTitle>{title}</SectionTitle>
+        {badge && <SectionBadge>{badge}</SectionBadge>}
+      </SectionHeader>
+      {open && <SectionBody>{children}</SectionBody>}
+    </SectionWrap>
+  );
+}
+
 export default function SelectionPanel() {
   const [selected, setSelected] = useState(null);
   const [vals, setVals] = useState({});
   const [collapsed, setCollapsed] = useState(false);
+  const throttleRef = useRef(null);
+  const pendingUpdateRef = useRef(null);
 
   const toggleCollapse = (val) => {
     setCollapsed(val);
@@ -235,13 +441,28 @@ export default function SelectionPanel() {
 
     const posHandler = (e) => {
       const { axis, val } = e.detail;
-      setVals(v => ({ ...v, [axis]: val }));
+      pendingUpdateRef.current = { ...(pendingUpdateRef.current || {}), [axis]: val };
+      if (!throttleRef.current) {
+        setVals(v => ({ ...v, ...pendingUpdateRef.current }));
+        pendingUpdateRef.current = null;
+        throttleRef.current = setTimeout(() => {
+          throttleRef.current = null;
+          if (pendingUpdateRef.current) {
+            setVals(v => ({ ...v, ...pendingUpdateRef.current }));
+            pendingUpdateRef.current = null;
+          }
+        }, THROTTLE_MS);
+      }
     };
     window.addEventListener('studio:position-update', posHandler);
 
     return () => {
       window.removeEventListener('studio:select', handler);
       window.removeEventListener('studio:position-update', posHandler);
+      if (throttleRef.current) {
+        clearTimeout(throttleRef.current);
+        throttleRef.current = null;
+      }
     };
   }, []);
 
@@ -251,7 +472,7 @@ export default function SelectionPanel() {
         <CollapseBtn onClick={() => toggleCollapse(false)} title="Expand">›</CollapseBtn>
       </SidebarHeader>
       <CollapsedLabel onClick={() => toggleCollapse(false)}>
-        {selected ? (LABEL_BY_TYPE[sceneState.elements[selected]?.type ?? selected] ?? 'Details') : 'Details'}
+        {selected ? (LABEL_BY_TYPE[sceneState.elements[selected]?.type ?? selected] ?? 'Inspector') : 'Inspector'}
       </CollapsedLabel>
     </Sidebar>
   );
@@ -259,10 +480,12 @@ export default function SelectionPanel() {
   if (!selected) return (
     <Sidebar $collapsed={false}>
       <SidebarHeader>
-        <SidebarTitle>Details</SidebarTitle>
+        <HeaderLeft>
+          <SidebarLabel>Inspector</SidebarLabel>
+        </HeaderLeft>
         <CollapseBtn onClick={() => toggleCollapse(true)} title="Collapse">‹</CollapseBtn>
       </SidebarHeader>
-      <SidebarHint>Click an element in the Setup View to select and move it</SidebarHint>
+      <SidebarHint>Select an element in the Setup View to inspect its properties</SidebarHint>
     </Sidebar>
   );
 
@@ -270,119 +493,108 @@ export default function SelectionPanel() {
   const posFields = POS_FIELDS[type] ?? [];
   const lightFields = LIGHT_FIELDS[type] ?? [];
   const label = LABEL_BY_TYPE[type] ?? selected;
+  const icon = TYPE_ICON[type] ?? '○';
 
-  const handleFieldInput = (field, raw) => {
-    setVals(v => ({ ...v, [field.key]: raw }));
+  const handleScrubChange = (field, newVal) => {
+    setVals(v => ({ ...v, [field.key]: newVal }));
+    if (selected === 'camera') updateCamera(field.key, newVal);
+    else updateElement(selected, field.key, newVal);
   };
 
-  const handleFieldBlur = (field, raw) => {
-    const num = parseFloat(raw);
-    if (isNaN(num)) {
-      setVals(v => ({ ...v, [field.key]: getStateForId(selected)?.[field.key] ?? 0 }));
-      return;
-    }
-    if (selected === 'camera') updateCamera(field.key, num);
-    else updateElement(selected, field.key, num);
-    setVals(v => ({ ...v, [field.key]: num }));
-  };
-
-  const handleFieldKeyDown = (field, e) => {
-    if (e.key === 'Enter') e.target.blur();
-  };
-
-  const renderField = (field) => (
-    <FieldRow key={field.key}>
-      <AxisLabel $axis={field.axis || 'i'}>
-        {field.label ? field.label.charAt(0) : field.axis.replace('r', '').replace('s', '')}
-      </AxisLabel>
-      <FieldInput
-        value={vals[field.key] !== undefined ? (typeof vals[field.key] === 'number' ? vals[field.key].toFixed(field.step < 1 ? (field.step < 0.1 ? 2 : 1) : 0) : vals[field.key]) : '0'}
-        onChange={e => handleFieldInput(field, e.target.value)}
-        onBlur={e => handleFieldBlur(field, e.target.value)}
-        onKeyDown={e => handleFieldKeyDown(field, e)}
-        step={field.step}
-      />
-    </FieldRow>
-  );
-
-  const renderLabeledField = (field) => (
-    <FieldRow key={field.key}>
-      <span style={{ fontSize: '10px', color: colors.textMuted, width: '60px', flexShrink: 0 }}>{field.label}</span>
-      <FieldInput
-        value={vals[field.key] !== undefined ? (typeof vals[field.key] === 'number' ? vals[field.key].toFixed(field.step < 1 ? (field.step < 0.1 ? 2 : 1) : 0) : vals[field.key]) : '0'}
-        onChange={e => handleFieldInput(field, e.target.value)}
-        onBlur={e => handleFieldBlur(field, e.target.value)}
-        onKeyDown={e => handleFieldKeyDown(field, e)}
-        step={field.step}
-      />
-    </FieldRow>
-  );
+  const handleScrubCommit = (field, newVal) => {};
 
   const handleColorChange = (key, value) => {
     updateElement(selected, key, value);
     setVals(v => ({ ...v, [key]: value }));
   };
 
+  const renderAxisField = (field) => (
+    <ScrubField
+      key={field.key}
+      label={field.axis.replace('r', '').replace('s', '').toUpperCase()}
+      labelColor={AXIS_COLORS[field.axis]}
+      value={vals[field.key] ?? 0}
+      step={field.step}
+      onChange={(v) => handleScrubChange(field, v)}
+      onCommit={(v) => handleScrubCommit(field, v)}
+    />
+  );
+
+  const renderLabeledField = (field) => (
+    <ScrubField
+      key={field.key}
+      label={field.label}
+      value={vals[field.key] ?? 0}
+      step={field.step}
+      wideLabel
+      onChange={(v) => handleScrubChange(field, v)}
+      onCommit={(v) => handleScrubCommit(field, v)}
+    />
+  );
+
   return (
     <Sidebar $collapsed={false}>
       <SidebarHeader>
-        <SidebarTitle>{label}</SidebarTitle>
+        <HeaderLeft>
+          <SidebarLabel>Inspector</SidebarLabel>
+          <SelectedName>{icon} {label}</SelectedName>
+        </HeaderLeft>
         <CollapseBtn onClick={() => toggleCollapse(true)} title="Collapse">‹</CollapseBtn>
       </SidebarHeader>
 
-      <PropsGroup>
-        <SectionLabel>Position</SectionLabel>
-        {posFields.map(renderField)}
+      <PropsScroll>
+        <AccordionSection title="Position">
+          {posFields.map(renderAxisField)}
+        </AccordionSection>
 
-        <Divider />
-        <SectionLabel>Rotation (°)</SectionLabel>
-        {ROT_FIELDS.map(renderField)}
+        <AccordionSection title="Rotation">
+          {ROT_FIELDS.map(renderAxisField)}
+        </AccordionSection>
 
         {(type === 'product-cube' || type === 'cyclorama') && (
-          <>
-            <Divider />
-            <SectionLabel>Scale</SectionLabel>
-            {SCALE_FIELDS.map(renderField)}
-          </>
+          <AccordionSection title="Scale">
+            {SCALE_FIELDS.map(renderAxisField)}
+          </AccordionSection>
         )}
 
         {lightFields.length > 0 && (
-          <>
-            <Divider />
-            <SectionLabel>Light Properties</SectionLabel>
+          <AccordionSection title="Light" badge={LABEL_BY_TYPE[type]?.split(' ')[0]}>
             {lightFields.map(renderLabeledField)}
-          </>
-        )}
 
-        {SINGLE_COLOR_TYPES.includes(type) && (
-          <ColorRow>
-            <span style={{ fontSize: '10px', color: colors.textMuted, width: '60px', flexShrink: 0 }}>Color</span>
-            <ColorInput
-              value={vals.color ?? '#ffffff'}
-              onChange={e => handleColorChange('color', e.target.value)}
-            />
-          </ColorRow>
+            {SINGLE_COLOR_TYPES.includes(type) && (
+              <ColorRow>
+                <PropLabel>Color</PropLabel>
+                <ColorSwatch
+                  value={vals.color ?? '#ffffff'}
+                  onChange={e => handleColorChange('color', e.target.value)}
+                />
+                <ColorHex>{(vals.color ?? '#ffffff').toUpperCase()}</ColorHex>
+              </ColorRow>
+            )}
+          </AccordionSection>
         )}
 
         {type === 'hemisphere-light' && (
-          <>
+          <AccordionSection title="Colors">
             <ColorRow>
-              <span style={{ fontSize: '10px', color: colors.textMuted, width: '60px', flexShrink: 0 }}>Sky</span>
-              <ColorInput
+              <PropLabel>Sky</PropLabel>
+              <ColorSwatch
                 value={vals.skyColor ?? '#87ceeb'}
                 onChange={e => handleColorChange('skyColor', e.target.value)}
               />
+              <ColorHex>{(vals.skyColor ?? '#87ceeb').toUpperCase()}</ColorHex>
             </ColorRow>
             <ColorRow>
-              <span style={{ fontSize: '10px', color: colors.textMuted, width: '60px', flexShrink: 0 }}>Ground</span>
-              <ColorInput
+              <PropLabel>Ground</PropLabel>
+              <ColorSwatch
                 value={vals.groundColor ?? '#362a1e'}
                 onChange={e => handleColorChange('groundColor', e.target.value)}
               />
+              <ColorHex>{(vals.groundColor ?? '#362a1e').toUpperCase()}</ColorHex>
             </ColorRow>
-          </>
+          </AccordionSection>
         )}
-      </PropsGroup>
+      </PropsScroll>
     </Sidebar>
   );
 }

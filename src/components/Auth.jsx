@@ -10,58 +10,111 @@ const Wrapper = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  overflow: hidden;
+`;
+
+const AmbientOrb = styled.div`
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(232,168,85,0.06) 0%, transparent 70%);
+  top: 20%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 `;
 
 const Card = styled.div`
-  background: ${colors.surface};
+  background: rgba(255,255,255,0.015);
   border: 1px solid ${colors.border};
   border-radius: 12px;
   padding: 40px;
   width: 380px;
+  position: relative;
+  z-index: 1;
+  backdrop-filter: blur(12px);
+`;
+
+const LogoRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+`;
+
+const LogoMark = styled.div`
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #E8A855 0%, #C75450 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 900;
+  color: #000;
+  flex-shrink: 0;
+`;
+
+const LogoText = styled.div`
+  font-size: 18px;
+  font-weight: 700;
+  color: ${colors.text};
 `;
 
 const Title = styled.h1`
   color: ${colors.text};
-  font-size: 24px;
-  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 6px;
 `;
 
 const Subtitle = styled.p`
   color: ${colors.textMuted};
-  font-size: 14px;
-  margin: 0 0 32px;
+  font-size: 13px;
+  margin: 0 0 28px;
+  line-height: 1.5;
 `;
 
 const Label = styled.label`
   display: block;
   color: ${colors.textMuted};
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.08em;
   margin-bottom: 6px;
 `;
 
 const Input = styled.input`
   width: 100%;
   padding: 10px 12px;
-  background: ${colors.background};
-  border: 1px solid ${({ $invalid }) => $invalid ? '#e05a4e' : colors.border};
+  background: rgba(255,255,255,0.03);
+  border: 1px solid ${({ $invalid }) => $invalid ? '#C75450' : colors.border};
   border-radius: 6px;
   color: ${colors.text};
   font-size: 14px;
   margin-bottom: 4px;
   box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 0.2s;
 
   &:focus {
     outline: none;
-    border-color: ${({ $invalid }) => $invalid ? '#e05a4e' : colors.accent};
+    border-color: ${({ $invalid }) => $invalid ? '#C75450' : colors.accent};
+    background: rgba(255,255,255,0.05);
+  }
+
+  &::placeholder {
+    color: rgba(255,255,255,0.15);
   }
 `;
 
 const FieldHint = styled.div`
   font-size: 11px;
-  color: ${({ $error }) => $error ? '#e05a4e' : colors.textMuted};
+  color: ${({ $error }) => $error ? '#C75450' : colors.textMuted};
   margin-bottom: 16px;
   min-height: 16px;
 `;
@@ -72,19 +125,20 @@ const Button = styled.button`
   background: ${colors.accent};
   border: none;
   border-radius: 6px;
-  color: #1a1612;
+  color: #000;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
   margin-bottom: 16px;
+  font-family: inherit;
 
   &:hover {
-    background: #c99564;
+    background: #D08030;
   }
 
   &:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
   }
 `;
@@ -107,9 +161,9 @@ const SwitchLink = styled.span`
 `;
 
 const ErrorMsg = styled.div`
-  background: rgba(224, 90, 78, 0.1);
-  border: 1px solid rgba(224, 90, 78, 0.3);
-  color: #e05a4e;
+  background: rgba(199,84,80,0.08);
+  border: 1px solid rgba(199,84,80,0.2);
+  color: #C75450;
   padding: 10px 12px;
   border-radius: 6px;
   font-size: 13px;
@@ -137,7 +191,6 @@ export default function Auth({ onLogin }) {
   const canSubmit = email && password && isValidEmail(email) && (!isRegister || password.length >= 6);
 
   const handleSubmit = async () => {
-    // Mark both as touched so errors show
     setTouched({ email: true, password: true });
 
     if (!canSubmit) return;
@@ -171,7 +224,13 @@ export default function Auth({ onLogin }) {
 
   return (
     <Wrapper>
+      <AmbientOrb />
       <Card>
+        <LogoRow>
+          <LogoMark>S</LogoMark>
+          <LogoText>Studio Simulator</LogoText>
+        </LogoRow>
+
         <Title>{isRegister ? 'Create Account' : 'Welcome Back'}</Title>
         <Subtitle>
           {isRegister
