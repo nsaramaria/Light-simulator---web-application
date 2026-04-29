@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import { colors } from '../styles/theme';
+import { colors, shadows } from '../styles/theme';
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -8,7 +8,7 @@ const ModalOverlay = styled.div`
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(26, 22, 18, 0.85);
+  background: ${colors.surfaceModal};
   display: flex;
   justify-content: center;
   align-items: center;
@@ -24,7 +24,7 @@ const ModalBox = styled.div`
   width: 90%;
   max-height: 80vh;
   overflow: auto;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  box-shadow: ${shadows.modal};
   border: 1px solid ${colors.border};
 `;
 
@@ -97,7 +97,7 @@ const ModalFooter = styled.div`
 const GotItButton = styled.button`
   background: ${colors.accent};
   border: none;
-  color: #1a1612;
+  color: ${colors.textOnAccent};
   padding: 10px 24px;
   border-radius: 6px;
   font-size: 14px;
@@ -106,7 +106,7 @@ const GotItButton = styled.button`
   transition: background 0.2s;
 
   &:hover {
-    background: #c99564;
+    background: ${colors.accentHover};
   }
 `;
 
@@ -118,7 +118,6 @@ export default function HelpModal({ onClose }) {
           <ModalTitle>How to Use Studio Simulator</ModalTitle>
           <CloseButton onClick={onClose}>×</CloseButton>
         </ModalHeader>
-
         <ModalContent>
           <Section>
             <SectionTitle>About</SectionTitle>
@@ -126,7 +125,6 @@ export default function HelpModal({ onClose }) {
               Plan and visualise your studio photo setup in real time. Arrange the product, light and camera in the Setup View and instantly see the result through the lens in the Camera View.
             </p>
           </Section>
-
           <Section>
             <SectionTitle>Navigation</SectionTitle>
             <SectionList>
@@ -135,7 +133,6 @@ export default function HelpModal({ onClose }) {
               <li><strong>Right click + drag:</strong> Pan</li>
             </SectionList>
           </Section>
-
           <Section>
             <SectionTitle>Visual Guide</SectionTitle>
             <SectionList>
@@ -147,7 +144,6 @@ export default function HelpModal({ onClose }) {
             </SectionList>
           </Section>
         </ModalContent>
-
         <ModalFooter>
           <GotItButton onClick={onClose}>Got it</GotItButton>
         </ModalFooter>

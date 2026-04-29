@@ -5,11 +5,12 @@ import { CAMERA, PRODUCT } from './sceneConfig';
 import renderLoop from './renderLoop';
 import styled from 'styled-components';
 import { DEG2RAD } from '../utils/math';
+import { colors } from '../styles/theme';
 
 const Mount = styled.div`
   width: 100%;
   height: 100%;
-  background: #000;
+  background: ${colors.black};
 `;
 
 export default function CameraView() {
@@ -17,13 +18,8 @@ export default function CameraView() {
 
   useEffect(() => {
     const { scene } = createSharedScene();
-
-    const camera = new THREE.PerspectiveCamera(
-      CAMERA.fov, 1, CAMERA.near, CAMERA.far
-    );
-    camera.position.set(
-      sceneState.camera.x, sceneState.camera.y, sceneState.camera.z
-    );
+    const camera = new THREE.PerspectiveCamera(CAMERA.fov, 1, CAMERA.near, CAMERA.far);
+    camera.position.set(sceneState.camera.x, sceneState.camera.y, sceneState.camera.z);
     camera.lookAt(0, PRODUCT.position.y, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -36,7 +32,6 @@ export default function CameraView() {
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     container.appendChild(renderer.domElement);
-
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
 
@@ -44,19 +39,13 @@ export default function CameraView() {
       const { x, y, z, rx, ry, rz } = sceneState.camera;
       camera.position.set(x, y, z);
       if (rx || ry || rz) {
-        camera.rotation.set(
-          (rx ?? 0) * DEG2RAD,
-          (ry ?? 0) * DEG2RAD,
-          (rz ?? 0) * DEG2RAD
-        );
+        camera.rotation.set((rx ?? 0) * DEG2RAD, (ry ?? 0) * DEG2RAD, (rz ?? 0) * DEG2RAD);
       } else {
         camera.lookAt(0, PRODUCT.position.y, 0);
       }
     });
 
-    const renderLoopId = renderLoop.register(() => {
-      renderer.render(scene, camera);
-    }, 1);
+    const renderLoopId = renderLoop.register(() => { renderer.render(scene, camera); }, 1);
 
     const onResize = () => {
       const w = container.clientWidth, h = container.clientHeight;
@@ -67,18 +56,13 @@ export default function CameraView() {
       renderLoop.markDirty();
     };
     window.addEventListener('resize', onResize);
-
     const ro = new ResizeObserver(onResize);
     ro.observe(container);
 
     return () => {
-      renderLoop.unregister(renderLoopId);
-      unsub();
-      ro.disconnect();
+      renderLoop.unregister(renderLoopId); unsub(); ro.disconnect();
       window.removeEventListener('resize', onResize);
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
-      }
+      if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
       renderer.dispose();
     };
   }, []);

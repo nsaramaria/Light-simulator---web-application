@@ -5,8 +5,8 @@ import { colors } from '../styles/theme';
 
 const Bar = styled.div`
   height: 24px;
-  background: rgba(255,255,255,0.01);
-  border-top: 1px solid rgba(255,255,255,0.04);
+  background: ${colors.surface};
+  border-top: 1px solid ${colors.borderLight};
   display: flex;
   align-items: center;
   padding: 0 16px;
@@ -25,7 +25,7 @@ const StatusDot = styled.span`
 `;
 
 const StatusItem = styled.span`
-  color: ${({ $color }) => $color || 'rgba(255,255,255,0.2)'};
+  color: ${({ $color }) => $color || colors.placeholder};
   display: flex;
   align-items: center;
   gap: 4px;
@@ -52,7 +52,6 @@ export default function StatusBar() {
         e.type === 'directional-light'
       ).length);
     };
-
     updateCounts();
     const unsub = onSceneChange(updateCounts);
     return () => unsub();
@@ -74,14 +73,11 @@ export default function StatusBar() {
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
-  const fpsColor = fps >= 50 ? '#5AAD5A' : fps >= 30 ? '#E8A855' : '#C75450';
+  const fpsColor = fps >= 50 ? colors.statusGood : fps >= 30 ? colors.statusWarn : colors.statusBad;
 
   return (
     <Bar>
-      <StatusItem>
-        <StatusDot $color="#5AAD5A" />
-        Ready
-      </StatusItem>
+      <StatusItem><StatusDot $color={colors.statusGood} />Ready</StatusItem>
       <StatusItem>{objectCount} objects</StatusItem>
       <StatusItem>{lightCount} lights</StatusItem>
       <Spacer />

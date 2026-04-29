@@ -39,7 +39,7 @@ const ViewPanel = styled.div`
 const Divider = styled.div`
   width: 3px;
   height: 100%;
-  background: rgba(255,255,255,0.03);
+  background: ${colors.borderSubtle};
   cursor: col-resize;
   flex-shrink: 0;
   transition: background 0.2s;
@@ -62,16 +62,16 @@ const ViewLabel = styled.div`
   position: absolute;
   top: 10px;
   left: 10px;
-  background: rgba(12,11,9,0.7);
+  background: ${colors.surfacePanel};
   backdrop-filter: blur(8px);
-  color: rgba(255,255,255,0.35);
+  color: ${colors.placeholder};
   padding: 4px 10px;
   border-radius: 4px;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  border: 1px solid rgba(255,255,255,0.04);
+  border: 1px solid ${colors.borderLight};
   z-index: 10;
   font-family: 'JetBrains Mono', monospace;
 `;
@@ -81,10 +81,10 @@ const MaximizeBtn = styled.button`
   top: 10px;
   right: 10px;
   z-index: 10;
-  background: rgba(12,11,9,0.7);
+  background: ${colors.surfacePanel};
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255,255,255,0.04);
-  color: rgba(255,255,255,0.25);
+  border: 1px solid ${colors.borderLight};
+  color: ${colors.placeholder};
   width: 26px;
   height: 26px;
   border-radius: 4px;
@@ -95,9 +95,9 @@ const MaximizeBtn = styled.button`
   justify-content: center;
   transition: all 0.2s;
   &:hover {
-    border-color: rgba(232,168,85,0.3);
+    border-color: ${colors.accentBorder};
     color: ${colors.accent};
-    background: rgba(12,11,9,0.85);
+    background: ${colors.surfaceDark};
   }
 `;
 

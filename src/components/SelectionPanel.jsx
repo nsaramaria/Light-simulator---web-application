@@ -6,7 +6,7 @@ import { colors } from '../styles/theme';
 const Sidebar = styled.div`
   width: ${({ $collapsed }) => $collapsed ? '24px' : '240px'};
   height: 100%;
-  background: rgba(12,11,9,0.95);
+  background: ${colors.surfaceDark};
   backdrop-filter: blur(16px);
   border-left: 1px solid ${colors.border};
   display: flex;
@@ -64,7 +64,7 @@ const CollapseBtn = styled.button`
 
   &:hover {
     color: ${colors.accent};
-    background: rgba(232,168,85,0.08);
+    background: ${colors.accentSubtle};
   }
 `;
 
@@ -116,7 +116,7 @@ const SectionHeader = styled.div`
   transition: background 0.1s;
 
   &:hover {
-    background: rgba(255,255,255,0.02);
+    background: ${colors.surface};
   }
 `;
 
@@ -141,7 +141,7 @@ const SectionBadge = styled.span`
   font-size: 8px;
   color: ${colors.textMuted};
   padding: 1px 6px;
-  background: rgba(255,255,255,0.04);
+  background: ${colors.surfaceActive};
   border-radius: 3px;
 `;
 
@@ -169,7 +169,7 @@ const PropLabel = styled.span`
 const ColorSwatch = styled.input.attrs({ type: 'color' })`
   width: 28px;
   height: 28px;
-  border: 2px solid rgba(255,255,255,0.1);
+  border: 2px solid ${colors.borderHover};
   border-radius: 6px;
   background: none;
   cursor: pointer;
@@ -177,7 +177,7 @@ const ColorSwatch = styled.input.attrs({ type: 'color' })`
   transition: border-color 0.15s;
 
   &:hover {
-    border-color: rgba(255,255,255,0.2);
+    border-color: ${colors.placeholder};
   }
 `;
 
@@ -191,7 +191,7 @@ const ScrubFieldWrap = styled.div`
   display: flex;
   align-items: center;
   height: 26px;
-  background: rgba(255,255,255,0.03);
+  background: ${colors.surfaceHover};
   border: 1px solid ${({ $active }) => $active ? colors.accent : colors.border};
   border-radius: 4px;
   overflow: hidden;
@@ -200,8 +200,8 @@ const ScrubFieldWrap = styled.div`
   position: relative;
 
   &:hover {
-    border-color: rgba(255,255,255,0.12);
-    background: rgba(255,255,255,0.04);
+    border-color: ${colors.borderHover};
+    background: ${colors.surfaceActive};
   }
 `;
 
@@ -305,10 +305,7 @@ function ScrubField({ label, labelColor, value, step, wideLabel, onChange, onCom
   const handleEditBlur = () => {
     setEditing(false);
     const num = parseFloat(editVal);
-    if (!isNaN(num)) {
-      onChange(num);
-      onCommit(num);
-    }
+    if (!isNaN(num)) { onChange(num); onCommit(num); }
   };
 
   const handleEditKeyDown = (e) => {
@@ -321,20 +318,12 @@ function ScrubField({ label, labelColor, value, step, wideLabel, onChange, onCom
       <ScrubLabelText $color={labelColor} $wide={wideLabel}>{label}</ScrubLabelText>
       <ScrubValue>{formatDisplay()}</ScrubValue>
       {editing && (
-        <ScrubInput
-          ref={inputRef}
-          value={editVal}
-          onChange={e => setEditVal(e.target.value)}
-          onBlur={handleEditBlur}
-          onKeyDown={handleEditKeyDown}
-          autoFocus
-        />
+        <ScrubInput ref={inputRef} value={editVal} onChange={e => setEditVal(e.target.value)} onBlur={handleEditBlur} onKeyDown={handleEditKeyDown} autoFocus />
       )}
     </ScrubFieldWrap>
   );
 }
 
-// Position fields per type
 const POS_FIELDS = {
   'point-light':       [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
   'spot-light':        [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
@@ -346,7 +335,6 @@ const POS_FIELDS = {
   camera:              [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
 };
 
-// Extra light-specific fields per type
 const LIGHT_FIELDS = {
   'point-light':       [{ key: 'intensity', label: 'Intensity', step: 0.05 }, { key: 'distance', label: 'Distance', step: 1 }],
   'spot-light':        [{ key: 'intensity', label: 'Intensity', step: 0.05 }, { key: 'distance', label: 'Distance', step: 1 }, { key: 'angle', label: 'Angle', step: 1 }, { key: 'penumbra', label: 'Penumbra', step: 0.05 }],
@@ -355,52 +343,15 @@ const LIGHT_FIELDS = {
   'hemisphere-light':  [{ key: 'intensity', label: 'Intensity', step: 0.05 }],
 };
 
-const ROT_FIELDS = [
-  { key: 'rx', axis: 'rx', step: 1 },
-  { key: 'ry', axis: 'ry', step: 1 },
-  { key: 'rz', axis: 'rz', step: 1 },
-];
+const ROT_FIELDS = [{ key: 'rx', axis: 'rx', step: 1 }, { key: 'ry', axis: 'ry', step: 1 }, { key: 'rz', axis: 'rz', step: 1 }];
+const SCALE_FIELDS = [{ key: 'sx', axis: 'sx', step: 0.1 }, { key: 'sy', axis: 'sy', step: 0.1 }, { key: 'sz', axis: 'sz', step: 0.1 }];
 
-const SCALE_FIELDS = [
-  { key: 'sx', axis: 'sx', step: 0.1 },
-  { key: 'sy', axis: 'sy', step: 0.1 },
-  { key: 'sz', axis: 'sz', step: 0.1 },
-];
-
-const LABEL_BY_TYPE = {
-  'point-light':       'Point Light',
-  'spot-light':        'Focused Light',
-  'area-light':        'Softbox',
-  'hemisphere-light':  'Environment Light',
-  'product-cube':      'Product Cube',
-  'cyclorama':         'Cyclorama',
-   camera:              'Camera',
-};
-
-const TYPE_ICON = {
-  'point-light':       '☀',
-  'spot-light':        '◐',
-  'area-light':        '▬',
-  'hemisphere-light':  '◑',
-  'product-cube':      '■',
-  'cyclorama':         '⌐',
-   camera:              '◎',
-};
-
-const AXIS_COLORS = {
-  x: colors.axisX, rx: colors.axisX, sx: colors.axisX,
-  y: colors.axisY, ry: colors.axisY, sy: colors.axisY,
-  z: colors.axisZ, rz: colors.axisZ, sz: colors.axisZ,
-};
-
-// Which types get a single color picker
+const LABEL_BY_TYPE = { 'point-light': 'Point Light', 'spot-light': 'Focused Light', 'area-light': 'Softbox', 'hemisphere-light': 'Environment Light', 'product-cube': 'Product Cube', 'cyclorama': 'Cyclorama', camera: 'Camera' };
+const TYPE_ICON = { 'point-light': '☀', 'spot-light': '◐', 'area-light': '▬', 'hemisphere-light': '◑', 'product-cube': '■', 'cyclorama': '⌐', camera: '◎' };
+const AXIS_COLORS = { x: colors.axisX, rx: colors.axisX, sx: colors.axisX, y: colors.axisY, ry: colors.axisY, sy: colors.axisY, z: colors.axisZ, rz: colors.axisZ, sz: colors.axisZ };
 const SINGLE_COLOR_TYPES = ['point-light', 'spot-light', 'directional-light', 'area-light'];
 
-const getStateForId = (id) => {
-  if (id === 'camera') return sceneState.camera;
-  return sceneState.elements[id] ?? null;
-};
-
+const getStateForId = (id) => id === 'camera' ? sceneState.camera : sceneState.elements[id] ?? null;
 const THROTTLE_MS = 66;
 
 function AccordionSection({ title, badge, defaultOpen = true, children }) {
@@ -424,21 +375,11 @@ export default function SelectionPanel() {
   const throttleRef = useRef(null);
   const pendingUpdateRef = useRef(null);
 
-  const toggleCollapse = (val) => {
-    setCollapsed(val);
-    requestAnimationFrame(() => {
-      window.dispatchEvent(new Event('resize'));
-    });
-  };
+  const toggleCollapse = (val) => { setCollapsed(val); requestAnimationFrame(() => window.dispatchEvent(new Event('resize'))); };
 
   useEffect(() => {
-    const handler = (e) => {
-      const id = e.detail;
-      setSelected(id);
-      if (id) setVals({ ...getStateForId(id) });
-    };
+    const handler = (e) => { const id = e.detail; setSelected(id); if (id) setVals({ ...getStateForId(id) }); };
     window.addEventListener('studio:select', handler);
-
     const posHandler = (e) => {
       const { axis, val } = e.detail;
       pendingUpdateRef.current = { ...(pendingUpdateRef.current || {}), [axis]: val };
@@ -447,23 +388,12 @@ export default function SelectionPanel() {
         pendingUpdateRef.current = null;
         throttleRef.current = setTimeout(() => {
           throttleRef.current = null;
-          if (pendingUpdateRef.current) {
-            setVals(v => ({ ...v, ...pendingUpdateRef.current }));
-            pendingUpdateRef.current = null;
-          }
+          if (pendingUpdateRef.current) { setVals(v => ({ ...v, ...pendingUpdateRef.current })); pendingUpdateRef.current = null; }
         }, THROTTLE_MS);
       }
     };
     window.addEventListener('studio:position-update', posHandler);
-
-    return () => {
-      window.removeEventListener('studio:select', handler);
-      window.removeEventListener('studio:position-update', posHandler);
-      if (throttleRef.current) {
-        clearTimeout(throttleRef.current);
-        throttleRef.current = null;
-      }
-    };
+    return () => { window.removeEventListener('studio:select', handler); window.removeEventListener('studio:position-update', posHandler); if (throttleRef.current) clearTimeout(throttleRef.current); };
   }, []);
 
   if (collapsed) return (
@@ -480,9 +410,7 @@ export default function SelectionPanel() {
   if (!selected) return (
     <Sidebar $collapsed={false}>
       <SidebarHeader>
-        <HeaderLeft>
-          <SidebarLabel>Inspector</SidebarLabel>
-        </HeaderLeft>
+        <HeaderLeft><SidebarLabel>Inspector</SidebarLabel></HeaderLeft>
         <CollapseBtn onClick={() => toggleCollapse(true)} title="Collapse">‹</CollapseBtn>
       </SidebarHeader>
       <SidebarHint>Select an element in the Setup View to inspect its properties</SidebarHint>
@@ -495,103 +423,40 @@ export default function SelectionPanel() {
   const label = LABEL_BY_TYPE[type] ?? selected;
   const icon = TYPE_ICON[type] ?? '○';
 
-  const handleScrubChange = (field, newVal) => {
-    setVals(v => ({ ...v, [field.key]: newVal }));
-    if (selected === 'camera') updateCamera(field.key, newVal);
-    else updateElement(selected, field.key, newVal);
-  };
-
-  const handleScrubCommit = (field, newVal) => {};
-
-  const handleColorChange = (key, value) => {
-    updateElement(selected, key, value);
-    setVals(v => ({ ...v, [key]: value }));
-  };
+  const handleScrubChange = (field, newVal) => { setVals(v => ({ ...v, [field.key]: newVal })); if (selected === 'camera') updateCamera(field.key, newVal); else updateElement(selected, field.key, newVal); };
+  const handleScrubCommit = () => {};
+  const handleColorChange = (key, value) => { updateElement(selected, key, value); setVals(v => ({ ...v, [key]: value })); };
 
   const renderAxisField = (field) => (
-    <ScrubField
-      key={field.key}
-      label={field.axis.replace('r', '').replace('s', '').toUpperCase()}
-      labelColor={AXIS_COLORS[field.axis]}
-      value={vals[field.key] ?? 0}
-      step={field.step}
-      onChange={(v) => handleScrubChange(field, v)}
-      onCommit={(v) => handleScrubCommit(field, v)}
-    />
+    <ScrubField key={field.key} label={field.axis.replace('r','').replace('s','').toUpperCase()} labelColor={AXIS_COLORS[field.axis]} value={vals[field.key] ?? 0} step={field.step} onChange={(v) => handleScrubChange(field, v)} onCommit={() => handleScrubCommit()} />
   );
 
   const renderLabeledField = (field) => (
-    <ScrubField
-      key={field.key}
-      label={field.label}
-      value={vals[field.key] ?? 0}
-      step={field.step}
-      wideLabel
-      onChange={(v) => handleScrubChange(field, v)}
-      onCommit={(v) => handleScrubCommit(field, v)}
-    />
+    <ScrubField key={field.key} label={field.label} value={vals[field.key] ?? 0} step={field.step} wideLabel onChange={(v) => handleScrubChange(field, v)} onCommit={() => handleScrubCommit()} />
   );
 
   return (
     <Sidebar $collapsed={false}>
       <SidebarHeader>
-        <HeaderLeft>
-          <SidebarLabel>Inspector</SidebarLabel>
-          <SelectedName>{icon} {label}</SelectedName>
-        </HeaderLeft>
+        <HeaderLeft><SidebarLabel>Inspector</SidebarLabel><SelectedName>{icon} {label}</SelectedName></HeaderLeft>
         <CollapseBtn onClick={() => toggleCollapse(true)} title="Collapse">‹</CollapseBtn>
       </SidebarHeader>
-
       <PropsScroll>
-        <AccordionSection title="Position">
-          {posFields.map(renderAxisField)}
-        </AccordionSection>
-
-        <AccordionSection title="Rotation">
-          {ROT_FIELDS.map(renderAxisField)}
-        </AccordionSection>
-
-        {(type === 'product-cube' || type === 'cyclorama') && (
-          <AccordionSection title="Scale">
-            {SCALE_FIELDS.map(renderAxisField)}
-          </AccordionSection>
-        )}
-
+        <AccordionSection title="Position">{posFields.map(renderAxisField)}</AccordionSection>
+        <AccordionSection title="Rotation">{ROT_FIELDS.map(renderAxisField)}</AccordionSection>
+        {(type === 'product-cube' || type === 'cyclorama') && <AccordionSection title="Scale">{SCALE_FIELDS.map(renderAxisField)}</AccordionSection>}
         {lightFields.length > 0 && (
           <AccordionSection title="Light" badge={LABEL_BY_TYPE[type]?.split(' ')[0]}>
             {lightFields.map(renderLabeledField)}
-
             {SINGLE_COLOR_TYPES.includes(type) && (
-              <ColorRow>
-                <PropLabel>Color</PropLabel>
-                <ColorSwatch
-                  value={vals.color ?? '#ffffff'}
-                  onChange={e => handleColorChange('color', e.target.value)}
-                />
-                <ColorHex>{(vals.color ?? '#ffffff').toUpperCase()}</ColorHex>
-              </ColorRow>
+              <ColorRow><PropLabel>Color</PropLabel><ColorSwatch value={vals.color ?? '#ffffff'} onChange={e => handleColorChange('color', e.target.value)} /><ColorHex>{(vals.color ?? '#ffffff').toUpperCase()}</ColorHex></ColorRow>
             )}
           </AccordionSection>
         )}
-
         {type === 'hemisphere-light' && (
           <AccordionSection title="Colors">
-            <ColorRow>
-              <PropLabel>Sky</PropLabel>
-              <ColorSwatch
-                value={vals.skyColor ?? '#87ceeb'}
-                onChange={e => handleColorChange('skyColor', e.target.value)}
-              />
-              <ColorHex>{(vals.skyColor ?? '#87ceeb').toUpperCase()}</ColorHex>
-            </ColorRow>
-            <ColorRow>
-              <PropLabel>Ground</PropLabel>
-              <ColorSwatch
-                value={vals.groundColor ?? '#362a1e'}
-                onChange={e => handleColorChange('groundColor', e.target.value)}
-              />
-              <ColorHex>{(vals.groundColor ?? '#362a1e').toUpperCase()}</ColorHex>
-            </ColorRow>
+            <ColorRow><PropLabel>Sky</PropLabel><ColorSwatch value={vals.skyColor ?? '#87ceeb'} onChange={e => handleColorChange('skyColor', e.target.value)} /><ColorHex>{(vals.skyColor ?? '#87ceeb').toUpperCase()}</ColorHex></ColorRow>
+            <ColorRow><PropLabel>Ground</PropLabel><ColorSwatch value={vals.groundColor ?? '#362a1e'} onChange={e => handleColorChange('groundColor', e.target.value)} /><ColorHex>{(vals.groundColor ?? '#362a1e').toUpperCase()}</ColorHex></ColorRow>
           </AccordionSection>
         )}
       </PropsScroll>

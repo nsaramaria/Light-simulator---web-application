@@ -1,17 +1,89 @@
-* {
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+/*
+  these CSS vars mirror the JS theme (styles/theme.js)
+  If you change the palette in theme.js, update the matching vars here
+*/
+:root {
+  --color-background: #08080A;
+  --color-text: #EDE6DD;
+  --color-accent: #E8A855;
+  --color-accent-30: rgba(232,168,85,0.3);
+  --color-accent-50: rgba(232,168,85,0.5);
+  --color-scrollbar: rgba(255,255,255,0.08);
+  --color-scrollbar-hover: rgba(255,255,255,0.15);
+  --color-placeholder: rgba(255,255,255,0.2);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
-  overflow: hidden;
-  background: #1a1612;
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  background: var(--color-background);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-#root {
-  width: 100vw;
-  height: 100vh;
-  background: #1a1612;
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-scrollbar-hover);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar) transparent;
+}
+
+::selection {
+  background: var(--color-accent-30);
+  color: var(--color-text);
+}
+
+:focus-visible {
+  outline: 1px solid var(--color-accent-50);
+  outline-offset: 1px;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+::placeholder {
+  color: var(--color-placeholder);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
 }

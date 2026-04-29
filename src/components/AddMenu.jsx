@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
-import { colors } from '../styles/theme';
+import { colors, shadows } from '../styles/theme';
 
 const Wrapper = styled.div`
   position: relative;
 `;
 
 const AddBtn = styled.button`
-  background: ${({ $open }) => $open ? 'rgba(232,168,85,0.08)' : 'transparent'};
+  background: ${({ $open }) => $open ? colors.accentSubtle : 'transparent'};
   border: 1px solid ${({ $open }) => $open ? colors.accent : colors.border};
   color: ${({ $open }) => $open ? colors.accent : colors.text};
   padding: 8px 16px;
@@ -31,16 +31,16 @@ const DropdownWrap = styled.div`
   display: flex;
   flex-direction: column;
   width: 260px;
-  background: rgba(12,11,9,0.97);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: ${colors.surfaceOverlay};
+  border: 1px solid ${colors.borderStrong};
   border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 16px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04);
+  box-shadow: ${shadows.dropdown};
 `;
 
 const SearchRow = styled.div`
   padding: 8px 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid ${colors.border};
   display: flex;
   align-items: center;
   gap: 8px;
@@ -48,7 +48,7 @@ const SearchRow = styled.div`
 
 const SearchIcon = styled.span`
   font-size: 13px;
-  color: #555;
+  color: ${colors.textDim};
 `;
 
 const SearchInput = styled.input`
@@ -61,7 +61,7 @@ const SearchInput = styled.input`
   font-family: inherit;
 
   &::placeholder {
-    color: rgba(255,255,255,0.2);
+    color: ${colors.placeholder};
   }
 `;
 
@@ -72,7 +72,7 @@ const MenuBody = styled.div`
 
 const CatList = styled.div`
   width: 100px;
-  border-right: 1px solid rgba(255,255,255,0.06);
+  border-right: 1px solid ${colors.border};
   flex-shrink: 0;
 `;
 
@@ -80,7 +80,7 @@ const CatItem = styled.div`
   padding: 8px 10px;
   font-size: 12px;
   color: ${({ $active }) => $active ? colors.accent : colors.text};
-  background: ${({ $active }) => $active ? 'rgba(232,168,85,0.06)' : 'transparent'};
+  background: ${({ $active }) => $active ? colors.accentFaint : 'transparent'};
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -88,12 +88,12 @@ const CatItem = styled.div`
   transition: background 0.1s;
 
   &:hover {
-    background: rgba(255,255,255,0.03);
+    background: ${colors.surfaceHover};
     color: ${colors.accent};
   }
 
   & + & {
-    border-top: 1px solid rgba(255,255,255,0.03);
+    border-top: 1px solid ${colors.borderSubtle};
   }
 `;
 
@@ -114,10 +114,10 @@ const ItemHeader = styled.div`
   padding: 6px 10px;
   font-size: 9px;
   font-weight: 600;
-  color: #555;
+  color: ${colors.textDim};
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 1px solid ${colors.borderLight};
 `;
 
 const Item = styled.div`
@@ -131,12 +131,12 @@ const Item = styled.div`
   transition: background 0.1s;
 
   &:hover {
-    background: rgba(232,168,85,0.06);
+    background: ${colors.accentFaint};
     color: ${colors.accent};
   }
 
   & + & {
-    border-top: 1px solid rgba(255,255,255,0.03);
+    border-top: 1px solid ${colors.borderSubtle};
   }
 `;
 
@@ -163,8 +163,8 @@ const InfoIconWrap = styled.div`
   border-radius: 50%;
   font-size: 9px;
   font-weight: 700;
-  color: #555;
-  border: 1px solid #555;
+  color: ${colors.textDim};
+  border: 1px solid ${colors.textDim};
   cursor: default;
   transition: all 0.15s;
 
@@ -197,18 +197,18 @@ const SearchResultItem = styled.div`
   transition: background 0.1s;
 
   &:hover {
-    background: rgba(232,168,85,0.06);
+    background: ${colors.accentFaint};
     color: ${colors.accent};
   }
 
   & + & {
-    border-top: 1px solid rgba(255,255,255,0.03);
+    border-top: 1px solid ${colors.borderSubtle};
   }
 `;
 
 const SearchResultCat = styled.span`
   font-size: 9px;
-  color: #555;
+  color: ${colors.textDim};
   margin-left: auto;
 `;
 
@@ -216,7 +216,7 @@ const NoResults = styled.div`
   padding: 20px;
   text-align: center;
   font-size: 11px;
-  color: #555;
+  color: ${colors.textDim};
 `;
 
 const DESCRIPTIONS = {
@@ -242,16 +242,16 @@ const CATEGORIES = [
     iconColor: colors.lightIcon,
     iconRound: true,
     items: [
-      { id: 'point-light',       label: 'Point Light',       iconColor: '#ffffff',  iconRound: true },
-      { id: 'spot-light',        label: 'Focused Light',     iconColor: '#ffdd44',  iconRound: true },
-      { id: 'area-light',        label: 'Softbox',           iconColor: '#44aaff',  iconRound: false },
-      { id: 'hemisphere-light',  label: 'Environment Light', iconColor: '#87ceeb',  iconRound: true },
+      { id: 'point-light',       label: 'Point Light',       iconColor: colors.white,       iconRound: true },
+      { id: 'spot-light',        label: 'Focused Light',     iconColor: '#ffdd44',          iconRound: true },
+      { id: 'area-light',        label: 'Softbox',           iconColor: '#44aaff',          iconRound: false },
+      { id: 'hemisphere-light',  label: 'Environment Light', iconColor: '#87ceeb',          iconRound: true },
     ],
   },
   {
     id: 'grip',
     label: 'Grip',
-    iconColor: '#888888',
+    iconColor: colors.textMuted,
     iconRound: false,
     items: [
       { id: 'flag',      label: 'Flag',      iconColor: '#1a1a1a', iconRound: false },
@@ -283,7 +283,6 @@ const CATEGORIES = [
   },
 ];
 
-// Flatten all items for search
 const ALL_ITEMS = CATEGORIES.flatMap(cat =>
   cat.items.map(item => ({ ...item, catLabel: cat.label }))
 );
@@ -307,18 +306,11 @@ export default function AddMenu({ onAdd }) {
   }, []);
 
   useEffect(() => {
-    if (open) {
-      setTimeout(() => searchRef.current?.focus(), 50);
-    } else {
-      setSearch('');
-    }
+    if (open) setTimeout(() => searchRef.current?.focus(), 50);
+    else setSearch('');
   }, [open]);
 
-  const handleAdd = (itemId) => {
-    onAdd(itemId);
-    setOpen(false);
-    setSearch('');
-  };
+  const handleAdd = (itemId) => { onAdd(itemId); setOpen(false); setSearch(''); };
 
   const currentCat = CATEGORIES.find(c => c.id === activeCat);
   const isSearching = search.trim().length > 0;
@@ -339,19 +331,12 @@ export default function AddMenu({ onAdd }) {
         <DropdownWrap>
           <SearchRow>
             <SearchIcon>⌕</SearchIcon>
-            <SearchInput
-              ref={searchRef}
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search objects..."
-            />
+            <SearchInput ref={searchRef} value={search} onChange={e => setSearch(e.target.value)} placeholder="Search objects..." />
           </SearchRow>
 
           {isSearching ? (
             <SearchResults>
-              {searchResults.length === 0 && (
-                <NoResults>No objects matching "{search}"</NoResults>
-              )}
+              {searchResults.length === 0 && <NoResults>No objects matching "{search}"</NoResults>}
               {searchResults.map(item => (
                 <SearchResultItem key={item.id} onClick={() => handleAdd(item.id)}>
                   <ItemIcon $color={item.iconColor} $round={item.iconRound} />
@@ -364,17 +349,12 @@ export default function AddMenu({ onAdd }) {
             <MenuBody>
               <CatList>
                 {CATEGORIES.map(cat => (
-                  <CatItem
-                    key={cat.id}
-                    $active={activeCat === cat.id}
-                    onMouseEnter={() => setActiveCat(cat.id)}
-                  >
+                  <CatItem key={cat.id} $active={activeCat === cat.id} onMouseEnter={() => setActiveCat(cat.id)}>
                     <CatIcon $color={cat.iconColor} $round={cat.iconRound} />
                     {cat.label}
                   </CatItem>
                 ))}
               </CatList>
-
               <ItemList>
                 {currentCat && (
                   <>

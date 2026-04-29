@@ -32,9 +32,9 @@ const Toolbar = styled.div`
   flex-direction: column;
   gap: 1px;
   z-index: 10;
-  background: rgba(12,11,9,0.85);
+  background: ${colors.surfacePanel};
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid ${colors.border};
   border-radius: 8px;
   padding: 3px;
 `;
@@ -42,7 +42,7 @@ const Toolbar = styled.div`
 const ToolBtn = styled.button`
   height: 30px;
   padding: 0 10px;
-  background: ${({ $active }) => $active ? 'rgba(232,168,85,0.12)' : 'transparent'};
+  background: ${({ $active }) => $active ? colors.accentSoft : 'transparent'};
   border: none;
   border-radius: 6px;
   color: ${({ $active }) => $active ? colors.accent : colors.textMuted};
@@ -55,7 +55,7 @@ const ToolBtn = styled.button`
   transition: all 0.15s;
 
   &:hover {
-    background: rgba(232,168,85,0.08);
+    background: ${colors.accentSubtle};
     color: ${colors.accent};
   }
 `;

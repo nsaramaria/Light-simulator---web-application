@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { getSceneSnapshot, restoreFullSnapshot, getDefaultSnapshot, sceneState } from '../scene/sharedScene';
-import { colors } from '../styles/theme';
+import { colors, shadows } from '../styles/theme';
 
 const Strip = styled.div`
   height: 80px;
-  background: rgba(255,255,255,0.015);
-  border-top: 1px solid rgba(255,255,255,0.06);
+  background: ${colors.surface};
+  border-top: 1px solid ${colors.border};
   display: flex;
   align-items: center;
   padding: 0 16px;
@@ -23,8 +23,8 @@ const AddShotBtn = styled.button`
   width: 40px;
   height: 54px;
   border-radius: 8px;
-  border: 1px dashed rgba(232,168,85,0.3);
-  background: rgba(232,168,85,0.04);
+  border: 1px dashed ${colors.accentBorder};
+  background: ${colors.accentGhost};
   color: ${colors.accent};
   font-size: 20px;
   cursor: pointer;
@@ -33,21 +33,21 @@ const AddShotBtn = styled.button`
   justify-content: center;
   transition: all 0.15s;
   &:hover {
-    background: rgba(232,168,85,0.08);
-    border-color: rgba(232,168,85,0.5);
+    background: ${colors.accentSubtle};
+    border-color: ${colors.accentBorderHover};
   }
 `;
 
-const AddMenu = styled.div`
+const AddMenuDropdown = styled.div`
   position: absolute;
   bottom: calc(100% + 6px);
   left: 0;
   min-width: 180px;
-  background: rgba(12,11,9,0.97);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: ${colors.surfaceOverlay};
+  border: 1px solid ${colors.borderStrong};
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  box-shadow: ${shadows.menu};
   z-index: 100;
 `;
 
@@ -58,7 +58,7 @@ const AddMenuHeader = styled.div`
   color: ${colors.textMuted};
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid ${colors.border};
 `;
 
 const AddMenuItem = styled.div`
@@ -71,11 +71,11 @@ const AddMenuItem = styled.div`
   gap: 8px;
   transition: background 0.1s;
   &:hover {
-    background: rgba(232,168,85,0.06);
+    background: ${colors.accentFaint};
     color: ${colors.accent};
   }
   & + & {
-    border-top: 1px solid rgba(255,255,255,0.04);
+    border-top: 1px solid ${colors.borderLight};
   }
 `;
 
@@ -87,7 +87,7 @@ const AddMenuIcon = styled.span`
 `;
 
 const SubMenu = styled.div`
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid ${colors.border};
   max-height: 160px;
   overflow-y: auto;
 `;
@@ -99,7 +99,7 @@ const SubMenuItem = styled.div`
   cursor: pointer;
   transition: background 0.1s;
   &:hover {
-    background: rgba(232,168,85,0.06);
+    background: ${colors.accentFaint};
     color: ${colors.accent};
   }
 `;
@@ -107,7 +107,7 @@ const SubMenuItem = styled.div`
 const StripDivider = styled.div`
   width: 1px;
   height: 44px;
-  background: rgba(255,255,255,0.06);
+  background: ${colors.border};
   flex-shrink: 0;
 `;
 
@@ -118,7 +118,7 @@ const ShotList = styled.div`
   overflow-x: auto;
   padding: 4px 0;
   &::-webkit-scrollbar { height: 4px; }
-  &::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+  &::-webkit-scrollbar-thumb { background: ${colors.scrollThumb}; border-radius: 2px; }
 `;
 
 const ShotCard = styled.div`
@@ -129,12 +129,12 @@ const ShotCard = styled.div`
   position: relative;
   overflow: hidden;
   cursor: pointer;
-  border: ${({ $active }) => $active ? '2px solid #E8A855' : '1px solid rgba(255,255,255,0.06)'};
+  border: ${({ $active }) => $active ? `2px solid ${colors.accent}` : `1px solid ${colors.border}`};
   transition: all 0.2s;
   transform: ${({ $active }) => $active ? 'scale(1.04)' : 'scale(1)'};
-  background: #000;
+  background: ${colors.black};
   &:hover {
-    border-color: ${({ $active }) => $active ? '#E8A855' : 'rgba(255,255,255,0.12)'};
+    border-color: ${({ $active }) => $active ? colors.accent : colors.borderHover};
   }
 `;
 
@@ -150,7 +150,7 @@ const ShotNumber = styled.div`
   left: 6px;
   font-size: 8px;
   font-weight: 700;
-  color: ${({ $active }) => $active ? '#E8A855' : 'rgba(255,255,255,0.2)'};
+  color: ${({ $active }) => $active ? colors.accent : colors.placeholder};
   font-family: 'JetBrains Mono', monospace;
 `;
 
@@ -159,7 +159,7 @@ const ShotInfo = styled.div`
   top: 4px;
   right: 6px;
   font-size: 7px;
-  color: rgba(255,255,255,0.15);
+  color: ${colors.placeholderSubtle};
   font-family: 'JetBrains Mono', monospace;
 `;
 
@@ -170,7 +170,7 @@ const ShotLabel = styled.div`
   right: 6px;
   font-size: 8px;
   font-weight: 600;
-  color: ${({ $active }) => $active ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.25)'};
+  color: ${({ $active }) => $active ? `rgba(255,255,255,0.6)` : `rgba(255,255,255,0.25)`};
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -182,7 +182,7 @@ const ActiveBar = styled.div`
   left: 0;
   right: 0;
   height: 2px;
-  background: #E8A855;
+  background: ${colors.accent};
 `;
 
 const ShotActions = styled.div`
@@ -202,19 +202,17 @@ const ShotActionBtn = styled.button`
   border-radius: 3px;
   border: none;
   background: rgba(0,0,0,0.6);
-  color: ${({ $danger }) => $danger ? '#C75450' : 'rgba(255,255,255,0.4)'};
+  color: ${({ $danger }) => $danger ? colors.danger : `rgba(255,255,255,0.4)`};
   font-size: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   &:hover {
-    color: ${({ $danger }) => $danger ? '#C75450' : '#fff'};
+    color: ${({ $danger }) => $danger ? colors.danger : colors.white};
     background: rgba(0,0,0,0.8);
   }
 `;
-
-const SHOT_COLORS = ['#2a1a10', '#1a1520', '#101a15', '#1a1010', '#10151a', '#1a1a10', '#151020'];
 
 const cloneSnapshot = (snap) => JSON.parse(JSON.stringify(snap));
 
@@ -228,112 +226,38 @@ export default function Filmstrip() {
   const [dupSubmenu, setDupSubmenu] = useState(false);
   const nextIdRef = useRef(2);
   const menuRef = useRef(null);
-
   const shotsRef = useRef(shots);
   const activeIdRef = useRef(activeId);
   shotsRef.current = shots;
   activeIdRef.current = activeId;
 
   useEffect(() => {
-    const handler = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setMenuOpen(false);
-        setDupSubmenu(false);
-      }
-    };
+    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) { setMenuOpen(false); setDupSubmenu(false); } };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   const saveActiveShot = useCallback(() => {
     const snap = getSceneSnapshot();
-    setShots(prev => prev.map(s =>
-      s.id === activeIdRef.current ? { ...s, snapshot: snap } : s
-    ));
+    setShots(prev => prev.map(s => s.id === activeIdRef.current ? { ...s, snapshot: snap } : s));
     return snap;
   }, []);
 
   useEffect(() => {
     let saveTimer = null;
-    const debouncedSave = () => {
-      if (saveTimer) clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => {
-        const snap = getSceneSnapshot();
-        setShots(prev => prev.map(s =>
-          s.id === activeIdRef.current ? { ...s, snapshot: snap } : s
-        ));
-      }, 100);
-    };
-
+    const debouncedSave = () => { if (saveTimer) clearTimeout(saveTimer); saveTimer = setTimeout(() => { const snap = getSceneSnapshot(); setShots(prev => prev.map(s => s.id === activeIdRef.current ? { ...s, snapshot: snap } : s)); }, 100); };
     window.addEventListener('studio:element-added', debouncedSave);
     window.addEventListener('studio:element-deleted', debouncedSave);
     window.addEventListener('studio:position-update', debouncedSave);
     window.addEventListener('studio:property-update', debouncedSave);
-
-    return () => {
-      if (saveTimer) clearTimeout(saveTimer);
-      window.removeEventListener('studio:element-added', debouncedSave);
-      window.removeEventListener('studio:element-deleted', debouncedSave);
-      window.removeEventListener('studio:position-update', debouncedSave);
-      window.removeEventListener('studio:property-update', debouncedSave);
-    };
+    return () => { if (saveTimer) clearTimeout(saveTimer); window.removeEventListener('studio:element-added', debouncedSave); window.removeEventListener('studio:element-deleted', debouncedSave); window.removeEventListener('studio:position-update', debouncedSave); window.removeEventListener('studio:property-update', debouncedSave); };
   }, []);
 
-  const addFromDefault = () => {
-    setMenuOpen(false);
-    setDupSubmenu(false);
-    saveActiveShot();
-    const id = `shot-${nextIdRef.current++}`;
-    const label = `Shot ${shotsRef.current.length + 1}`;
-    const defaultSnap = getDefaultSnapshot();
-    setShots(prev => [...prev, { id, label, snapshot: defaultSnap }]);
-    setActiveId(id);
-    activeIdRef.current = id;
-    restoreFullSnapshot(defaultSnap);
-    window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
-  };
-
-  const addFromShot = (sourceId) => {
-    setMenuOpen(false);
-    setDupSubmenu(false);
-    saveActiveShot();
-    const source = shotsRef.current.find(s => s.id === sourceId);
-    if (!source) return;
-    const id = `shot-${nextIdRef.current++}`;
-    const label = `Shot ${shotsRef.current.length + 1}`;
-    const dupSnap = cloneSnapshot(source.snapshot);
-    setShots(prev => [...prev, { id, label, snapshot: dupSnap }]);
-    setActiveId(id);
-    activeIdRef.current = id;
-    restoreFullSnapshot(dupSnap);
-    window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
-  };
-
+  const addFromDefault = () => { setMenuOpen(false); setDupSubmenu(false); saveActiveShot(); const id = `shot-${nextIdRef.current++}`; const label = `Shot ${shotsRef.current.length + 1}`; const defaultSnap = getDefaultSnapshot(); setShots(prev => [...prev, { id, label, snapshot: defaultSnap }]); setActiveId(id); activeIdRef.current = id; restoreFullSnapshot(defaultSnap); window.dispatchEvent(new CustomEvent('studio:select', { detail: null })); };
+  const addFromShot = (sourceId) => { setMenuOpen(false); setDupSubmenu(false); saveActiveShot(); const source = shotsRef.current.find(s => s.id === sourceId); if (!source) return; const id = `shot-${nextIdRef.current++}`; const label = `Shot ${shotsRef.current.length + 1}`; const dupSnap = cloneSnapshot(source.snapshot); setShots(prev => [...prev, { id, label, snapshot: dupSnap }]); setActiveId(id); activeIdRef.current = id; restoreFullSnapshot(dupSnap); window.dispatchEvent(new CustomEvent('studio:select', { detail: null })); };
   const addFromCurrent = () => addFromShot(activeIdRef.current);
-
-  const selectShot = (shot) => {
-    if (shot.id === activeIdRef.current) return;
-    saveActiveShot();
-    setActiveId(shot.id);
-    activeIdRef.current = shot.id;
-    restoreFullSnapshot(shot.snapshot);
-    window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
-  };
-
-  const deleteShot = (e, id) => {
-    e.stopPropagation();
-    if (shotsRef.current.length <= 1) return;
-    const remaining = shotsRef.current.filter(s => s.id !== id);
-    setShots(remaining);
-    if (activeIdRef.current === id) {
-      const fallback = remaining[0];
-      setActiveId(fallback.id);
-      activeIdRef.current = fallback.id;
-      restoreFullSnapshot(fallback.snapshot);
-      window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
-    }
-  };
-
+  const selectShot = (shot) => { if (shot.id === activeIdRef.current) return; saveActiveShot(); setActiveId(shot.id); activeIdRef.current = shot.id; restoreFullSnapshot(shot.snapshot); window.dispatchEvent(new CustomEvent('studio:select', { detail: null })); };
+  const deleteShot = (e, id) => { e.stopPropagation(); if (shotsRef.current.length <= 1) return; const remaining = shotsRef.current.filter(s => s.id !== id); setShots(remaining); if (activeIdRef.current === id) { const fallback = remaining[0]; setActiveId(fallback.id); activeIdRef.current = fallback.id; restoreFullSnapshot(fallback.snapshot); window.dispatchEvent(new CustomEvent('studio:select', { detail: null })); } };
   const getElementCount = (shot) => Object.keys(shot.snapshot.elements).length;
 
   return (
@@ -341,45 +265,26 @@ export default function Filmstrip() {
       <AddWrap ref={menuRef}>
         <AddShotBtn onClick={() => { setMenuOpen(v => !v); setDupSubmenu(false); }} title="Add new shot">+</AddShotBtn>
         {menuOpen && (
-          <AddMenu>
+          <AddMenuDropdown>
             <AddMenuHeader>New Shot</AddMenuHeader>
-            <AddMenuItem onClick={addFromCurrent}>
-              <AddMenuIcon>⧉</AddMenuIcon>Duplicate Current
-            </AddMenuItem>
-            <AddMenuItem onClick={() => setDupSubmenu(v => !v)}>
-              <AddMenuIcon>❐</AddMenuIcon>Duplicate From…
-            </AddMenuItem>
-            {dupSubmenu && (
-              <SubMenu>
-                {shots.map((shot, i) => (
-                  <SubMenuItem key={shot.id} onClick={() => addFromShot(shot.id)}>
-                    {String(i + 1).padStart(2, '0')} — {shot.label}
-                    {shot.id === activeId ? ' (current)' : ''}
-                  </SubMenuItem>
-                ))}
-              </SubMenu>
-            )}
-            <AddMenuItem onClick={addFromDefault}>
-              <AddMenuIcon>✦</AddMenuIcon>New Default
-            </AddMenuItem>
-          </AddMenu>
+            <AddMenuItem onClick={addFromCurrent}><AddMenuIcon>⧉</AddMenuIcon>Duplicate Current</AddMenuItem>
+            <AddMenuItem onClick={() => setDupSubmenu(v => !v)}><AddMenuIcon>❐</AddMenuIcon>Duplicate From…</AddMenuItem>
+            {dupSubmenu && (<SubMenu>{shots.map((shot, i) => (<SubMenuItem key={shot.id} onClick={() => addFromShot(shot.id)}>{String(i + 1).padStart(2, '0')} — {shot.label}{shot.id === activeId ? ' (current)' : ''}</SubMenuItem>))}</SubMenu>)}
+            <AddMenuItem onClick={addFromDefault}><AddMenuIcon>✦</AddMenuIcon>New Default</AddMenuItem>
+          </AddMenuDropdown>
         )}
       </AddWrap>
       <StripDivider />
       <ShotList>
         {shots.map((shot, i) => {
           const isActive = shot.id === activeId;
-          const colorIdx = i % SHOT_COLORS.length;
+          const colorIdx = i % colors.shotColors.length;
           return (
             <ShotCard key={shot.id} $active={isActive} onClick={() => selectShot(shot)}>
-              <ShotBg $color={SHOT_COLORS[colorIdx]} />
+              <ShotBg $color={colors.shotColors[colorIdx]} />
               <ShotNumber $active={isActive}>{String(i + 1).padStart(2, '0')}</ShotNumber>
               <ShotInfo>{getElementCount(shot)} obj</ShotInfo>
-              {shots.length > 1 && (
-                <ShotActions>
-                  <ShotActionBtn $danger onClick={(e) => deleteShot(e, shot.id)} title="Delete shot">✕</ShotActionBtn>
-                </ShotActions>
-              )}
+              {shots.length > 1 && (<ShotActions><ShotActionBtn $danger onClick={(e) => deleteShot(e, shot.id)} title="Delete shot">✕</ShotActionBtn></ShotActions>)}
               <ShotLabel $active={isActive}>{shot.label}</ShotLabel>
               {isActive && <ActiveBar />}
             </ShotCard>

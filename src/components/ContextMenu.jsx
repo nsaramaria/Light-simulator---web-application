@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
-import { colors } from '../styles/theme';
+import { colors, shadows } from '../styles/theme';
 
 const Overlay = styled.div`
   position: fixed;
@@ -16,13 +16,13 @@ const Menu = styled.div`
   top: ${({ $y }) => $y}px;
   left: ${({ $x }) => $x}px;
   min-width: 160px;
-  background: rgba(12,11,9,0.97);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: ${colors.surfaceOverlay};
+  border: 1px solid ${colors.borderStrong};
   border-radius: 8px;
   overflow: hidden;
   z-index: 501;
   backdrop-filter: blur(16px);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+  box-shadow: ${shadows.menu};
 `;
 
 const MenuHeader = styled.div`
@@ -32,7 +32,7 @@ const MenuHeader = styled.div`
   color: ${colors.textMuted};
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid ${colors.border};
   display: flex;
   align-items: center;
   gap: 6px;
@@ -46,7 +46,7 @@ const HeaderIcon = styled.span`
 const MenuItem = styled.div`
   padding: 8px 12px;
   font-size: 12px;
-  color: ${({ $danger }) => $danger ? '#C75450' : colors.text};
+  color: ${({ $danger }) => $danger ? colors.danger : colors.text};
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -54,12 +54,12 @@ const MenuItem = styled.div`
   transition: background 0.1s;
 
   &:hover {
-    background: ${({ $danger }) => $danger ? 'rgba(199,84,80,0.08)' : 'rgba(232,168,85,0.06)'};
-    color: ${({ $danger }) => $danger ? '#C75450' : colors.accent};
+    background: ${({ $danger }) => $danger ? colors.dangerSoft : colors.accentFaint};
+    color: ${({ $danger }) => $danger ? colors.danger : colors.accent};
   }
 
   & + & {
-    border-top: 1px solid rgba(255,255,255,0.04);
+    border-top: 1px solid ${colors.borderLight};
   }
 `;
 
@@ -76,63 +76,36 @@ const MenuItemLabel = styled.span`
 
 const MenuItemShortcut = styled.span`
   font-size: 9px;
-  color: rgba(255,255,255,0.15);
+  color: ${colors.placeholderSubtle};
   font-family: 'JetBrains Mono', monospace;
 `;
 
 const DisabledItem = styled.div`
   padding: 8px 12px;
   font-size: 12px;
-  color: rgba(255,255,255,0.15);
+  color: ${colors.placeholderSubtle};
   display: flex;
   align-items: center;
   gap: 10px;
 `;
 
-const LABEL_BY_TYPE = {
-  'point-light':      'Point Light',
-  'spot-light':       'Focused Light',
-  'area-light':       'Softbox',
-  'hemisphere-light': 'Environment Light',
-  'product-cube':     'Product Cube',
-  'cyclorama':        'Cyclorama',
-  camera:             'Camera',
-};
-
-const ICON_BY_TYPE = {
-  'point-light':      '☀',
-  'spot-light':       '◐',
-  'area-light':       '▬',
-  'hemisphere-light': '◑',
-  'product-cube':     '■',
-  'cyclorama':        '⌐',
-  camera:             '◎',
-};
+const LABEL_BY_TYPE = { 'point-light': 'Point Light', 'spot-light': 'Focused Light', 'area-light': 'Softbox', 'hemisphere-light': 'Environment Light', 'product-cube': 'Product Cube', 'cyclorama': 'Cyclorama', camera: 'Camera' };
+const ICON_BY_TYPE = { 'point-light': '☀', 'spot-light': '◐', 'area-light': '▬', 'hemisphere-light': '◑', 'product-cube': '■', 'cyclorama': '⌐', camera: '◎' };
 
 export default function ContextMenu() {
   const [state, setState] = useState(null);
-  const menuRef = useRef(null);
 
   useEffect(() => {
-    const onOpen = (e) => {
-      const { id, type, x, y } = e.detail;
-      setState({ id, type, x, y });
-    };
+    const onOpen = (e) => { const { id, type, x, y } = e.detail; setState({ id, type, x, y }); };
     const onClose = () => setState(null);
-
     window.addEventListener('studio:context-menu', onOpen);
     window.addEventListener('studio:context-menu-close', onClose);
-    return () => {
-      window.removeEventListener('studio:context-menu', onOpen);
-      window.removeEventListener('studio:context-menu-close', onClose);
-    };
+    return () => { window.removeEventListener('studio:context-menu', onOpen); window.removeEventListener('studio:context-menu-close', onClose); };
   }, []);
 
   useEffect(() => {
     if (!state) return;
-    const onKey = (e) => {
-      if (e.key === 'Escape') setState(null);
-    };
+    const onKey = (e) => { if (e.key === 'Escape') setState(null); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [state]);
@@ -143,41 +116,20 @@ export default function ContextMenu() {
   const icon = ICON_BY_TYPE[state.type] ?? '○';
   const isCamera = state.id === 'camera';
 
-  const handleDelete = () => {
-    window.dispatchEvent(new CustomEvent('studio:delete-element', { detail: state.id }));
-    setState(null);
-  };
-
-  const handleSelect = () => {
-    window.dispatchEvent(new CustomEvent('studio:select', { detail: state.id }));
-    setState(null);
-  };
-
   return (
     <>
       <Overlay onClick={() => setState(null)} onContextMenu={(e) => { e.preventDefault(); setState(null); }} />
-      <Menu ref={menuRef} $x={state.x} $y={state.y}>
-        <MenuHeader>
-          <HeaderIcon>{icon}</HeaderIcon>
-          {label}
-        </MenuHeader>
-        <MenuItem onClick={handleSelect}>
-          <MenuItemIcon>◎</MenuItemIcon>
-          <MenuItemLabel>Select</MenuItemLabel>
+      <Menu $x={state.x} $y={state.y}>
+        <MenuHeader><HeaderIcon>{icon}</HeaderIcon>{label}</MenuHeader>
+        <MenuItem onClick={() => { window.dispatchEvent(new CustomEvent('studio:select', { detail: state.id })); setState(null); }}>
+          <MenuItemIcon>◎</MenuItemIcon><MenuItemLabel>Select</MenuItemLabel>
         </MenuItem>
         {!isCamera && (
-          <MenuItem $danger onClick={handleDelete}>
-            <MenuItemIcon>✕</MenuItemIcon>
-            <MenuItemLabel>Delete</MenuItemLabel>
-            <MenuItemShortcut>Del</MenuItemShortcut>
+          <MenuItem $danger onClick={() => { window.dispatchEvent(new CustomEvent('studio:delete-element', { detail: state.id })); setState(null); }}>
+            <MenuItemIcon>✕</MenuItemIcon><MenuItemLabel>Delete</MenuItemLabel><MenuItemShortcut>Del</MenuItemShortcut>
           </MenuItem>
         )}
-        {isCamera && (
-          <DisabledItem>
-            <MenuItemIcon>—</MenuItemIcon>
-            <MenuItemLabel>No actions</MenuItemLabel>
-          </DisabledItem>
-        )}
+        {isCamera && <DisabledItem><MenuItemIcon>—</MenuItemIcon><MenuItemLabel>No actions</MenuItemLabel></DisabledItem>}
       </Menu>
     </>
   );

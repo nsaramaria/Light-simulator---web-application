@@ -5,7 +5,7 @@ import { colors } from '../styles/theme';
 
 const HeaderBar = styled.div`
   height: 48px;
-  background: rgba(255,255,255,0.015);
+  background: ${colors.surface};
   padding: 0 16px;
   color: ${colors.text};
   display: flex;
@@ -21,13 +21,13 @@ const Logo = styled.div`
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #E8A855 0%, #C75450 100%);
+  background: linear-gradient(135deg, ${colors.logoFrom} 0%, ${colors.logoTo} 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
   font-weight: 900;
-  color: #000;
+  color: ${colors.textOnAccent};
   flex-shrink: 0;
 `;
 
@@ -60,7 +60,7 @@ const SaveDot = styled.span`
 
 const SaveStatus = styled.span`
   font-size: 9px;
-  color: #555048;
+  color: ${colors.textDim};
 `;
 
 const Spacer = styled.div`
@@ -70,7 +70,7 @@ const Spacer = styled.div`
 const ModeTabs = styled.div`
   display: flex;
   gap: 1px;
-  background: rgba(255,255,255,0.03);
+  background: ${colors.surfaceHover};
   border-radius: 8px;
   padding: 3px;
   border: 1px solid ${colors.border};
@@ -86,13 +86,13 @@ const ModeTab = styled.button`
   display: flex;
   align-items: center;
   gap: 6px;
-  background: ${({ $active }) => $active ? 'rgba(232,168,85,0.12)' : 'transparent'};
+  background: ${({ $active }) => $active ? colors.accentSoft : 'transparent'};
   color: ${({ $active }) => $active ? colors.accent : colors.textMuted};
   transition: all 0.2s;
 
   &:hover {
     color: ${({ $active }) => $active ? colors.accent : colors.text};
-    background: ${({ $active }) => $active ? 'rgba(232,168,85,0.12)' : 'rgba(255,255,255,0.03)'};
+    background: ${({ $active }) => $active ? colors.accentSoft : colors.surfaceHover};
   }
 `;
 
@@ -105,8 +105,8 @@ const HelpBtn = styled.button`
   height: 28px;
   border-radius: 6px;
   border: 1px solid ${colors.border};
-  background: rgba(255,255,255,0.02);
-  color: #555048;
+  background: ${colors.surface};
+  color: ${colors.textDim};
   font-size: 12px;
   cursor: pointer;
   display: flex;
@@ -124,8 +124,8 @@ const Avatar = styled.div`
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3a2a1a, #2a2018);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: linear-gradient(135deg, ${colors.avatarFrom}, ${colors.avatarTo});
+  border: 1px solid ${colors.avatarBorder};
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -144,7 +144,7 @@ const Avatar = styled.div`
 const LogoutBtn = styled.button`
   background: transparent;
   border: none;
-  color: #555048;
+  color: ${colors.textDim};
   font-size: 10px;
   cursor: pointer;
   padding: 4px 8px;
@@ -152,7 +152,7 @@ const LogoutBtn = styled.button`
   transition: all 0.2s;
 
   &:hover {
-    color: #C75450;
+    color: ${colors.danger};
   }
 `;
 
