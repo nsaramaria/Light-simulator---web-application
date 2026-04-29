@@ -2,15 +2,15 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 /*
-  these CSS vars mirror the JS theme (styles/theme.js)
-  If you change the palette in theme.js, update the matching vars here
+  Mirror of the JS theme palette (styles/theme.js — Steel Slate).
+  Update both when changing the palette.
 */
 :root {
-  --color-background: #08080A;
-  --color-text: #EDE6DD;
-  --color-accent: #E8A855;
-  --color-accent-30: rgba(232,168,85,0.3);
-  --color-accent-50: rgba(232,168,85,0.5);
+  --color-background: #0C0E14;
+  --color-text: #D0D5DF;
+  --color-accent: #6A9FD8;
+  --color-accent-30: rgba(106,159,216,0.3);
+  --color-accent-50: rgba(106,159,216,0.5);
   --color-scrollbar: rgba(255,255,255,0.08);
   --color-scrollbar-hover: rgba(255,255,255,0.15);
   --color-placeholder: rgba(255,255,255,0.2);
