@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { createSharedScene, destroySharedScene, sceneState, onSceneChange, updateElement, updateCamera, removeElement } from './sharedScene';
+import { createSharedScene, sceneState, onSceneChange, updateElement, updateCamera, removeElement, getSnapshotVersion } from './sharedScene';
 import { CAMERA } from './sceneConfig';
 import renderLoop from './renderLoop';
 import styled from 'styled-components';
@@ -60,7 +60,6 @@ const ToolBtn = styled.button`
   }
 `;
 
-
 const MoveIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
     <line x1="8" y1="1" x2="8" y2="15" />
@@ -112,7 +111,7 @@ export default function SetupView() {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.shadowMap.enabled = false;
     const container = mountRef.current;
-    const w = container.clientWidth, h = container.clientHeight;
+    let w = container.clientWidth, h = container.clientHeight;
     renderer.setSize(w, h);
     helperCamera.aspect = w / h;
     helperCamera.updateProjectionMatrix();
@@ -148,10 +147,13 @@ export default function SetupView() {
       sceneState.camera.x, sceneState.camera.y, sceneState.camera.z
     );
     photographerCamera.lookAt(0, 1, 0);
+    photographerCamera.updateMatrixWorld(true);
+
     const cameraHelper = new THREE.CameraHelper(photographerCamera);
     scene.add(cameraHelper);
     scene.add(photographerCamera);
 
+    // ─── Proxy system ───
     const proxies = {};
 
     const cameraProxy = makeCameraProxy(photographerCamera.position);
@@ -159,17 +161,71 @@ export default function SetupView() {
     scene.add(cameraProxy);
     proxies['camera'] = cameraProxy;
 
-    const buildProxies = () => {
-      Object.entries(sceneState.elements).forEach(([id, state]) => {
-        if (proxies[id]) return;
-        const pos = new THREE.Vector3(state.x, state.y, state.z);
-        const proxy = createProxyForType(state.type, pos, id);
-        proxy.traverse(child => { child.layers.set(1); });
-        scene.add(proxy);
-        proxies[id] = proxy;
+    const disposeProxy = (id) => {
+      const proxy = proxies[id];
+      if (!proxy) return;
+      scene.remove(proxy);
+      proxy.traverse(child => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+          else child.material.dispose();
+        }
       });
+      delete proxies[id];
     };
-    buildProxies();
+
+    const clearElementProxies = () => {
+      for (const id of Object.keys(proxies)) {
+        if (id === 'camera') continue;
+        disposeProxy(id);
+      }
+    };
+
+    const addProxy = (id, state) => {
+      if (proxies[id]) disposeProxy(id);
+      const pos = new THREE.Vector3(state.x, state.y, state.z);
+      const proxy = createProxyForType(state.type, pos, id);
+      proxy.traverse(child => { child.layers.set(1); });
+      scene.add(proxy);
+      proxies[id] = proxy;
+    };
+
+    const updateProxyTransforms = () => {
+      for (const [id, state] of Object.entries(sceneState.elements)) {
+        const proxy = proxies[id];
+        const mesh = elementMeshes[id];
+        if (!proxy || !mesh) continue;
+        proxy.position.copy(mesh.position);
+        proxy.rotation.set(
+          (state.rx ?? 0) * DEG2RAD,
+          (state.ry ?? 0) * DEG2RAD,
+          (state.rz ?? 0) * DEG2RAD
+        );
+        if (mesh.scale) proxy.scale.copy(mesh.scale);
+      }
+    };
+
+    const rebuildAllProxies = () => {
+      clearElementProxies();
+      for (const [id, state] of Object.entries(sceneState.elements)) {
+        addProxy(id, state);
+      }
+      updateProxyTransforms();
+    };
+
+    const incrementalSync = () => {
+      for (const id of Object.keys(proxies)) {
+        if (id === 'camera') continue;
+        if (!sceneState.elements[id]) disposeProxy(id);
+      }
+      for (const [id, state] of Object.entries(sceneState.elements)) {
+        if (!proxies[id]) addProxy(id, state);
+      }
+      updateProxyTransforms();
+    };
+
+    rebuildAllProxies();
 
     const grid = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
     scene.add(grid);
@@ -198,7 +254,6 @@ export default function SetupView() {
     });
 
     let gizmoMode = 'move';
-
     const getActiveGizmo = () => gizmoMode === 'move' ? moveGizmo : rotateGizmo;
 
     const getSelectedPosition = (id) => {
@@ -207,9 +262,9 @@ export default function SetupView() {
     };
 
     const syncGizmos = (id) => {
-      const pos = getSelectedPosition(id);
       moveGizmo.visible = false;
       rotateGizmo.visible = false;
+      const pos = getSelectedPosition(id);
       if (!pos || !id) return;
       const active = getActiveGizmo();
       active.position.copy(pos);
@@ -264,9 +319,9 @@ export default function SetupView() {
     };
 
     const highlightObject = (id) => {
-      Object.entries(proxies).forEach(([pid, proxy]) => {
+      for (const [pid, proxy] of Object.entries(proxies)) {
         resetProxyColor(proxy);
-      });
+      }
       if (id && proxies[id]) setProxyColor(proxies[id], 0x4a90d9);
       syncGizmos(id);
     };
@@ -279,9 +334,8 @@ export default function SetupView() {
     };
 
     const onExternalSelect = (e) => {
-      const id = e.detail;
-      sceneState.selected = id;
-      highlightObject(id);
+      sceneState.selected = e.detail;
+      highlightObject(e.detail);
       renderLoop.markDirty();
     };
     window.addEventListener('studio:select', onExternalSelect);
@@ -301,34 +355,37 @@ export default function SetupView() {
       } else {
         photographerCamera.lookAt(0, 1, 0);
       }
+      photographerCamera.updateProjectionMatrix();
+      photographerCamera.updateMatrixWorld(true);
+
+      cameraProxy.position.copy(photographerCamera.position);
+      cameraProxy.rotation.copy(photographerCamera.rotation);
     };
 
     let cameraHelperDirty = true;
+    let lastSnapshotVersion = getSnapshotVersion();
 
     const unsub = onSceneChange(() => {
       syncPhotographerCamera();
-      cameraProxy.position.copy(photographerCamera.position);
-      cameraProxy.rotation.copy(photographerCamera.rotation);
       cameraHelperDirty = true;
 
-      buildProxies();
-      Object.entries(proxies).forEach(([id, proxy]) => {
-        if (id === 'camera') return;
-        const state = sceneState.elements[id];
-        const mesh = elementMeshes[id];
-        if (!mesh || !state) return;
-        proxy.position.copy(mesh.position);
-        proxy.rotation.set(
-          (state.rx ?? 0) * DEG2RAD,
-          (state.ry ?? 0) * DEG2RAD,
-          (state.rz ?? 0) * DEG2RAD
-        );
-        if (mesh.scale) proxy.scale.copy(mesh.scale);
-      });
+      const ver = getSnapshotVersion();
+      if (ver !== lastSnapshotVersion) {
+        lastSnapshotVersion = ver;
+        rebuildAllProxies();
+      } else {
+        incrementalSync();
+      }
 
-      if (sceneState.selected) syncGizmos(sceneState.selected);
+      if (sceneState.selected) {
+        syncGizmos(sceneState.selected);
+      } else {
+        moveGizmo.visible = false;
+        rotateGizmo.visible = false;
+      }
     });
 
+    // ─── Interaction ───
     const raycaster = new THREE.Raycaster();
     raycaster.layers.enable(1);
     const mouse = new THREE.Vector2();
@@ -338,7 +395,6 @@ export default function SetupView() {
     let dragStartPos = new THREE.Vector3();
     let dragStartRot = { rx: 0, ry: 0, rz: 0 };
     let isDraggingGizmo = false;
-
     let pointerDownPos = { x: 0, y: 0 };
 
     const onPointerDown = (e) => {
@@ -349,7 +405,6 @@ export default function SetupView() {
       dragStartMouse.set(e.clientX, e.clientY);
 
       const activeGizmo = getActiveGizmo();
-
       if (activeGizmo.visible) {
         raycaster.setFromCamera(mouse, helperCamera);
         const hits = raycaster.intersectObjects(activeGizmo.children);
@@ -373,7 +428,6 @@ export default function SetupView() {
 
     const onPointerMove = (e) => {
       if (!isDraggingGizmo || !dragAxis) return;
-
       const dx = e.clientX - dragStartMouse.x;
       const dy = e.clientY - dragStartMouse.y;
       const id = sceneState.selected;
@@ -386,19 +440,16 @@ export default function SetupView() {
 
         const startScreen = dragStartPos.clone().project(helperCamera);
         const endScreen = dragStartPos.clone().add(axisDir).project(helperCamera);
-
         const axisScreenDelta = new THREE.Vector2(
           (endScreen.x - startScreen.x) * container.clientWidth / 2,
           (endScreen.y - startScreen.y) * container.clientHeight / 2
         );
         const pixelsPerUnit = axisScreenDelta.length();
-
         if (pixelsPerUnit < 0.001) return;
 
         const axisScreenDir = axisScreenDelta.normalize();
         const mousePx = new THREE.Vector2(dx, -dy);
         const projectedPixels = mousePx.dot(axisScreenDir);
-
         const units = projectedPixels / pixelsPerUnit;
         const newVal = dragStartPos[dragAxis] + units;
 
@@ -410,7 +461,6 @@ export default function SetupView() {
         }));
       } else {
         const gizmoPos = rotateGizmo.position.clone();
-
         const ref = gizmoPos.clone();
         if (dragAxis === 'rx') ref.y += 1;
         if (dragAxis === 'ry') ref.x += 1;
@@ -418,19 +468,16 @@ export default function SetupView() {
 
         const originScreen = gizmoPos.project(helperCamera);
         const refScreen = ref.project(helperCamera);
-
         const screenDir = new THREE.Vector2(
           (refScreen.x - originScreen.x) * container.clientWidth / 2,
           (refScreen.y - originScreen.y) * container.clientHeight / 2
         );
         const pixelsDist = screenDir.length();
-
         if (pixelsDist < 0.001) return;
 
         const screenDirNorm = screenDir.normalize();
         const mousePx = new THREE.Vector2(dx, -dy);
         const projectedPixels = mousePx.dot(screenDirNorm);
-
         const deltaDeg = (projectedPixels / pixelsDist) * 180;
         const newVal = (dragStartRot[dragAxis] + deltaDeg) % 360;
 
@@ -465,9 +512,7 @@ export default function SetupView() {
 
       const clickables = [];
       Object.values(proxies).forEach(proxy => {
-        proxy.traverse(child => {
-          if (child.isMesh) clickables.push(child);
-        });
+        proxy.traverse(child => { if (child.isMesh) clickables.push(child); });
       });
 
       const hits = raycaster.intersectObjects(clickables);
@@ -488,7 +533,7 @@ export default function SetupView() {
       if (e.key === 'e' || e.key === 'E') setMode('rotate');
     };
 
-   const onContextMenu = (e) => {
+    const onContextMenu = (e) => {
       e.preventDefault();
       const rect = container.getBoundingClientRect();
       mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
@@ -517,21 +562,11 @@ export default function SetupView() {
     const onDeleteElement = (e) => {
       const id = e.detail;
       if (!id || id === 'camera') return;
-      const proxy = proxies[id];
-      if (proxy) {
-        scene.remove(proxy);
-        proxy.traverse(child => {
-          if (child.geometry) child.geometry.dispose();
-          if (child.material) {
-            if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
-            else child.material.dispose();
-          }
-        });
-        delete proxies[id];
-      }
+      disposeProxy(id);
       removeElement(id);
       highlightObject(null);
       window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
+      window.dispatchEvent(new CustomEvent('studio:element-deleted', { detail: id }));
     };
 
     container.addEventListener('pointerdown', onPointerDown);
@@ -545,6 +580,7 @@ export default function SetupView() {
       controls.update();
 
       if (cameraHelperDirty) {
+        photographerCamera.updateMatrixWorld(true);
         cameraHelper.update();
         cameraHelperDirty = false;
       }
@@ -585,11 +621,38 @@ export default function SetupView() {
       container.removeEventListener('pointerup', onPointerUp);
       container.removeEventListener('contextmenu', onContextMenu);
       window.removeEventListener('studio:delete-element', onDeleteElement);
+
+      for (const id of Object.keys(proxies)) {
+        const proxy = proxies[id];
+        if (proxy) {
+          scene.remove(proxy);
+          proxy.traverse(child => {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) {
+              if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+              else child.material.dispose();
+            }
+          });
+        }
+        delete proxies[id];
+      }
+
+      [cameraHelper, photographerCamera, grid, axesHelper, moveGizmo, rotateGizmo].forEach(obj => {
+        scene.remove(obj);
+        if (obj.dispose) obj.dispose();
+        obj.traverse?.(child => {
+          if (child.geometry) child.geometry.dispose();
+          if (child.material) {
+            if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+            else child.material.dispose();
+          }
+        });
+      });
+
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
       renderer.dispose();
-      destroySharedScene();
     };
   }, []);
 
@@ -600,18 +663,10 @@ export default function SetupView() {
   return (
     <Wrapper>
       <Toolbar>
-        <ToolBtn
-          $active={activeMode === 'move'}
-          onClick={() => handleToolClick('move')}
-          title="Move (W)"
-        >
+        <ToolBtn $active={activeMode === 'move'} onClick={() => handleToolClick('move')} title="Move (W)">
           <MoveIcon />
         </ToolBtn>
-        <ToolBtn
-          $active={activeMode === 'rotate'}
-          onClick={() => handleToolClick('rotate')}
-          title="Rotate (E)"
-        >
+        <ToolBtn $active={activeMode === 'rotate'} onClick={() => handleToolClick('rotate')} title="Rotate (E)">
           <RotateIcon />
         </ToolBtn>
       </Toolbar>

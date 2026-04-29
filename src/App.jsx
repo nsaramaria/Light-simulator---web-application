@@ -8,6 +8,7 @@ import HelpModal from './components/Help';
 import ContextMenu from './components/ContextMenu';
 import Auth from './components/Auth';
 import StatusBar from './components/StatusBar';
+import Filmstrip from './components/Filmstrip';
 import { addPointLight, addSpotLight, addDirectionalLight, addAreaLight, addHemisphereLight, addProductCube, addCyclorama } from './scene/sharedScene';
 import { colors } from './styles/theme';
 
@@ -46,11 +47,7 @@ const Divider = styled.div`
   align-items: center;
   justify-content: center;
   position: relative;
-
-  &:hover, &:active {
-    background: ${colors.accent};
-  }
-
+  &:hover, &:active { background: ${colors.accent}; }
   &::after {
     content: '';
     position: absolute;
@@ -97,7 +94,6 @@ const MaximizeBtn = styled.button`
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-
   &:hover {
     border-color: rgba(232,168,85,0.3);
     color: ${colors.accent};
@@ -116,12 +112,10 @@ const ADD_HANDLERS = {
 };
 
 export default function App() {
-  // Check if user is already logged in
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('user');
     return saved ? JSON.parse(saved) : null;
   });
-
   const [showHelp, setShowHelp] = useState(false);
   const [splitPct, setSplitPct] = useState(50);
   const [dragging, setDragging] = useState(false);
@@ -137,21 +131,18 @@ export default function App() {
   const onDividerMouseDown = useCallback((e) => {
     e.preventDefault();
     setDragging(true);
-
     const onMouseMove = (e) => {
       const rect = containerRef.current.getBoundingClientRect();
       const pct = ((e.clientX - rect.left) / rect.width) * 100;
       setSplitPct(Math.min(Math.max(pct, 15), 85));
       window.dispatchEvent(new Event('resize'));
     };
-
     const onMouseUp = () => {
       setDragging(false);
       window.dispatchEvent(new Event('resize'));
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
-
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
   }, []);
@@ -159,9 +150,7 @@ export default function App() {
   const toggleMaximize = (panel) => {
     setMaximized(prev => prev === panel ? null : panel);
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        window.dispatchEvent(new Event('resize'));
-      });
+      requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
     });
   };
 
@@ -170,16 +159,14 @@ export default function App() {
     if (!factory) return;
     const newId = factory();
     if (newId) {
+      window.dispatchEvent(new CustomEvent('studio:element-added', { detail: newId }));
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('studio:select', { detail: newId }));
       }, 0);
     }
   };
 
-  // Show login screen if not logged in
-  if (!user) {
-    return <Auth onLogin={setUser} />;
-  }
+  if (!user) return <Auth onLogin={setUser} />;
 
   const cameraWidth = maximized === 'camera' ? 100 : maximized === 'setup' ? 0 : splitPct;
   const setupWidth  = maximized === 'setup'  ? 100 : maximized === 'camera' ? 0 : 100 - splitPct;
@@ -188,7 +175,6 @@ export default function App() {
   return (
     <AppWrapper>
       <Header onAdd={handleAdd} onShowHelp={() => setShowHelp(true)} user={user} onLogout={handleLogout} />
-
       <ViewsContainer ref={containerRef} $dragging={dragging}>
         <ViewPanel $width={cameraWidth}>
           <ViewLabel>CAM</ViewLabel>
@@ -197,9 +183,7 @@ export default function App() {
           </MaximizeBtn>
           <CameraView />
         </ViewPanel>
-
         {showDivider && <Divider onMouseDown={onDividerMouseDown} />}
-
         <ViewPanel $width={setupWidth}>
           <ViewLabel>3D</ViewLabel>
           <MaximizeBtn onClick={() => toggleMaximize('setup')}>
@@ -207,10 +191,9 @@ export default function App() {
           </MaximizeBtn>
           <SetupView />
         </ViewPanel>
-
         <SelectionPanel />
       </ViewsContainer>
-
+      <Filmstrip />
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       <ContextMenu />
       <StatusBar />
