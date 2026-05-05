@@ -247,6 +247,29 @@ const ScrubInput = styled.input`
   z-index: 2;
 `;
 
+const InfoRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+`;
+
+const InfoLabel = styled.span`
+  font-size: 10px;
+  color: ${colors.textDim};
+  width: 60px;
+  flex-shrink: 0;
+`;
+
+const InfoValue = styled.span`
+  font-size: 10px;
+  color: ${colors.textMuted};
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
 function ScrubField({ label, labelColor, value, step, wideLabel, onChange, onCommit }) {
   const [editing, setEditing] = useState(false);
   const [editVal, setEditVal] = useState('');
@@ -332,6 +355,7 @@ const POS_FIELDS = {
   'hemisphere-light':  [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
   'product-cube':      [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
   'cyclorama':         [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
+  'imported-model':    [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
   camera:              [{ key: 'x', axis: 'x', step: 0.1 }, { key: 'y', axis: 'y', step: 0.1 }, { key: 'z', axis: 'z', step: 0.1 }],
 };
 
@@ -346,10 +370,11 @@ const LIGHT_FIELDS = {
 const ROT_FIELDS = [{ key: 'rx', axis: 'rx', step: 1 }, { key: 'ry', axis: 'ry', step: 1 }, { key: 'rz', axis: 'rz', step: 1 }];
 const SCALE_FIELDS = [{ key: 'sx', axis: 'sx', step: 0.1 }, { key: 'sy', axis: 'sy', step: 0.1 }, { key: 'sz', axis: 'sz', step: 0.1 }];
 
-const LABEL_BY_TYPE = { 'point-light': 'Point Light', 'spot-light': 'Focused Light', 'area-light': 'Softbox', 'hemisphere-light': 'Environment Light', 'product-cube': 'Product Cube', 'cyclorama': 'Cyclorama', camera: 'Camera' };
-const TYPE_ICON = { 'point-light': '☀', 'spot-light': '◐', 'area-light': '▬', 'hemisphere-light': '◑', 'product-cube': '■', 'cyclorama': '⌐', camera: '◎' };
+const LABEL_BY_TYPE = { 'point-light': 'Point Light', 'spot-light': 'Focused Light', 'area-light': 'Softbox', 'hemisphere-light': 'Environment Light', 'product-cube': 'Product Cube', 'cyclorama': 'Cyclorama', 'imported-model': 'Imported Model', camera: 'Camera' };
+const TYPE_ICON = { 'point-light': '☀', 'spot-light': '◐', 'area-light': '▬', 'hemisphere-light': '◑', 'product-cube': '■', 'cyclorama': '⌐', 'imported-model': '⬡', camera: '◎' };
 const AXIS_COLORS = { x: colors.axisX, rx: colors.axisX, sx: colors.axisX, y: colors.axisY, ry: colors.axisY, sy: colors.axisY, z: colors.axisZ, rz: colors.axisZ, sz: colors.axisZ };
 const SINGLE_COLOR_TYPES = ['point-light', 'spot-light', 'directional-light', 'area-light'];
+const SCALABLE_TYPES = ['product-cube', 'cyclorama', 'imported-model'];
 
 const getStateForId = (id) => id === 'camera' ? sceneState.camera : sceneState.elements[id] ?? null;
 const THROTTLE_MS = 66;
@@ -420,7 +445,7 @@ export default function SelectionPanel() {
   const type = selected === 'camera' ? 'camera' : sceneState.elements[selected]?.type;
   const posFields = POS_FIELDS[type] ?? [];
   const lightFields = LIGHT_FIELDS[type] ?? [];
-  const label = LABEL_BY_TYPE[type] ?? selected;
+  const label = type === 'imported-model' ? (vals.fileName || 'Imported Model') : (LABEL_BY_TYPE[type] ?? selected);
   const icon = TYPE_ICON[type] ?? '○';
 
   const handleScrubChange = (field, newVal) => { setVals(v => ({ ...v, [field.key]: newVal })); if (selected === 'camera') updateCamera(field.key, newVal); else updateElement(selected, field.key, newVal); };
@@ -442,9 +467,17 @@ export default function SelectionPanel() {
         <CollapseBtn onClick={() => toggleCollapse(true)} title="Collapse">‹</CollapseBtn>
       </SidebarHeader>
       <PropsScroll>
+        {type === 'imported-model' && vals.fileName && (
+          <AccordionSection title="File" defaultOpen={false}>
+            <InfoRow>
+              <InfoLabel>Name</InfoLabel>
+              <InfoValue>{vals.fileName}</InfoValue>
+            </InfoRow>
+          </AccordionSection>
+        )}
         <AccordionSection title="Position">{posFields.map(renderAxisField)}</AccordionSection>
         <AccordionSection title="Rotation">{ROT_FIELDS.map(renderAxisField)}</AccordionSection>
-        {(type === 'product-cube' || type === 'cyclorama') && <AccordionSection title="Scale">{SCALE_FIELDS.map(renderAxisField)}</AccordionSection>}
+        {SCALABLE_TYPES.includes(type) && <AccordionSection title="Scale">{SCALE_FIELDS.map(renderAxisField)}</AccordionSection>}
         {lightFields.length > 0 && (
           <AccordionSection title="Light" badge={LABEL_BY_TYPE[type]?.split(' ')[0]}>
             {lightFields.map(renderLabeledField)}

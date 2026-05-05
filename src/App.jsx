@@ -9,7 +9,7 @@ import ContextMenu from './components/ContextMenu';
 import Auth from './components/Auth';
 import StatusBar from './components/StatusBar';
 import Filmstrip from './components/Filmstrip';
-import { addPointLight, addSpotLight, addDirectionalLight, addAreaLight, addHemisphereLight, addProductCube, addCyclorama } from './scene/sharedScene';
+import { addPointLight, addSpotLight, addDirectionalLight, addAreaLight, addHemisphereLight, addProductCube, addCyclorama, addImportedModel } from './scene/sharedScene';
 import { colors } from './styles/theme';
 
 const AppWrapper = styled.div`
@@ -101,6 +101,10 @@ const MaximizeBtn = styled.button`
   }
 `;
 
+const HiddenFileInput = styled.input`
+  display: none;
+`;
+
 const ADD_HANDLERS = {
   'point-light':       addPointLight,
   'spot-light':        addSpotLight,
@@ -121,6 +125,7 @@ export default function App() {
   const [dragging, setDragging] = useState(false);
   const [maximized, setMaximized] = useState(null);
   const containerRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -154,7 +159,34 @@ export default function App() {
     });
   };
 
+  const handleFileUpload = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    try {
+      const newId = await addImportedModel(file);
+      if (newId) {
+        window.dispatchEvent(new CustomEvent('studio:element-added', { detail: newId }));
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('studio:select', { detail: newId }));
+        }, 0);
+      }
+    } catch (err) {
+      console.error('Failed to import model:', err);
+    }
+  }, []);
+
   const handleAdd = (itemId) => {
+    if (itemId === 'import-upload') {
+      fileInputRef.current?.click();
+      return;
+    }
+
+    if (itemId === 'import-generate' || itemId === 'import-scan') {
+      return;
+    }
+
     const factory = ADD_HANDLERS[itemId];
     if (!factory) return;
     const newId = factory();
@@ -175,6 +207,12 @@ export default function App() {
   return (
     <AppWrapper>
       <Header onAdd={handleAdd} onShowHelp={() => setShowHelp(true)} user={user} onLogout={handleLogout} />
+      <HiddenFileInput
+        ref={fileInputRef}
+        type="file"
+        accept=".glb,.gltf"
+        onChange={handleFileUpload}
+      />
       <ViewsContainer ref={containerRef} $dragging={dragging}>
         <ViewPanel $width={cameraWidth}>
           <ViewLabel>CAM</ViewLabel>

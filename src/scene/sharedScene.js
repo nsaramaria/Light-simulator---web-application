@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { SCENE, LIGHT, FLOOR } from './sceneConfig';
 import { DEG2RAD } from '../utils/math';
 import { createPointLight, createSpotLight, createDirectionalLight, createAreaLight, createHemisphereLight, resetLightCounter } from './objects/lights';
@@ -7,7 +8,6 @@ import renderLoop from './renderLoop';
 
 let sharedInstance = null;
 
-// HMR reset 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => { sharedInstance = null; });
 }
@@ -35,11 +35,9 @@ const notifySync = () => {
   listeners.forEach(fn => fn());
 };
 
-// Incremented on every restoreFullSnapshot call.
 let _snapshotVersion = 0;
 export const getSnapshotVersion = () => _snapshotVersion;
 
-// Scene state 
 export const sceneState = {
   selected: null,
   elements: {},
@@ -72,6 +70,10 @@ const CREATORS = {
 const createElementFromDef = (desiredId, def) => {
   if (!sharedInstance) return null;
   const { scene, elementMeshes } = sharedInstance;
+
+  if (def.type === 'imported-model') {
+    return restoreImportedModel(desiredId, def);
+  }
 
   const creator = CREATORS[def.type];
   if (!creator) return null;
@@ -166,6 +168,7 @@ export const restoreFullSnapshot = (snapshot) => {
     resetLightCounter();
     resetProductCounter();
     resetCycloramaCounter();
+    resetImportCounter();
 
     for (const [id, def] of Object.entries(snapshot.elements)) {
       createElementFromDef(id, def);
@@ -290,6 +293,165 @@ export const getDefaultSnapshot = () => ({
   },
 });
 
+// ─── Imported model support ───
+
+let importCounter = 0;
+export const resetImportCounter = () => { importCounter = 0; };
+
+const gltfLoader = new GLTFLoader();
+
+const importedModelStore = {};
+
+export const getImportedModelStore = () => importedModelStore;
+
+const normalizeModel = (model) => {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = new THREE.Vector3();
+  const center = new THREE.Vector3();
+  box.getSize(size);
+  box.getCenter(center);
+
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const targetSize = 2;
+  const scaleFactor = maxDim > 0 ? targetSize / maxDim : 1;
+
+  model.scale.multiplyScalar(scaleFactor);
+
+  box.setFromObject(model);
+  box.getCenter(center);
+  const bottomY = box.min.y;
+  model.position.sub(center);
+  model.position.y -= bottomY;
+
+  return scaleFactor;
+};
+
+const addModelToScene = (id, model, fileName) => {
+  if (!sharedInstance) return null;
+  const { scene, elementMeshes } = sharedInstance;
+
+  const group = new THREE.Group();
+  group.userData.id = id;
+  group.add(model);
+
+  normalizeModel(model);
+
+  const box = new THREE.Box3().setFromObject(group);
+  const floorY = box.min.y;
+  group.position.set(0, -floorY, 0);
+
+  group.castShadow = true;
+  group.traverse(child => {
+    if (child.isMesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
+  });
+
+  scene.add(group);
+  elementMeshes[id] = group;
+
+  const finalBox = new THREE.Box3().setFromObject(group);
+  const finalSize = new THREE.Vector3();
+  finalBox.getSize(finalSize);
+
+  sceneState.elements[id] = {
+    x: group.position.x,
+    y: group.position.y,
+    z: group.position.z,
+    rx: 0, ry: 0, rz: 0,
+    sx: 1, sy: 1, sz: 1,
+    type: 'imported-model',
+    fileName: fileName || 'model',
+    boundingSize: { x: finalSize.x, y: finalSize.y, z: finalSize.z },
+  };
+
+  notify();
+  return id;
+};
+
+export const addImportedModel = (file) => {
+  return new Promise((resolve, reject) => {
+    if (!sharedInstance) { reject(new Error('Scene not ready')); return; }
+
+    const id = `import-${importCounter++}`;
+    const url = URL.createObjectURL(file);
+
+    gltfLoader.load(
+      url,
+      (gltf) => {
+        URL.revokeObjectURL(url);
+        const model = gltf.scene;
+
+        importedModelStore[id] = { file, fileName: file.name };
+
+        addModelToScene(id, model, file.name);
+        resolve(id);
+      },
+      undefined,
+      (err) => {
+        URL.revokeObjectURL(url);
+        console.warn('Failed to load imported model:', err);
+        reject(err);
+      }
+    );
+  });
+};
+
+const restoreImportedModel = (desiredId, def) => {
+  if (!sharedInstance) return null;
+  const { scene, elementMeshes } = sharedInstance;
+
+  const stored = importedModelStore[desiredId];
+  if (!stored) {
+    const group = new THREE.Group();
+    group.userData.id = desiredId;
+    const placeholder = new THREE.Mesh(
+      new THREE.BoxGeometry(
+        def.boundingSize?.x || 2,
+        def.boundingSize?.y || 2,
+        def.boundingSize?.z || 2
+      ),
+      new THREE.MeshStandardMaterial({ color: 0x6A9FD8, wireframe: true })
+    );
+    const bh = (def.boundingSize?.y || 2) / 2;
+    placeholder.position.y = bh;
+    group.add(placeholder);
+    group.position.set(def.x ?? 0, def.y ?? 0, def.z ?? 0);
+    scene.add(group);
+    elementMeshes[desiredId] = group;
+    sceneState.elements[desiredId] = { ...def };
+    return desiredId;
+  }
+
+  const url = URL.createObjectURL(stored.file);
+  const group = new THREE.Group();
+  group.userData.id = desiredId;
+  group.position.set(def.x ?? 0, def.y ?? 0, def.z ?? 0);
+  if (def.sx !== undefined) group.scale.set(def.sx ?? 1, def.sy ?? 1, def.sz ?? 1);
+  group.rotation.set(
+    (def.rx ?? 0) * DEG2RAD,
+    (def.ry ?? 0) * DEG2RAD,
+    (def.rz ?? 0) * DEG2RAD
+  );
+  scene.add(group);
+  elementMeshes[desiredId] = group;
+  sceneState.elements[desiredId] = { ...def };
+
+  gltfLoader.load(url, (gltf) => {
+    URL.revokeObjectURL(url);
+    const model = gltf.scene;
+    normalizeModel(model);
+    model.traverse(child => {
+      if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
+    });
+    group.add(model);
+    renderLoop.markDirty();
+  }, undefined, () => { URL.revokeObjectURL(url); });
+
+  return desiredId;
+};
+
 // ─── Add-element wrappers ───
 export const addPointLight = () => createPointLight(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
 export const addSpotLight = () => createSpotLight(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
@@ -363,6 +525,7 @@ export const destroySharedScene = () => {
   resetLightCounter();
   resetProductCounter();
   resetCycloramaCounter();
+  resetImportCounter();
   sceneState.elements = {};
   sceneState.selected = null;
   listeners.clear();

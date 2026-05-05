@@ -7,7 +7,7 @@ import renderLoop from './renderLoop';
 import styled from 'styled-components';
 import { DEG2RAD, RAD2DEG } from '../utils/math';
 import { colors } from '../styles/theme';
-import { makeLightProxy, makeSpotProxy, makeAreaProxy, makeHemisphereProxy, makeProductProxy, makeCycloramaProxy, makeCameraProxy } from './objects/proxies';
+import { makeLightProxy, makeSpotProxy, makeAreaProxy, makeHemisphereProxy, makeProductProxy, makeCycloramaProxy, makeCameraProxy, makeImportedProxy } from './objects/proxies';
 import { makeMoveGizmo } from './gizmos/move';
 import { makeRotateGizmo } from './gizmos/rotate';
 
@@ -84,7 +84,7 @@ const AXIS_COLORS = {
 };
 const HIGHLIGHT_COLOR = 0xffffff;
 
-const createProxyForType = (type, pos, id) => {
+const createProxyForType = (type, pos, id, elementState) => {
   switch (type) {
     case 'point-light':       return makeLightProxy(pos, id);
     case 'spot-light':        return makeSpotProxy(pos, id);
@@ -92,6 +92,7 @@ const createProxyForType = (type, pos, id) => {
     case 'hemisphere-light':  return makeHemisphereProxy(pos, id);
     case 'product-cube':      return makeProductProxy(pos, id);
     case 'cyclorama':         return makeCycloramaProxy(pos, id);
+    case 'imported-model':    return makeImportedProxy(pos, id, elementState?.boundingSize);
     default:                  return makeProductProxy(pos, id);
   }
 };
@@ -153,7 +154,6 @@ export default function SetupView() {
     scene.add(cameraHelper);
     scene.add(photographerCamera);
 
-    // ─── Proxy system ───
     const proxies = {};
 
     const cameraProxy = makeCameraProxy(photographerCamera.position);
@@ -185,7 +185,7 @@ export default function SetupView() {
     const addProxy = (id, state) => {
       if (proxies[id]) disposeProxy(id);
       const pos = new THREE.Vector3(state.x, state.y, state.z);
-      const proxy = createProxyForType(state.type, pos, id);
+      const proxy = createProxyForType(state.type, pos, id, state);
       proxy.traverse(child => { child.layers.set(1); });
       scene.add(proxy);
       proxies[id] = proxy;
@@ -385,7 +385,6 @@ export default function SetupView() {
       }
     });
 
-    // ─── Interaction ───
     const raycaster = new THREE.Raycaster();
     raycaster.layers.enable(1);
     const mouse = new THREE.Vector2();

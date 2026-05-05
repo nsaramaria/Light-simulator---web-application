@@ -18,6 +18,7 @@ export default function CameraView() {
 
   useEffect(() => {
     const { scene } = createSharedScene();
+
     const camera = new THREE.PerspectiveCamera(CAMERA.fov, 1, CAMERA.near, CAMERA.far);
     camera.position.set(sceneState.camera.x, sceneState.camera.y, sceneState.camera.z);
     camera.lookAt(0, PRODUCT.position.y, 0);
@@ -25,6 +26,9 @@ export default function CameraView() {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     const container = mountRef.current;
     const w = container.clientWidth, h = container.clientHeight;

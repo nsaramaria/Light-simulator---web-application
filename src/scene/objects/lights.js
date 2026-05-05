@@ -13,11 +13,21 @@ let lightCounter = 0;
 
 export const resetLightCounter = () => { lightCounter = 0; };
 
+const configureShadow = (light, mapSize = 2048, near = 0.5, far = 50, bias = -0.0005) => {
+  light.castShadow = true;
+  light.shadow.mapSize.width = mapSize;
+  light.shadow.mapSize.height = mapSize;
+  light.shadow.camera.near = near;
+  light.shadow.camera.far = far;
+  light.shadow.bias = bias;
+  light.shadow.normalBias = 0.02;
+};
+
 export const createPointLight = (scene, elementMeshes, sceneState, notify) => {
   const id = `light-${lightCounter++}`;
   const light = new THREE.PointLight(0xffffff, 1.5, 100);
   light.position.set(0, 5, 0);
-  light.castShadow = true;
+  configureShadow(light, 1024, 0.5, 50);
   light.userData.id = id;
   scene.add(light);
   elementMeshes[id] = light;
@@ -35,7 +45,7 @@ export const createSpotLight = (scene, elementMeshes, sceneState, notify) => {
   const light = new THREE.SpotLight(0xffffff, 2, 100, Math.PI / 6, 0.3);
   light.position.set(0, 5, 0);
   light.target.position.set(0, 0, 0);
-  light.castShadow = true;
+  configureShadow(light, 2048, 0.5, 50);
   light.userData.id = id;
   scene.add(light);
   scene.add(light.target);
@@ -55,7 +65,11 @@ export const createDirectionalLight = (scene, elementMeshes, sceneState, notify)
   const light = new THREE.DirectionalLight(0xffffff, 1);
   light.position.set(5, 10, 5);
   light.target.position.set(0, 0, 0);
-  light.castShadow = true;
+  configureShadow(light, 2048, 0.5, 50, -0.0003);
+  light.shadow.camera.left = -10;
+  light.shadow.camera.right = 10;
+  light.shadow.camera.top = 10;
+  light.shadow.camera.bottom = -10;
   light.userData.id = id;
   scene.add(light);
   scene.add(light.target);
@@ -74,7 +88,6 @@ export const createAreaLight = (scene, elementMeshes, sceneState, notify) => {
   const id = `light-${lightCounter++}`;
   const light = new THREE.RectAreaLight(0xffffff, 5, 2, 2);
   light.position.set(0, 5, 0);
-  // Default facing: -Z direction (matches the softbox proxy front face)
   light.rotation.set(0, Math.PI, 0);
   light.userData.id = id;
   scene.add(light);

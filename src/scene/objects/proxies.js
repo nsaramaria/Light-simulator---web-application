@@ -130,6 +130,26 @@ export const makeProductProxy = (position, id) => {
   return group;
 };
 
+export const makeImportedProxy = (position, id, boundingSize) => {
+  const group = new THREE.Group();
+  group.position.copy(position);
+  group.userData.id = id;
+  group.userData.proxyFor = id;
+
+  const sx = boundingSize?.x || 2;
+  const sy = boundingSize?.y || 2;
+  const sz = boundingSize?.z || 2;
+
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(sx, sy, sz),
+    new THREE.MeshBasicMaterial({ color: 0x6A9FD8, wireframe: true })
+  );
+  mesh.position.y = sy / 2;
+  group.add(mesh);
+
+  return group;
+};
+
 export const makeCameraProxy = (position) => {
   return makeModelProxy(position, 'camera', '/models/camera.glb', 0xd4a574, new THREE.BoxGeometry(0.4, 0.3, 0.6), 1.0, new THREE.Euler(0, Math.PI, 0));
 };
