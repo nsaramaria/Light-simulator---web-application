@@ -204,6 +204,21 @@ export default function App() {
     window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
   }, []);
 
+  // ─── New Scene handler ───
+  const handleNewScene = useCallback(() => {
+    setActiveSceneId(null);
+    setSceneName('Untitled Scene');
+    setSaveStatus('new');
+    const defaultSnap = getDefaultSnapshot();
+    restoreFullSnapshot(defaultSnap);
+    if (filmstripRef.current?.restoreShots) {
+      filmstripRef.current.restoreShots([
+        { id: 'shot-1', label: 'Shot 1', snapshot: defaultSnap },
+      ]);
+    }
+    window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
+  }, []);
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -297,6 +312,7 @@ export default function App() {
         onSceneNameChange={handleSceneNameChange}
         onSave={handleSave}
         onShowLoad={() => setShowLoadModal(true)}
+        onNewScene={handleNewScene}
         saving={saving}
         saveStatus={saveStatus}
       />

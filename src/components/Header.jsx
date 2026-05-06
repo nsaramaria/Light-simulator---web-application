@@ -52,8 +52,9 @@ const SceneNameInput = styled.input`
   color: ${colors.text};
   font-family: inherit;
   padding: 0;
-  width: 160px;
-  min-width: 80px;
+  width: ${({ $charWidth }) => Math.max(8, $charWidth)}ch;
+  min-width: 8ch;
+  max-width: 240px;
   border-bottom: 1px solid transparent;
   transition: border-color 0.2s;
 
@@ -244,6 +245,7 @@ export default function Header({
   onSceneNameChange,
   onSave,
   onShowLoad,
+  onNewScene,
   saving,
   saveStatus,
 }) {
@@ -260,6 +262,7 @@ export default function Header({
         <SceneNameRow>
           <SceneNameInput
             value={sceneName}
+            $charWidth={sceneName.length || 14}
             onChange={e => onSceneNameChange(e.target.value)}
             placeholder="Untitled Scene"
             spellCheck={false}
@@ -288,6 +291,7 @@ export default function Header({
 
       <Spacer />
 
+      <LoadBtn onClick={onNewScene}>New</LoadBtn>
       <LoadBtn onClick={onShowLoad}>Load</LoadBtn>
       <SaveBtn onClick={onSave} disabled={saving || !sceneName.trim()}>
         {saving ? 'Saving…' : 'Save'}
