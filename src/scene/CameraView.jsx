@@ -25,10 +25,18 @@ export default function CameraView() {
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // PCFShadowMap instead of PCFSoftShadowMap — the soft variant applies a
+    // blur kernel that turns fine shadow silhouettes into shapeless blobs,
+    // especially on PointLight's lower-resolution cube shadow map faces.
+    // PCFShadowMap preserves the model's actual outline in the shadow.
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    // Match device pixel ratio — without this, shadow maps appear even
+    // lower resolution on HiDPI/Retina displays since the renderer
+    // operates at 1x while the display expects 2x+.
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
     const container = mountRef.current;
     const w = container.clientWidth, h = container.clientHeight;

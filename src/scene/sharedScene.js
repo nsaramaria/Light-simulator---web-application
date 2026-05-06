@@ -326,6 +326,39 @@ const normalizeModel = (model) => {
   return scaleFactor;
 };
 
+/**
+ * Prepare imported mesh for shadow casting.
+ *
+ * Key decisions:
+ * - castShadow = true: model casts shadows onto floor/cyclorama
+ * - receiveShadow = false: prevents self-shadowing where the model's own
+ *   geometry darkens itself through the shadow map (especially bad with
+ *   PointLight's cube shadow map which views from all 6 directions)
+ * - alphaTest on transparent materials so shadows follow alpha cutouts
+ * - depthWrite re-enabled if a GLB exporter incorrectly disabled it
+ */
+const prepareMeshForShadows = (child) => {
+  if (!child.isMesh) return;
+
+  child.castShadow = true;
+  child.receiveShadow = false;
+
+  const materials = Array.isArray(child.material) ? child.material : [child.material];
+  for (const mat of materials) {
+    if (!mat) continue;
+
+    if (mat.alphaMap || (mat.map && mat.transparent)) {
+      mat.alphaTest = Math.max(mat.alphaTest || 0, 0.5);
+    }
+
+    if (!mat.depthWrite && !mat.transparent) {
+      mat.depthWrite = true;
+    }
+
+    mat.needsUpdate = true;
+  }
+};
+
 const addModelToScene = (id, model, fileName) => {
   if (!sharedInstance) return null;
   const { scene, elementMeshes } = sharedInstance;
@@ -340,13 +373,7 @@ const addModelToScene = (id, model, fileName) => {
   const floorY = box.min.y;
   group.position.set(0, -floorY, 0);
 
-  group.castShadow = true;
-  group.traverse(child => {
-    if (child.isMesh) {
-      child.castShadow = true;
-      child.receiveShadow = true;
-    }
-  });
+  group.traverse(prepareMeshForShadows);
 
   scene.add(group);
   elementMeshes[id] = group;
@@ -442,9 +469,7 @@ const restoreImportedModel = (desiredId, def) => {
     URL.revokeObjectURL(url);
     const model = gltf.scene;
     normalizeModel(model);
-    model.traverse(child => {
-      if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
-    });
+    model.traverse(prepareMeshForShadows);
     group.add(model);
     renderLoop.markDirty();
   }, undefined, () => { URL.revokeObjectURL(url); });

@@ -27,7 +27,9 @@ export const createPointLight = (scene, elementMeshes, sceneState, notify) => {
   const id = `light-${lightCounter++}`;
   const light = new THREE.PointLight(0xffffff, 1.5, 100);
   light.position.set(0, 5, 0);
-  configureShadow(light, 1024, 0.5, 50);
+
+  configureShadow(light, 4096, 0.1, 100, -0.0005);
+  light.shadow.normalBias = 0.02;
   light.userData.id = id;
   scene.add(light);
   elementMeshes[id] = light;
