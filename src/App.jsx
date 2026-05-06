@@ -9,7 +9,13 @@ import ContextMenu from './components/ContextMenu';
 import Auth from './components/Auth';
 import StatusBar from './components/StatusBar';
 import Filmstrip from './components/Filmstrip';
-import { addPointLight, addSpotLight, addDirectionalLight, addAreaLight, addHemisphereLight, addProductCube, addCyclorama, addImportedModel } from './scene/sharedScene';
+import SaveLoadManager from './components/SaveLoadManager';
+import {
+  addPointLight, addSpotLight, addDirectionalLight, addAreaLight,
+  addHemisphereLight, addProductCube, addCyclorama, addImportedModel,
+  getSceneSnapshot, restoreFullSnapshot, getDefaultSnapshot,
+} from './scene/sharedScene';
+import { saveScene, updateScene } from './api';
 import { colors } from './styles/theme';
 
 const AppWrapper = styled.div`
@@ -121,16 +127,90 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
   const [showHelp, setShowHelp] = useState(false);
+  const [showLoadModal, setShowLoadModal] = useState(false);
   const [splitPct, setSplitPct] = useState(50);
   const [dragging, setDragging] = useState(false);
   const [maximized, setMaximized] = useState(null);
   const containerRef = useRef(null);
   const fileInputRef = useRef(null);
+  const filmstripRef = useRef(null);
+
+  // ─── Scene persistence state ───
+  const [sceneName, setSceneName] = useState('Untitled Scene');
+  const [activeSceneId, setActiveSceneId] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState('new'); // 'new' | 'unsaved' | 'saving' | 'saved' | 'error'
+
+  // Mark as unsaved when scene name changes
+  const handleSceneNameChange = (name) => {
+    setSceneName(name);
+    if (saveStatus === 'saved') setSaveStatus('unsaved');
+  };
+
+  // Mark as unsaved on any scene mutation
+  const markUnsaved = useCallback(() => {
+    setSaveStatus(prev => prev === 'saved' ? 'unsaved' : prev);
+  }, []);
+
+  // ─── Save handler ───
+  const handleSave = useCallback(async () => {
+    const name = sceneName.trim();
+    if (!name) return;
+
+    setSaving(true);
+    setSaveStatus('saving');
+
+    try {
+      // Gather scene data: snapshot + filmstrip shots
+      const sceneData = {
+        snapshot: getSceneSnapshot(),
+        shots: filmstripRef.current?.getShots?.() || [],
+      };
+
+      if (activeSceneId) {
+        await updateScene(activeSceneId, name, sceneData);
+      } else {
+        const result = await saveScene(name, sceneData);
+        setActiveSceneId(result.id);
+      }
+
+      setSaveStatus('saved');
+    } catch (err) {
+      console.error('Save failed:', err);
+      setSaveStatus('error');
+    } finally {
+      setSaving(false);
+    }
+  }, [sceneName, activeSceneId]);
+
+  // ─── Load handler ───
+  const handleLoad = useCallback((sceneRecord) => {
+    setActiveSceneId(sceneRecord.id);
+    setSceneName(sceneRecord.name);
+
+    const sceneData = sceneRecord.scene_data;
+
+    // Restore the 3D scene snapshot
+    if (sceneData.snapshot) {
+      restoreFullSnapshot(sceneData.snapshot);
+    }
+
+    // Restore filmstrip shots if available
+    if (sceneData.shots && filmstripRef.current?.restoreShots) {
+      filmstripRef.current.restoreShots(sceneData.shots);
+    }
+
+    setSaveStatus('saved');
+    window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
+    setActiveSceneId(null);
+    setSaveStatus('new');
+    setSceneName('Untitled Scene');
   };
 
   const onDividerMouseDown = useCallback((e) => {
@@ -172,10 +252,11 @@ export default function App() {
           window.dispatchEvent(new CustomEvent('studio:select', { detail: newId }));
         }, 0);
       }
+      markUnsaved();
     } catch (err) {
       console.error('Failed to import model:', err);
     }
-  }, []);
+  }, [markUnsaved]);
 
   const handleAdd = (itemId) => {
     if (itemId === 'import-upload') {
@@ -196,17 +277,29 @@ export default function App() {
         window.dispatchEvent(new CustomEvent('studio:select', { detail: newId }));
       }, 0);
     }
+    markUnsaved();
   };
 
   if (!user) return <Auth onLogin={setUser} />;
 
   const cameraWidth = maximized === 'camera' ? 100 : maximized === 'setup' ? 0 : splitPct;
   const setupWidth  = maximized === 'setup'  ? 100 : maximized === 'camera' ? 0 : 100 - splitPct;
-  const showDivider = maximized === null;
+  const showDividerEl = maximized === null;
 
   return (
     <AppWrapper>
-      <Header onAdd={handleAdd} onShowHelp={() => setShowHelp(true)} user={user} onLogout={handleLogout} />
+      <Header
+        onAdd={handleAdd}
+        onShowHelp={() => setShowHelp(true)}
+        user={user}
+        onLogout={handleLogout}
+        sceneName={sceneName}
+        onSceneNameChange={handleSceneNameChange}
+        onSave={handleSave}
+        onShowLoad={() => setShowLoadModal(true)}
+        saving={saving}
+        saveStatus={saveStatus}
+      />
       <HiddenFileInput
         ref={fileInputRef}
         type="file"
@@ -221,7 +314,7 @@ export default function App() {
           </MaximizeBtn>
           <CameraView />
         </ViewPanel>
-        {showDivider && <Divider onMouseDown={onDividerMouseDown} />}
+        {showDividerEl && <Divider onMouseDown={onDividerMouseDown} />}
         <ViewPanel $width={setupWidth}>
           <ViewLabel>3D</ViewLabel>
           <MaximizeBtn onClick={() => toggleMaximize('setup')}>
@@ -231,8 +324,14 @@ export default function App() {
         </ViewPanel>
         <SelectionPanel />
       </ViewsContainer>
-      <Filmstrip />
+      <Filmstrip ref={filmstripRef} onShotsChange={markUnsaved} />
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+      {showLoadModal && (
+        <SaveLoadManager
+          onClose={() => setShowLoadModal(false)}
+          onLoad={handleLoad}
+        />
+      )}
       <ContextMenu />
       <StatusBar />
     </AppWrapper>

@@ -13,6 +13,15 @@ const request = async (path, options = {}) => {
     },
   });
   const data = await res.json();
+
+  // Auto-logout on expired/invalid token
+  if (res.status === 401) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.reload();
+    throw new Error('Session expired. Please log in again.');
+  }
+
   if (!res.ok) throw new Error(data.error || 'Something went wrong');
   return data;
 };

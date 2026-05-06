@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import styled from 'styled-components';
 import { getSceneSnapshot, restoreFullSnapshot, getDefaultSnapshot, sceneState } from '../scene/sharedScene';
 import { colors, shadows } from '../styles/theme';
@@ -216,7 +216,7 @@ const ShotActionBtn = styled.button`
 
 const cloneSnapshot = (snap) => JSON.parse(JSON.stringify(snap));
 
-export default function Filmstrip() {
+const Filmstrip = forwardRef(function Filmstrip({ onShotsChange }, ref) {
   const [shots, setShots] = useState(() => {
     const snap = getSceneSnapshot();
     return [{ id: 'shot-1', label: 'Shot 1', snapshot: snap }];
@@ -231,8 +231,41 @@ export default function Filmstrip() {
   shotsRef.current = shots;
   activeIdRef.current = activeId;
 
+  // Expose getShots/restoreShots to parent via ref
+  useImperativeHandle(ref, () => ({
+    getShots: () => {
+      // Save current active shot before returning
+      const currentSnap = getSceneSnapshot();
+      return shotsRef.current.map(s =>
+        s.id === activeIdRef.current ? { ...s, snapshot: currentSnap } : s
+      );
+    },
+    restoreShots: (savedShots) => {
+      if (!savedShots || savedShots.length === 0) return;
+      setShots(savedShots);
+      shotsRef.current = savedShots;
+      const firstId = savedShots[0].id;
+      setActiveId(firstId);
+      activeIdRef.current = firstId;
+      // Find the highest shot-N id to set the counter
+      let maxNum = 0;
+      for (const s of savedShots) {
+        const match = s.id.match(/^shot-(\d+)$/);
+        if (match) maxNum = Math.max(maxNum, parseInt(match[1]));
+      }
+      nextIdRef.current = maxNum + 1;
+      // Restore the first shot's scene
+      restoreFullSnapshot(savedShots[0].snapshot);
+    },
+  }), []);
+
   useEffect(() => {
-    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) { setMenuOpen(false); setDupSubmenu(false); } };
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+        setDupSubmenu(false);
+      }
+    };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
@@ -245,19 +278,77 @@ export default function Filmstrip() {
 
   useEffect(() => {
     let saveTimer = null;
-    const debouncedSave = () => { if (saveTimer) clearTimeout(saveTimer); saveTimer = setTimeout(() => { const snap = getSceneSnapshot(); setShots(prev => prev.map(s => s.id === activeIdRef.current ? { ...s, snapshot: snap } : s)); }, 100); };
+    const debouncedSave = () => {
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        const snap = getSceneSnapshot();
+        setShots(prev => prev.map(s => s.id === activeIdRef.current ? { ...s, snapshot: snap } : s));
+        onShotsChange?.();
+      }, 100);
+    };
     window.addEventListener('studio:element-added', debouncedSave);
     window.addEventListener('studio:element-deleted', debouncedSave);
     window.addEventListener('studio:position-update', debouncedSave);
     window.addEventListener('studio:property-update', debouncedSave);
-    return () => { if (saveTimer) clearTimeout(saveTimer); window.removeEventListener('studio:element-added', debouncedSave); window.removeEventListener('studio:element-deleted', debouncedSave); window.removeEventListener('studio:position-update', debouncedSave); window.removeEventListener('studio:property-update', debouncedSave); };
-  }, []);
+    return () => {
+      if (saveTimer) clearTimeout(saveTimer);
+      window.removeEventListener('studio:element-added', debouncedSave);
+      window.removeEventListener('studio:element-deleted', debouncedSave);
+      window.removeEventListener('studio:position-update', debouncedSave);
+      window.removeEventListener('studio:property-update', debouncedSave);
+    };
+  }, [onShotsChange]);
 
-  const addFromDefault = () => { setMenuOpen(false); setDupSubmenu(false); saveActiveShot(); const id = `shot-${nextIdRef.current++}`; const label = `Shot ${shotsRef.current.length + 1}`; const defaultSnap = getDefaultSnapshot(); setShots(prev => [...prev, { id, label, snapshot: defaultSnap }]); setActiveId(id); activeIdRef.current = id; restoreFullSnapshot(defaultSnap); window.dispatchEvent(new CustomEvent('studio:select', { detail: null })); };
-  const addFromShot = (sourceId) => { setMenuOpen(false); setDupSubmenu(false); saveActiveShot(); const source = shotsRef.current.find(s => s.id === sourceId); if (!source) return; const id = `shot-${nextIdRef.current++}`; const label = `Shot ${shotsRef.current.length + 1}`; const dupSnap = cloneSnapshot(source.snapshot); setShots(prev => [...prev, { id, label, snapshot: dupSnap }]); setActiveId(id); activeIdRef.current = id; restoreFullSnapshot(dupSnap); window.dispatchEvent(new CustomEvent('studio:select', { detail: null })); };
+  const addFromDefault = () => {
+    setMenuOpen(false); setDupSubmenu(false); saveActiveShot();
+    const id = `shot-${nextIdRef.current++}`;
+    const label = `Shot ${shotsRef.current.length + 1}`;
+    const defaultSnap = getDefaultSnapshot();
+    setShots(prev => [...prev, { id, label, snapshot: defaultSnap }]);
+    setActiveId(id); activeIdRef.current = id;
+    restoreFullSnapshot(defaultSnap);
+    window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
+    onShotsChange?.();
+  };
+
+  const addFromShot = (sourceId) => {
+    setMenuOpen(false); setDupSubmenu(false); saveActiveShot();
+    const source = shotsRef.current.find(s => s.id === sourceId);
+    if (!source) return;
+    const id = `shot-${nextIdRef.current++}`;
+    const label = `Shot ${shotsRef.current.length + 1}`;
+    const dupSnap = cloneSnapshot(source.snapshot);
+    setShots(prev => [...prev, { id, label, snapshot: dupSnap }]);
+    setActiveId(id); activeIdRef.current = id;
+    restoreFullSnapshot(dupSnap);
+    window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
+    onShotsChange?.();
+  };
+
   const addFromCurrent = () => addFromShot(activeIdRef.current);
-  const selectShot = (shot) => { if (shot.id === activeIdRef.current) return; saveActiveShot(); setActiveId(shot.id); activeIdRef.current = shot.id; restoreFullSnapshot(shot.snapshot); window.dispatchEvent(new CustomEvent('studio:select', { detail: null })); };
-  const deleteShot = (e, id) => { e.stopPropagation(); if (shotsRef.current.length <= 1) return; const remaining = shotsRef.current.filter(s => s.id !== id); setShots(remaining); if (activeIdRef.current === id) { const fallback = remaining[0]; setActiveId(fallback.id); activeIdRef.current = fallback.id; restoreFullSnapshot(fallback.snapshot); window.dispatchEvent(new CustomEvent('studio:select', { detail: null })); } };
+
+  const selectShot = (shot) => {
+    if (shot.id === activeIdRef.current) return;
+    saveActiveShot();
+    setActiveId(shot.id); activeIdRef.current = shot.id;
+    restoreFullSnapshot(shot.snapshot);
+    window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
+  };
+
+  const deleteShot = (e, id) => {
+    e.stopPropagation();
+    if (shotsRef.current.length <= 1) return;
+    const remaining = shotsRef.current.filter(s => s.id !== id);
+    setShots(remaining);
+    if (activeIdRef.current === id) {
+      const fallback = remaining[0];
+      setActiveId(fallback.id); activeIdRef.current = fallback.id;
+      restoreFullSnapshot(fallback.snapshot);
+      window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
+    }
+    onShotsChange?.();
+  };
+
   const getElementCount = (shot) => Object.keys(shot.snapshot.elements).length;
 
   return (
@@ -269,7 +360,15 @@ export default function Filmstrip() {
             <AddMenuHeader>New Shot</AddMenuHeader>
             <AddMenuItem onClick={addFromCurrent}><AddMenuIcon>⧉</AddMenuIcon>Duplicate Current</AddMenuItem>
             <AddMenuItem onClick={() => setDupSubmenu(v => !v)}><AddMenuIcon>❐</AddMenuIcon>Duplicate From…</AddMenuItem>
-            {dupSubmenu && (<SubMenu>{shots.map((shot, i) => (<SubMenuItem key={shot.id} onClick={() => addFromShot(shot.id)}>{String(i + 1).padStart(2, '0')} — {shot.label}{shot.id === activeId ? ' (current)' : ''}</SubMenuItem>))}</SubMenu>)}
+            {dupSubmenu && (
+              <SubMenu>
+                {shots.map((shot, i) => (
+                  <SubMenuItem key={shot.id} onClick={() => addFromShot(shot.id)}>
+                    {String(i + 1).padStart(2, '0')} — {shot.label}{shot.id === activeId ? ' (current)' : ''}
+                  </SubMenuItem>
+                ))}
+              </SubMenu>
+            )}
             <AddMenuItem onClick={addFromDefault}><AddMenuIcon>✦</AddMenuIcon>New Default</AddMenuItem>
           </AddMenuDropdown>
         )}
@@ -284,7 +383,11 @@ export default function Filmstrip() {
               <ShotBg $color={colors.shotColors[colorIdx]} />
               <ShotNumber $active={isActive}>{String(i + 1).padStart(2, '0')}</ShotNumber>
               <ShotInfo>{getElementCount(shot)} obj</ShotInfo>
-              {shots.length > 1 && (<ShotActions><ShotActionBtn $danger onClick={(e) => deleteShot(e, shot.id)} title="Delete shot">✕</ShotActionBtn></ShotActions>)}
+              {shots.length > 1 && (
+                <ShotActions>
+                  <ShotActionBtn $danger onClick={(e) => deleteShot(e, shot.id)} title="Delete shot">✕</ShotActionBtn>
+                </ShotActions>
+              )}
               <ShotLabel $active={isActive}>{shot.label}</ShotLabel>
               {isActive && <ActiveBar />}
             </ShotCard>
@@ -293,4 +396,6 @@ export default function Filmstrip() {
       </ShotList>
     </Strip>
   );
-}
+});
+
+export default Filmstrip;

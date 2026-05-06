@@ -37,25 +37,50 @@ const SceneInfo = styled.div`
   min-width: 0;
 `;
 
-const SceneName = styled.div`
+const SceneNameRow = styled.div`
   display: flex;
   align-items: center;
   gap: 6px;
+`;
+
+const SceneNameInput = styled.input`
+  background: none;
+  border: none;
+  outline: none;
   font-size: 13px;
   font-weight: 600;
   color: ${colors.text};
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-family: inherit;
+  padding: 0;
+  width: 160px;
+  min-width: 80px;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
+
+  &:hover {
+    border-bottom-color: ${colors.borderHover};
+  }
+
+  &:focus {
+    border-bottom-color: ${colors.accent};
+  }
+
+  &::placeholder {
+    color: ${colors.placeholder};
+  }
 `;
 
 const SaveDot = styled.span`
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: ${colors.accent};
   flex-shrink: 0;
-  animation: pulse 2s ease-in-out infinite;
+  background: ${({ $status }) =>
+    $status === 'saved' ? colors.statusGood :
+    $status === 'error' ? colors.statusBad :
+    $status === 'saving' ? colors.statusWarn :
+    colors.accent};
+  animation: ${({ $status }) => ($status === 'unsaved' || $status === 'new') ? 'pulse 2s ease-in-out infinite' : 'none'};
 `;
 
 const SaveStatus = styled.span`
@@ -65,6 +90,45 @@ const SaveStatus = styled.span`
 
 const Spacer = styled.div`
   flex: 1;
+`;
+
+const HeaderBtn = styled.button`
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s;
+  font-family: inherit;
+`;
+
+const SaveBtn = styled(HeaderBtn)`
+  background: ${colors.accent};
+  border: 1px solid ${colors.accent};
+  color: ${colors.textOnAccent};
+
+  &:hover {
+    background: ${colors.accentHover};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const LoadBtn = styled(HeaderBtn)`
+  background: transparent;
+  border: 1px solid ${colors.border};
+  color: ${colors.textMuted};
+
+  &:hover {
+    border-color: ${colors.accent};
+    color: ${colors.accent};
+  }
 `;
 
 const ModeTabs = styled.div`
@@ -163,21 +227,46 @@ const Divider = styled.div`
   flex-shrink: 0;
 `;
 
-export default function Header({ onAdd, onShowHelp, user, onLogout }) {
+const SAVE_STATUS_TEXT = {
+  new:      'Not saved yet',
+  unsaved:  'Unsaved changes',
+  saving:   'Saving…',
+  saved:    'All changes saved',
+  error:    'Save failed',
+};
+
+export default function Header({
+  onAdd,
+  onShowHelp,
+  user,
+  onLogout,
+  sceneName,
+  onSceneNameChange,
+  onSave,
+  onShowLoad,
+  saving,
+  saveStatus,
+}) {
   const [activeMode, setActiveMode] = useState('scene');
 
   const initial = user?.email ? user.email.charAt(0).toUpperCase() : 'U';
+  const effectiveStatus = saving ? 'saving' : saveStatus;
 
   return (
     <HeaderBar>
       <Logo>S</Logo>
 
       <SceneInfo>
-        <SceneName>
-          Studio Simulator
-          <SaveDot />
-        </SceneName>
-        <SaveStatus>Unsaved changes</SaveStatus>
+        <SceneNameRow>
+          <SceneNameInput
+            value={sceneName}
+            onChange={e => onSceneNameChange(e.target.value)}
+            placeholder="Untitled Scene"
+            spellCheck={false}
+          />
+          <SaveDot $status={effectiveStatus} />
+        </SceneNameRow>
+        <SaveStatus>{SAVE_STATUS_TEXT[effectiveStatus] || 'Not saved yet'}</SaveStatus>
       </SceneInfo>
 
       <Spacer />
@@ -185,8 +274,6 @@ export default function Header({ onAdd, onShowHelp, user, onLogout }) {
       <ModeTabs>
         {[
           { id: 'scene', label: 'Scene', icon: '◫' },
-          { id: 'render', label: 'Render', icon: '▶' },
-          { id: 'export', label: 'Export', icon: '⤓' },
         ].map(tab => (
           <ModeTab
             key={tab.id}
@@ -200,6 +287,13 @@ export default function Header({ onAdd, onShowHelp, user, onLogout }) {
       </ModeTabs>
 
       <Spacer />
+
+      <LoadBtn onClick={onShowLoad}>Load</LoadBtn>
+      <SaveBtn onClick={onSave} disabled={saving || !sceneName.trim()}>
+        {saving ? 'Saving…' : 'Save'}
+      </SaveBtn>
+
+      <Divider />
 
       <AddMenu onAdd={onAdd} />
 
