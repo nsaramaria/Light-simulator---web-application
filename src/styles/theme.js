@@ -1,5 +1,3 @@
-// ─── Base palette ───
-// Change these to retheme the entire app.
 
 const palette = {
   accent:       '#6A9FD8',
@@ -30,7 +28,7 @@ const palette = {
   sky:          '#87ceeb',
 };
 
-// ─── Opacity helpers ───
+//Opacity helpers
 
 const hexToRgb = (hex) => {
   const h = hex.replace('#', '');

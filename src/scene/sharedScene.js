@@ -409,8 +409,20 @@ export const addImportedModel = (file) => {
       (gltf) => {
         URL.revokeObjectURL(url);
         const model = gltf.scene;
+   
+        model.traverse(child => {
+          if (child.isMesh && child.material) {
+            const materials = Array.isArray(child.material) ? child.material : [child.material];
+            for (const mat of materials) {
+              if (!mat) continue;
+              mat.side = THREE.DoubleSide;
+              mat.needsUpdate = true;
+            }
+          }
+        });
 
         importedModelStore[id] = { file, fileName: file.name };
+
 
         addModelToScene(id, model, file.name);
         resolve(id);
