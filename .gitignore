@@ -27,3 +27,8 @@ yarn-error.log*
 *.log
 *.tmp
 .cache/
+
+# Prisma / local database
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+backend/node_modules/.prisma

@@ -1,42 +1,158 @@
+# LightSimulator
+
+A 3D lighting and scene editor built in the browser. Add objects, lights, and products, manipulate them with move/rotate gizmos, switch between setup and camera views, and save your scenes to your own account.
+
 ## Technologies Used
 
-- **React 19.x** - UI framework
-- **Three.js 0.165.x** - 3D graphics library
-- **Vite 6.x** - Build tool and development server
-- **JavaScript (ES6+)** - Programming language
+**Frontend**
+- React 19 — UI framework
+- Three.js 0.182 — 3D graphics
+- Vite 7 — build tool and dev server
+- styled-components — component styling
+- JavaScript (ES6+)
+
+**Backend**
+- Node.js + Express 5 — HTTP server
+- Prisma — ORM
+- SQLite — database (file-based, no install required)
+- bcrypt — password hashing
+- jsonwebtoken — auth tokens
 
 ## Prerequisites
 
-Before running this project, make sure you have installed:
-
-- [Node.js](https://nodejs.org/) (v20.x or higher)
+- [Node.js](https://nodejs.org/) v20 or higher
 - npm (comes with Node.js)
-- A modern web browser 
+- A modern web browser
+
+That's it. No database server to install — Prisma uses SQLite, which is just a file on disk.
 
 ## Installation
 
-**Install dependencies**
+The project has two parts: the frontend (project root) and the backend (`backend/` folder). Each has its own `package.json` and needs its own `npm install`.
+
+### 1. Clone the repo
+
 ```bash
-   npm install
+git clone <your-repo-url>
+cd LightSimulator
 ```
 
-3. **Start development server**
+### 2. Set up the backend
+
 ```bash
-   npm run dev
+cd backend
+npm install
+cp .env.example .env
+npx prisma migrate dev --name init
 ```
 
-##  Project Structure
+The `migrate dev` command creates `prisma/dev.db` (your local SQLite database) and the `users` / `scenes` tables inside it. You only run this once after cloning.
+
+Open `.env` and change `JWT_SECRET` to any long random string.
+
+### 3. Set up the frontend
+
+From the project root (open a new terminal or `cd ..` back):
+
+```bash
+npm install
 ```
-LightingSimulator/
-├── node_modules/          # Dependencies (auto-generated)
+
+## Running the app
+
+You need both servers running at the same time, in two separate terminals.
+
+**Terminal 1 — backend** (from `backend/`):
+```bash
+npm start
+```
+Backend runs on http://localhost:3001
+
+**Terminal 2 — frontend** (from project root):
+```bash
+npm run dev
+```
+Frontend runs on http://localhost:5173 (Vite will print the actual URL).
+
+Open the frontend URL in your browser, register an account, and start building scenes.
+
+## Project Structure
+
+```
+LightSimulator/
+├── backend/                       # Express + Prisma API
+│   ├── prisma/
+│   │   ├── schema.prisma          # Database schema (User, Scene models)
+│   │   └── migrations/            # Migration history (auto-generated)
+│   ├── routes/
+│   │   ├── auth.js                # Register & login endpoints
+│   │   └── scenes.js              # Scene CRUD endpoints
+│   ├── db.js                      # Prisma client setup
+│   ├── server.js                  # Express app entry point
+│   ├── .env.example               # Template for environment variables
+│   └── package.json
+├── public/
+│   ├── models/                    # 3D model assets
+│   └── textures/                  # Texture assets
 ├── src/
-│   ├── App.jsx           # Main application component
-│   ├── main.jsx          # Application entry point
-│   └── index.css         # Global styles
-├── index.html            # HTML template
-├── package.json          # Project configuration
-├── vite.config.js        # Vite configuration
-└── README.md            # This file
+│   ├── components/                # UI components
+│   │   ├── AddMenu.jsx
+│   │   ├── Auth.jsx
+│   │   ├── ContextMenu.jsx
+│   │   ├── Filmstrip.jsx
+│   │   ├── Header.jsx
+│   │   ├── Help.jsx
+│   │   ├── SaveLoadManager.jsx
+│   │   ├── SelectionPanel.jsx
+│   │   └── StatusBar.jsx
+│   ├── scene/                     # Three.js scene logic
+│   │   ├── objects/               # Geometries, lights, products, proxies
+│   │   ├── gizmos/                # Move and rotate gizmos
+│   │   ├── SetupView.jsx          # Main editor view
+│   │   ├── CameraView.jsx         # Camera preview
+│   │   ├── sharedScene.js         # Shared Three.js scene state
+│   │   ├── sceneConfig.js
+│   │   └── renderLoop.js
+│   ├── styles/                    # Theme and global CSS
+│   ├── utils/                     # Math helpers
+│   ├── api.js                     # Frontend API client
+│   ├── App.jsx                    # Main app component
+│   ├── main.jsx                   # Entry point
+│   └── index.css
+├── index.html
+├── package.json
+├── vite.config.js
+└── README.md
 ```
 
 ## Usage
+
+1. **Register / log in.** Email and password (6+ characters).
+2. **Add objects.** Use the Add menu to drop in geometries, lights, or product models.
+3. **Select and transform.** Click an object to select it. Use the move and rotate gizmos to position it, or edit values directly in the selection panel.
+4. **Switch views.** Toggle between Setup view (full editor) and Camera view (final framed render).
+5. **Save.** Open the Save/Load manager and save the current scene to your account. Saved scenes are listed by name and can be loaded back at any time.
+
+## Working with the database
+
+The database is a single file at `backend/prisma/dev.db`. A few useful commands when working in `backend/`:
+
+- `npx prisma studio` — opens a browser GUI to view and edit your data at http://localhost:5555. Handy for debugging.
+- `npx prisma migrate dev --name <description>` — run after changing `schema.prisma` to update the database.
+- `npx prisma migrate reset` — wipes the database and reapplies all migrations. Use when you want a clean slate.
+
+## Switching to a different database
+
+The project uses SQLite for zero-setup development, but Prisma supports PostgreSQL, MySQL, MSSQL, and others. To switch:
+
+1. Edit `backend/prisma/schema.prisma` and change the `provider` in the `datasource db` block.
+2. Update `DATABASE_URL` in `backend/.env` to the new connection string.
+3. Run `npx prisma migrate dev` to apply migrations to the new database.
+
+No application code changes needed.
+
+## Notes
+
+- `backend/.env` is gitignored and must never be committed — it contains your JWT secret.
+- `backend/prisma/dev.db` is gitignored — each developer gets their own local database.
+- The frontend talks to the backend at `http://localhost:3001/api` (hardcoded in `src/api.js`).

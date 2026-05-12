@@ -1,10 +1,10 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { getPool, sql } = require('../db');
+const { prisma } = require('../db');
 
 const router = express.Router();
 
-// Middleware :check if user is logged in
+// Middleware: check if user is logged in
 const auth = (req, res, next) => {
   const header = req.headers.authorization;
   if (!header) return res.status(401).json({ error: 'No token provided' });
@@ -19,6 +19,23 @@ const auth = (req, res, next) => {
   }
 };
 
+// Helpers to keep the same response shape the frontend already expects.
+// The DB stores scene_data as a JSON string; we parse on read, stringify on write.
+const toListRow = (s) => ({
+  id: s.id,
+  name: s.name,
+  created_at: s.createdAt,
+  updated_at: s.updatedAt,
+});
+
+const toFullRow = (s) => ({
+  id: s.id,
+  name: s.name,
+  scene_data: JSON.parse(s.sceneData),
+  created_at: s.createdAt,
+  updated_at: s.updatedAt,
+});
+
 // Save a new scene
 router.post('/', auth, async (req, res) => {
   try {
@@ -28,14 +45,15 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ error: 'Name and scene data are required' });
     }
 
-    const pool = await getPool();
-    const result = await pool.request()
-      .input('userId', sql.Int, req.user.id)
-      .input('name', sql.NVarChar, name)
-      .input('sceneData', sql.NVarChar(sql.MAX), JSON.stringify(sceneData))
-      .query('INSERT INTO scenes (user_id, name, scene_data) OUTPUT INSERTED.id, INSERTED.name, INSERTED.created_at VALUES (@userId, @name, @sceneData)');
+    const scene = await prisma.scene.create({
+      data: {
+        userId: req.user.id,
+        name,
+        sceneData: JSON.stringify(sceneData),
+      },
+    });
 
-    res.status(201).json(result.recordset[0]);
+    res.status(201).json(toListRow(scene));
   } catch (err) {
     console.error('Save scene error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -45,12 +63,13 @@ router.post('/', auth, async (req, res) => {
 // Get all scenes for the logged in user
 router.get('/', auth, async (req, res) => {
   try {
-    const pool = await getPool();
-    const result = await pool.request()
-      .input('userId', sql.Int, req.user.id)
-      .query('SELECT id, name, created_at, updated_at FROM scenes WHERE user_id = @userId ORDER BY updated_at DESC');
+    const scenes = await prisma.scene.findMany({
+      where: { userId: req.user.id },
+      orderBy: { updatedAt: 'desc' },
+      select: { id: true, name: true, createdAt: true, updatedAt: true },
+    });
 
-    res.json(result.recordset);
+    res.json(scenes.map(toListRow));
   } catch (err) {
     console.error('Get scenes error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -60,19 +79,15 @@ router.get('/', auth, async (req, res) => {
 // Get a single scene
 router.get('/:id', auth, async (req, res) => {
   try {
-    const pool = await getPool();
-    const result = await pool.request()
-      .input('id', sql.Int, req.params.id)
-      .input('userId', sql.Int, req.user.id)
-      .query('SELECT id, name, scene_data, created_at, updated_at FROM scenes WHERE id = @id AND user_id = @userId');
+    const scene = await prisma.scene.findFirst({
+      where: { id: parseInt(req.params.id, 10), userId: req.user.id },
+    });
 
-    if (result.recordset.length === 0) {
+    if (!scene) {
       return res.status(404).json({ error: 'Scene not found' });
     }
 
-    const scene = result.recordset[0];
-    scene.scene_data = JSON.parse(scene.scene_data);
-    res.json(scene);
+    res.json(toFullRow(scene));
   } catch (err) {
     console.error('Get scene error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -83,16 +98,15 @@ router.get('/:id', auth, async (req, res) => {
 router.put('/:id', auth, async (req, res) => {
   try {
     const { name, sceneData } = req.body;
-    const pool = await getPool();
 
-    const result = await pool.request()
-      .input('id', sql.Int, req.params.id)
-      .input('userId', sql.Int, req.user.id)
-      .input('name', sql.NVarChar, name)
-      .input('sceneData', sql.NVarChar(sql.MAX), JSON.stringify(sceneData))
-      .query('UPDATE scenes SET name = @name, scene_data = @sceneData, updated_at = GETDATE() WHERE id = @id AND user_id = @userId');
+    // updateMany lets us scope by userId in the same query (security: a user
+    // can't update someone else's scene even if they guess the id).
+    const result = await prisma.scene.updateMany({
+      where: { id: parseInt(req.params.id, 10), userId: req.user.id },
+      data: { name, sceneData: JSON.stringify(sceneData) },
+    });
 
-    if (result.rowsAffected[0] === 0) {
+    if (result.count === 0) {
       return res.status(404).json({ error: 'Scene not found' });
     }
 
@@ -106,13 +120,11 @@ router.put('/:id', auth, async (req, res) => {
 // Delete a scene
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const pool = await getPool();
-    const result = await pool.request()
-      .input('id', sql.Int, req.params.id)
-      .input('userId', sql.Int, req.user.id)
-      .query('DELETE FROM scenes WHERE id = @id AND user_id = @userId');
+    const result = await prisma.scene.deleteMany({
+      where: { id: parseInt(req.params.id, 10), userId: req.user.id },
+    });
 
-    if (result.rowsAffected[0] === 0) {
+    if (result.count === 0) {
       return res.status(404).json({ error: 'Scene not found' });
     }
 
