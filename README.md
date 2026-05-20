@@ -2,6 +2,17 @@
 
 A 3D lighting and scene editor built in the browser. Add objects, lights, and products, manipulate them with move/rotate gizmos, switch between setup and camera views, and save your scenes to your own account.
 
+## Features
+
+- Three.js scene editor with Setup and Camera views
+- Move (single-axis + plane), Rotate, and Scale via inspector
+- Multi-step undo / redo (20-step history)
+- Per-object lock to prevent accidental edits
+- Duplicate selection with Ctrl+D
+- Photography-focused Kelvin temperature picker for lights
+- Right-click context menu (duplicate, lock, delete)
+- Save/load scenes per user via REST API
+
 ## Technologies Used
 
 **Frontend**
@@ -108,10 +119,10 @@ LightSimulator/
 │   │   └── StatusBar.jsx
 │   ├── scene/                     # Three.js scene logic
 │   │   ├── objects/               # Geometries, lights, products, proxies
-│   │   ├── gizmos/                # Move and rotate gizmos
+│   │   ├── gizmos/                # Move (axes + plane handles) and rotate gizmos
 │   │   ├── SetupView.jsx          # Main editor view
 │   │   ├── CameraView.jsx         # Camera preview
-│   │   ├── sharedScene.js         # Shared Three.js scene state
+│   │   ├── sharedScene.js         # Shared Three.js scene state + undo history
 │   │   ├── sceneConfig.js
 │   │   └── renderLoop.js
 │   ├── styles/                    # Theme and global CSS
@@ -131,8 +142,25 @@ LightSimulator/
 1. **Register / log in.** Email and password (6+ characters).
 2. **Add objects.** Use the Add menu to drop in geometries, lights, or product models.
 3. **Select and transform.** Click an object to select it. Use the move and rotate gizmos to position it, or edit values directly in the selection panel.
-4. **Switch views.** Toggle between Setup view (full editor) and Camera view (final framed render).
-5. **Save.** Open the Save/Load manager and save the current scene to your account. Saved scenes are listed by name and can be loaded back at any time.
+   - **Single-axis drag:** click and drag the colored arrows.
+   - **Two-axis drag:** click and drag the small colored squares between axes (XY, XZ, YZ planes).
+4. **Duplicate, delete, lock.** Right-click any object for a context menu, or use keyboard shortcuts.
+5. **Undo / redo.** Ctrl+Z to undo, Ctrl+Y (or Ctrl+Shift+Z) to redo. Up to 20 steps of history are kept.
+6. **Set light color by temperature.** Lights use a Kelvin slider (1500K–12000K) instead of RGB. Preset buttons cover common photography values (Tungsten, Daylight, Overcast, etc.).
+7. **Switch views.** Toggle between Setup view (full editor) and Camera view (final framed render).
+8. **Save.** Open the Save/Load manager and save the current scene to your account. Saved scenes are listed by name and can be loaded back at any time.
+
+## Keyboard shortcuts
+
+| Key | Action |
+|---|---|
+| `W` | Switch to Move tool |
+| `E` | Switch to Rotate tool |
+| `Delete` / `Backspace` | Delete selected object |
+| `Ctrl+D` | Duplicate selected object |
+| `Ctrl+Z` | Undo |
+| `Ctrl+Y` / `Ctrl+Shift+Z` | Redo |
+| `Right-click` | Open context menu |
 
 ## Working with the database
 
