@@ -44,6 +44,79 @@ export const sceneState = {
   camera:   { x: 0, y: 3, z: 8, rx: 0, ry: 0, rz: 0 },
 };
 
+// ─── Undo / Redo history ───
+const HISTORY_LIMIT = 20;
+const undoStack = [];
+const redoStack = [];
+let transactionDepth = 0;
+let pendingSnapshot = null;
+let historyEnabled = false; 
+
+const snapshotToJSON = () => JSON.stringify(getSceneSnapshot());
+const applySnapshotJSON = (json) => restoreFullSnapshot(JSON.parse(json));
+
+export const beginTransaction = () => {
+  if (transactionDepth === 0) {
+    pendingSnapshot = snapshotToJSON();
+  }
+  transactionDepth++;
+};
+
+export const commitTransaction = () => {
+  transactionDepth = Math.max(0, transactionDepth - 1);
+  if (transactionDepth === 0 && pendingSnapshot !== null) {
+    pushHistory(pendingSnapshot);
+    pendingSnapshot = null;
+  }
+};
+
+const pushHistory = (snapshotJSON) => {
+  if (!historyEnabled || !snapshotJSON) return;
+  undoStack.push(snapshotJSON);
+  if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+  // any new action invalidates the redo branch
+  redoStack.length = 0;
+  emitHistoryChange();
+};
+
+const recordHistory = () => {
+  if (!historyEnabled) return;
+  if (transactionDepth > 0) return; 
+  pushHistory(snapshotToJSON());
+};
+
+export const undo = () => {
+  if (undoStack.length === 0) return;
+  const current = snapshotToJSON();
+  const previous = undoStack.pop();
+  redoStack.push(current);
+  applySnapshotJSON(previous);
+  emitHistoryChange();
+};
+
+export const redo = () => {
+  if (redoStack.length === 0) return;
+  const current = snapshotToJSON();
+  const next = redoStack.pop();
+  undoStack.push(current);
+  if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+  applySnapshotJSON(next);
+  emitHistoryChange();
+};
+
+export const canUndo = () => undoStack.length > 0;
+export const canRedo = () => redoStack.length > 0;
+
+const historyListeners = new Set();
+export const onHistoryChange = (fn) => {
+  historyListeners.add(fn);
+  return () => historyListeners.delete(fn);
+};
+const emitHistoryChange = () => {
+  historyListeners.forEach(fn => fn({ canUndo: canUndo(), canRedo: canRedo() }));
+};
+// ─── end history ───
+
 const lightTargetDir = new THREE.Vector3();
 const lightTargetEuler = new THREE.Euler();
 const lightTargetOut = new THREE.Vector3();
@@ -168,6 +241,8 @@ export const restoreFullSnapshot = (snapshot) => {
   if (!sharedInstance || !snapshot) return;
 
   notifySuppressed = true;
+  const wasHistoryEnabled = historyEnabled;
+  historyEnabled = false;
   try {
     clearAllElements();
     resetLightCounter();
@@ -189,6 +264,7 @@ export const restoreFullSnapshot = (snapshot) => {
   } finally {
     notifySuppressed = false;
     notifyQueued = false;
+    historyEnabled = wasHistoryEnabled;
   }
 
   _snapshotVersion++;
@@ -209,6 +285,8 @@ const markShadowsDirty = () => {
 
 export const updateElement = (id, key, val) => {
   if (!sceneState.elements[id]) return;
+  if (sceneState.elements[id].locked) return;
+  recordHistory();
   sceneState.elements[id][key] = val;
   const obj = sharedInstance?.elementMeshes[id];
   if (!obj) return;
@@ -260,6 +338,8 @@ export const updateElement = (id, key, val) => {
 
 export const removeElement = (id) => {
   if (!sharedInstance || !sceneState.elements[id]) return;
+  if (sceneState.elements[id].locked) return;
+  recordHistory();
   const obj = sharedInstance.elementMeshes[id];
   if (obj) {
     if (obj.target) sharedInstance.scene.remove(obj.target);
@@ -275,7 +355,83 @@ export const removeElement = (id) => {
   delete sharedInstance.elementMeshes[id];
   delete sceneState.elements[id];
   if (sceneState.selected === id) sceneState.selected = null;
+  _snapshotVersion++;
   markShadowsDirty();
+  notify();
+};
+
+export const duplicateElement = (sourceId) => {
+  if (!sharedInstance) return null;
+  const source = sceneState.elements[sourceId];
+  if (!source) return null;
+
+  if (source.type === 'imported-model') return null;
+
+  recordHistory();
+  const def = { ...source };
+  def.x = (def.x ?? 0) + 1;
+  def.z = (def.z ?? 0) + 1;
+  delete def.locked; // duplicates start unlocked
+
+  const creator = CREATORS[def.type];
+  if (!creator) return null;
+
+  const newId = creator(
+    sharedInstance.scene,
+    sharedInstance.elementMeshes,
+    sceneState,
+    () => {}
+  );
+
+  const obj = sharedInstance.elementMeshes[newId];
+  const state = sceneState.elements[newId];
+  if (!obj || !state) return null;
+
+  Object.assign(state, def);
+  obj.position.set(def.x, def.y ?? 0, def.z);
+
+  if (obj.target) {
+    const target = computeLightTarget(state);
+    obj.target.position.copy(target);
+  } else if (obj.isRectAreaLight) {
+    obj.rotation.set(
+      AREA_LIGHT_BASE.x + (def.rx ?? 0) * DEG2RAD,
+      AREA_LIGHT_BASE.y + (def.ry ?? 0) * DEG2RAD,
+      AREA_LIGHT_BASE.z + (def.rz ?? 0) * DEG2RAD
+    );
+  } else {
+    obj.rotation.set(
+      (def.rx ?? 0) * DEG2RAD,
+      (def.ry ?? 0) * DEG2RAD,
+      (def.rz ?? 0) * DEG2RAD
+    );
+  }
+
+  if (def.sx !== undefined) obj.scale.set(def.sx ?? 1, def.sy ?? 1, def.sz ?? 1);
+
+  if (obj.isLight) {
+    if (def.intensity !== undefined) obj.intensity = def.intensity;
+    if (def.distance !== undefined && obj.distance !== undefined) obj.distance = def.distance;
+    if (def.color !== undefined && obj.color && !obj.isHemisphereLight) obj.color.set(def.color);
+    if (def.angle !== undefined && obj.isSpotLight) obj.angle = (def.angle * Math.PI) / 180;
+    if (def.penumbra !== undefined && obj.isSpotLight) obj.penumbra = def.penumbra;
+    if (def.width !== undefined && obj.isRectAreaLight) obj.width = def.width;
+    if (def.height !== undefined && obj.isRectAreaLight) obj.height = def.height;
+    if (def.skyColor !== undefined && obj.isHemisphereLight) obj.color.set(def.skyColor);
+    if (def.groundColor !== undefined && obj.isHemisphereLight) obj.groundColor.set(def.groundColor);
+  }
+
+  sceneState.selected = newId;
+  _snapshotVersion++;
+  markShadowsDirty();
+  notify();
+  return newId;
+};
+
+export const toggleLock = (id) => {
+  if (!sharedInstance || !sceneState.elements[id]) return;
+  recordHistory();
+  sceneState.elements[id].locked = !sceneState.elements[id].locked;
   notify();
 };
 
@@ -344,16 +500,14 @@ const normalizeModel = (model) => {
   return scaleFactor;
 };
 
-/**
- * Prepare imported mesh for shadow casting.
- *
- * Key decisions:
- * - castShadow = true: model casts shadows onto floor/cyclorama
- * - receiveShadow = false: prevents self-shadowing where the model's own
- *   geometry darkens itself through the shadow map (especially bad with
- *   PointLight's cube shadow map which views from all 6 directions)
- * - alphaTest on transparent materials so shadows follow alpha cutouts
- * - depthWrite re-enabled if a GLB exporter incorrectly disabled it
+/*
+  Prepare imported mesh for shadow casting.
+  - castShadow = true: model casts shadows onto floor/cyclorama
+  - receiveShadow = false: prevents self-shadowing where the model's own
+    geometry darkens itself through the shadow map (especially bad with
+    PointLight's cube shadow map which views from all 6 directions)
+  - alphaTest on transparent materials so shadows follow alpha cutouts
+  - depthWrite re-enabled if a GLB exporter incorrectly disabled it
  */
 const prepareMeshForShadows = (child) => {
   if (!child.isMesh) return;
@@ -508,13 +662,20 @@ const restoreImportedModel = (desiredId, def) => {
 };
 
 // ─── Add-element wrappers ───
-export const addPointLight = () => createPointLight(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
-export const addSpotLight = () => createSpotLight(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
-export const addDirectionalLight = () => createDirectionalLight(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
-export const addAreaLight = () => createAreaLight(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
-export const addHemisphereLight = () => createHemisphereLight(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
-export const addProductCube = () => createProductCube(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
-export const addCyclorama = () => createCyclorama(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
+const wrapAdd = (creator) => () => {
+  recordHistory();
+  const id = creator(sharedInstance.scene, sharedInstance.elementMeshes, sceneState, notify);
+  _snapshotVersion++;
+  return id;
+};
+
+export const addPointLight = wrapAdd(createPointLight);
+export const addSpotLight = wrapAdd(createSpotLight);
+export const addDirectionalLight = wrapAdd(createDirectionalLight);
+export const addAreaLight = wrapAdd(createAreaLight);
+export const addHemisphereLight = wrapAdd(createHemisphereLight);
+export const addProductCube = wrapAdd(createProductCube);
+export const addCyclorama = wrapAdd(createCyclorama);
 
 // ─── Scene creation / teardown ───
 
@@ -563,6 +724,8 @@ export const createSharedScene = () => {
     sceneState.elements[id].z = LIGHT.position.z;
   }
 
+  historyEnabled = true;
+
   return sharedInstance;
 };
 
@@ -585,4 +748,9 @@ export const destroySharedScene = () => {
   sceneState.selected = null;
   listeners.clear();
   notifyQueued = false;
+  historyEnabled = false;
+  undoStack.length = 0;
+  redoStack.length = 0;
+  transactionDepth = 0;
+  pendingSnapshot = null;
 };

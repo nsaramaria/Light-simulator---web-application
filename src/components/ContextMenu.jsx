@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { colors, shadows } from '../styles/theme';
+import { sceneState } from '../scene/sharedScene';
 
 const Overlay = styled.div`
   position: fixed;
@@ -115,6 +116,7 @@ export default function ContextMenu() {
   const label = LABEL_BY_TYPE[state.type] ?? state.id;
   const icon = ICON_BY_TYPE[state.type] ?? '○';
   const isCamera = state.id === 'camera';
+  const isLocked = !isCamera && !!sceneState.elements[state.id]?.locked;
 
   return (
     <>
@@ -125,6 +127,16 @@ export default function ContextMenu() {
           <MenuItemIcon>◎</MenuItemIcon><MenuItemLabel>Select</MenuItemLabel>
         </MenuItem>
         {!isCamera && (
+          <MenuItem onClick={() => { window.dispatchEvent(new CustomEvent('studio:duplicate-element', { detail: state.id })); setState(null); }}>
+            <MenuItemIcon>⎘</MenuItemIcon><MenuItemLabel>Duplicate</MenuItemLabel><MenuItemShortcut>Ctrl+D</MenuItemShortcut>
+          </MenuItem>
+        )}
+        {!isCamera && (
+          <MenuItem onClick={() => { window.dispatchEvent(new CustomEvent('studio:toggle-lock', { detail: state.id })); setState(null); }}>
+            <MenuItemIcon>{isLocked ? '🔓' : '🔒'}</MenuItemIcon><MenuItemLabel>{isLocked ? 'Unlock' : 'Lock'}</MenuItemLabel>
+          </MenuItem>
+        )}
+        {!isCamera && !isLocked && (
           <MenuItem $danger onClick={() => { window.dispatchEvent(new CustomEvent('studio:delete-element', { detail: state.id })); setState(null); }}>
             <MenuItemIcon>✕</MenuItemIcon><MenuItemLabel>Delete</MenuItemLabel><MenuItemShortcut>Del</MenuItemShortcut>
           </MenuItem>

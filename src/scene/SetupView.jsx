@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { createSharedScene, sceneState, onSceneChange, updateElement, updateCamera, removeElement, getSnapshotVersion } from './sharedScene';
+import { createSharedScene, sceneState, onSceneChange, updateElement, updateCamera, removeElement, duplicateElement, undo, redo, beginTransaction, commitTransaction, toggleLock, getSnapshotVersion } from './sharedScene';
 import { CAMERA } from './sceneConfig';
 import renderLoop from './renderLoop';
 import styled from 'styled-components';
@@ -81,6 +81,7 @@ const RotateIcon = () => (
 const AXIS_COLORS = {
   x:  0xe05a4e, y:  0x5aad5a, z:  0x4a90d9,
   rx: 0xe05a4e, ry: 0x5aad5a, rz: 0x4a90d9,
+  xy: 0x4a90d9, xz: 0x5aad5a, yz: 0xe05a4e,
 };
 const HIGHLIGHT_COLOR = 0xffffff;
 
@@ -430,6 +431,21 @@ export default function SetupView() {
     let dragStartRot = { rx: 0, ry: 0, rz: 0 };
     let isDraggingGizmo = false;
     let pointerDownPos = { x: 0, y: 0 };
+    let isPlaneDrag = false;
+    const dragPlane = new THREE.Plane();
+    const dragPlaneStartHit = new THREE.Vector3();
+    const dragPlaneCurrentHit = new THREE.Vector3();
+    const dragPlaneDelta = new THREE.Vector3();
+    const planeNormalByAxis = {
+      xy: new THREE.Vector3(0, 0, 1),
+      xz: new THREE.Vector3(0, 1, 0),
+      yz: new THREE.Vector3(1, 0, 0),
+    };
+    const planeAxisPair = {
+      xy: ['x', 'y'],
+      xz: ['x', 'z'],
+      yz: ['y', 'z'],
+    };
 
     const onPointerDown = (e) => {
       pointerDownPos = { x: e.clientX, y: e.clientY };
@@ -443,13 +459,24 @@ export default function SetupView() {
         raycaster.setFromCamera(mouse, helperCamera);
         const hits = raycaster.intersectObjects(activeGizmo.children);
         if (hits.length > 0) {
+          const selId = sceneState.selected;
+          const selState = selId && selId !== 'camera' ? sceneState.elements[selId] : null;
+          if (selState?.locked) return;
+
           dragAxis = hits[0].object.userData.gizmoAxis;
+          isPlaneDrag = !!hits[0].object.userData.isPlaneHandle;
           isDraggingGizmo = true;
           controls.enabled = false;
           highlightGizmoAxis(dragAxis);
           renderLoop.enterContinuous();
+          beginTransaction();
           if (gizmoMode === 'move') {
             dragStartPos.copy(getSelectedPosition(sceneState.selected));
+            if (isPlaneDrag) {
+              const normal = planeNormalByAxis[dragAxis];
+              dragPlane.setFromNormalAndCoplanarPoint(normal, dragStartPos);
+              raycaster.ray.intersectPlane(dragPlane, dragPlaneStartHit);
+            }
           } else {
             const id = sceneState.selected;
             const state = id === 'camera' ? sceneState.camera : sceneState.elements[id];
@@ -476,6 +503,42 @@ export default function SetupView() {
       const id = sceneState.selected;
 
       if (gizmoMode === 'move') {
+        if (isPlaneDrag) {
+          const rect = container.getBoundingClientRect();
+          mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+          mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+          raycaster.setFromCamera(mouse, helperCamera);
+          if (!raycaster.ray.intersectPlane(dragPlane, dragPlaneCurrentHit)) return;
+
+          dragPlaneDelta.subVectors(dragPlaneCurrentHit, dragPlaneStartHit);
+          const [a, b] = planeAxisPair[dragAxis];
+          const newA = dragStartPos[a] + dragPlaneDelta[a];
+          const newB = dragStartPos[b] + dragPlaneDelta[b];
+
+          if (id === 'camera') {
+            updateCamera(a, newA);
+            updateCamera(b, newB);
+          } else {
+            updateElement(id, a, newA);
+            updateElement(id, b, newB);
+          }
+
+          if (id && id !== 'camera') updateOneProxyTransform(id);
+          const activeGizmo = getActiveGizmo();
+          if (activeGizmo.visible) {
+            const pos = getSelectedPosition(id);
+            if (pos) activeGizmo.position.copy(pos);
+          }
+
+          window.dispatchEvent(new CustomEvent('studio:position-update', {
+            detail: { id, axis: a, val: newA }
+          }));
+          window.dispatchEvent(new CustomEvent('studio:position-update', {
+            detail: { id, axis: b, val: newB }
+          }));
+          return;
+        }
+
         if (dragAxis === 'x') moveAxisDir.set(1, 0, 0);
         else if (dragAxis === 'y') moveAxisDir.set(0, 1, 0);
         else moveAxisDir.set(0, 0, 1);
@@ -549,11 +612,13 @@ export default function SetupView() {
     const onPointerUp = (e) => {
       if (isDraggingGizmo) {
         isDraggingGizmo = false;
+        isPlaneDrag = false;
         dragAxis = null;
         controls.enabled = true;
         resetGizmoColors();
         renderLoop.exitContinuous();
         renderLoop.markDirty();
+        commitTransaction();
         return;
       }
 
@@ -584,9 +649,41 @@ export default function SetupView() {
     };
 
     const onKeyDown = (e) => {
-      if (e.target.tagName === 'INPUT') return;
-      if (e.key === 'w' || e.key === 'W') setMode('move');
-      if (e.key === 'e' || e.key === 'E') setMode('rotate');
+      const inputFocused = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
+      if (inputFocused) return;
+
+      if (e.key === 'w' || e.key === 'W') { setMode('move'); return; }
+      if (e.key === 'e' || e.key === 'E') { setMode('rotate'); return; }
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const id = sceneState.selected;
+        if (id && id !== 'camera') {
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent('studio:delete-element', { detail: id }));
+        }
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
+        const id = sceneState.selected;
+        if (id && id !== 'camera') {
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent('studio:duplicate-element', { detail: id }));
+        }
+        return;
+      }
+
+      if (e.key === 'z' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('studio:undo'));
+        return;
+      }
+      if ((e.key === 'y' && (e.ctrlKey || e.metaKey)) ||
+          (e.key === 'Z' && (e.ctrlKey || e.metaKey) && e.shiftKey)) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('studio:redo'));
+        return;
+      }
     };
 
     const onContextMenu = (e) => {
@@ -618,6 +715,8 @@ export default function SetupView() {
     const onDeleteElement = (e) => {
       const id = e.detail;
       if (!id || id === 'camera') return;
+      const state = sceneState.elements[id];
+      if (state?.locked) return;
       disposeProxy(id);
       removeElement(id);
       highlightObject(null);
@@ -625,11 +724,32 @@ export default function SetupView() {
       window.dispatchEvent(new CustomEvent('studio:element-deleted', { detail: id }));
     };
 
+    const onDuplicateElement = (e) => {
+      const id = e.detail;
+      if (!id || id === 'camera') return;
+      const newId = duplicateElement(id);
+      if (!newId) return;
+      // selection has already been moved to newId inside duplicateElement
+      window.dispatchEvent(new CustomEvent('studio:select', { detail: newId }));
+    };
+
+    const onUndo = () => { undo(); };
+    const onRedo = () => { redo(); };
+    const onToggleLock = (e) => {
+      const id = e.detail;
+      if (!id || id === 'camera') return;
+      toggleLock(id);
+    };
+
     container.addEventListener('pointerdown', onPointerDown);
     container.addEventListener('pointermove', onPointerMove);
     container.addEventListener('pointerup', onPointerUp);
     container.addEventListener('contextmenu', onContextMenu);
     window.addEventListener('studio:delete-element', onDeleteElement);
+    window.addEventListener('studio:duplicate-element', onDuplicateElement);
+    window.addEventListener('studio:toggle-lock', onToggleLock);
+    window.addEventListener('studio:undo', onUndo);
+    window.addEventListener('studio:redo', onRedo);
     window.addEventListener('keydown', onKeyDown);
 
     const renderLoopId = renderLoop.register(() => {
@@ -677,6 +797,10 @@ export default function SetupView() {
       container.removeEventListener('pointerup', onPointerUp);
       container.removeEventListener('contextmenu', onContextMenu);
       window.removeEventListener('studio:delete-element', onDeleteElement);
+      window.removeEventListener('studio:duplicate-element', onDuplicateElement);
+      window.removeEventListener('studio:toggle-lock', onToggleLock);
+      window.removeEventListener('studio:undo', onUndo);
+      window.removeEventListener('studio:redo', onRedo);
 
       for (const id of Object.keys(proxies)) {
         const proxy = proxies[id];

@@ -37,7 +37,7 @@ export const createPointLight = (scene, elementMeshes, sceneState, notify) => {
   elementMeshes[id] = light;
   sceneState.elements[id] = {
     x: 0, y: 5, z: 0, rx: 0, ry: 0, rz: 0,
-    intensity: 1.5, color: '#ffffff', distance: 100,
+    intensity: 1.5, color: '#ffffff', colorKelvin: 5600, distance: 100,
     type: 'point-light'
   };
   notify();
@@ -58,7 +58,7 @@ export const createSpotLight = (scene, elementMeshes, sceneState, notify) => {
   elementMeshes[id] = light;
   sceneState.elements[id] = {
     x: 0, y: 5, z: 0, rx: 0, ry: 0, rz: 0,
-    intensity: 2, color: '#ffffff', distance: 100,
+    intensity: 2, color: '#ffffff', colorKelvin: 5600, distance: 100,
     angle: 30, penumbra: 0.3,
     type: 'spot-light'
   };
@@ -84,7 +84,7 @@ export const createDirectionalLight = (scene, elementMeshes, sceneState, notify)
   elementMeshes[id] = light;
   sceneState.elements[id] = {
     x: 5, y: 10, z: 5, rx: 0, ry: 0, rz: 0,
-    intensity: 1, color: '#ffffff',
+    intensity: 1, color: '#ffffff', colorKelvin: 5600,
     type: 'directional-light'
   };
   notify();
@@ -102,7 +102,7 @@ export const createAreaLight = (scene, elementMeshes, sceneState, notify) => {
   elementMeshes[id] = light;
   sceneState.elements[id] = {
     x: 0, y: 5, z: 0, rx: 0, ry: 0, rz: 0,
-    intensity: 5, color: '#ffffff',
+    intensity: 5, color: '#ffffff', colorKelvin: 5600,
     width: 2, height: 2,
     type: 'area-light'
   };

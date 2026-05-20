@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import styled from 'styled-components';
-import { sceneState, updateElement, updateCamera } from '../scene/sharedScene';
+import { sceneState, updateElement, updateCamera, beginTransaction, commitTransaction, toggleLock } from '../scene/sharedScene';
 import { colors } from '../styles/theme';
 
 const Sidebar = styled.div`
@@ -66,6 +66,56 @@ const CollapseBtn = styled.button`
     color: ${colors.accent};
     background: ${colors.accentSubtle};
   }
+`;
+
+const HeaderActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 2px;
+`;
+
+const HeaderIconBtn = styled.button`
+  background: transparent;
+  border: none;
+  color: ${({ $active }) => $active ? colors.accent : colors.textMuted};
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 4px;
+  transition: all 0.2s;
+
+  &:hover {
+    color: ${colors.accent};
+    background: ${colors.accentSubtle};
+  }
+`;
+
+const LockClosedIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+);
+
+const LockOpenIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" />
+    <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+  </svg>
+);
+
+const LockedBanner = styled.div`
+  padding: 8px 14px;
+  font-size: 10px;
+  color: ${colors.accent};
+  background: ${colors.accentSubtle};
+  border-bottom: 1px solid ${colors.border};
+  display: flex;
+  align-items: center;
+  gap: 6px;
 `;
 
 const CollapsedLabel = styled.div`
@@ -270,13 +320,14 @@ const InfoValue = styled.span`
   text-overflow: ellipsis;
 `;
 
-function ScrubField({ label, labelColor, value, step, wideLabel, onChange, onCommit }) {
+function ScrubField({ label, labelColor, value, step, wideLabel, onChange, onStart, onCommit }) {
   const [editing, setEditing] = useState(false);
   const [editVal, setEditVal] = useState('');
   const [dragging, setDragging] = useState(false);
   const dragStartX = useRef(0);
   const dragStartVal = useRef(0);
   const hasDragged = useRef(false);
+  const startNotified = useRef(false);
   const inputRef = useRef(null);
 
   const numValue = typeof value === 'number' ? value : parseFloat(value) || 0;
@@ -293,12 +344,17 @@ function ScrubField({ label, labelColor, value, step, wideLabel, onChange, onCom
     dragStartX.current = e.clientX;
     dragStartVal.current = numValue;
     hasDragged.current = false;
+    startNotified.current = false;
     setDragging(true);
 
     const onMove = (e) => {
       const dx = e.clientX - dragStartX.current;
       if (Math.abs(dx) > 2) hasDragged.current = true;
       if (!hasDragged.current) return;
+      if (!startNotified.current) {
+        startNotified.current = true;
+        onStart?.();
+      }
       const sensitivity = e.shiftKey ? step * 0.1 : step;
       const delta = dx * sensitivity;
       const newVal = parseFloat((dragStartVal.current + delta).toFixed(4));
@@ -328,7 +384,7 @@ function ScrubField({ label, labelColor, value, step, wideLabel, onChange, onCom
   const handleEditBlur = () => {
     setEditing(false);
     const num = parseFloat(editVal);
-    if (!isNaN(num)) { onChange(num); onCommit(num); }
+    if (!isNaN(num)) { onStart?.(); onChange(num); onCommit(num); }
   };
 
   const handleEditKeyDown = (e) => {
@@ -375,6 +431,193 @@ const TYPE_ICON = { 'point-light': '☀', 'spot-light': '◐', 'area-light': '�
 const AXIS_COLORS = { x: colors.axisX, rx: colors.axisX, sx: colors.axisX, y: colors.axisY, ry: colors.axisY, sy: colors.axisY, z: colors.axisZ, rz: colors.axisZ, sz: colors.axisZ };
 const SINGLE_COLOR_TYPES = ['point-light', 'spot-light', 'directional-light', 'area-light'];
 const SCALABLE_TYPES = ['product-cube', 'cyclorama', 'imported-model'];
+
+// Convert color temperature (Kelvin) to an sRGB hex string using the
+// Tanner Helland approximation. Valid roughly 1000K – 40000K.
+const kelvinToHex = (kelvin) => {
+  const t = Math.max(1000, Math.min(40000, kelvin)) / 100;
+  let r, g, b;
+
+  if (t <= 66) {
+    r = 255;
+    g = 99.4708025861 * Math.log(t) - 161.1195681661;
+    b = t <= 19 ? 0 : 138.5177312231 * Math.log(t - 10) - 305.0447927307;
+  } else {
+    r = 329.698727446 * Math.pow(t - 60, -0.1332047592);
+    g = 288.1221695283 * Math.pow(t - 60, -0.0755148492);
+    b = 255;
+  }
+
+  const clamp = (n) => Math.max(0, Math.min(255, Math.round(n)));
+  const hex = (n) => clamp(n).toString(16).padStart(2, '0');
+  return `#${hex(r)}${hex(g)}${hex(b)}`;
+};
+
+// Photographer-friendly preset labels for common values.
+const KELVIN_PRESETS = [
+  { k: 1900, label: 'Candle' },
+  { k: 2700, label: 'Warm bulb' },
+  { k: 3200, label: 'Tungsten' },
+  { k: 4000, label: 'Cool fluor.' },
+  { k: 5600, label: 'Daylight' },
+  { k: 6500, label: 'Overcast' },
+  { k: 9000, label: 'Shade' },
+];
+
+const KelvinSliderWrap = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 0;
+`;
+
+const KelvinSlider = styled.input.attrs({ type: 'range', min: 1500, max: 12000, step: 50 })`
+  width: 100%;
+  height: 12px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: linear-gradient(to right,
+    #ff8c1a 0%,
+    #ffb46b 12%,
+    #ffd4a1 24%,
+    #ffe9c9 36%,
+    #fff5e0 48%,
+    #ffffff 56%,
+    #e6efff 68%,
+    #c2d7ff 80%,
+    #9bbcff 92%,
+    #7aa6ff 100%);
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+
+  &::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: ${colors.text};
+    border: 2px solid ${colors.accent};
+    cursor: pointer;
+  }
+  &::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: ${colors.text};
+    border: 2px solid ${colors.accent};
+    cursor: pointer;
+  }
+`;
+
+const KelvinRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+`;
+
+const KelvinValue = styled.span`
+  font-size: 11px;
+  color: ${colors.text};
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+`;
+
+const KelvinLabel = styled.span`
+  font-size: 10px;
+  color: ${colors.textMuted};
+`;
+
+const KelvinSwatch = styled.div`
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid ${colors.border};
+  background: ${({ $color }) => $color};
+  flex-shrink: 0;
+`;
+
+const PresetsRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+`;
+
+const PresetBtn = styled.button`
+  font-size: 9px;
+  padding: 3px 6px;
+  background: ${colors.surfaceHover};
+  border: 1px solid ${colors.border};
+  border-radius: 4px;
+  color: ${colors.textMuted};
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    color: ${colors.accent};
+    border-color: ${colors.accent};
+  }
+`;
+
+function KelvinPicker({ value, onStart, onChange, onCommit }) {
+  const kelvin = value ?? 5600;
+  const hex = kelvinToHex(kelvin);
+  const nearestPresetLabel = (() => {
+    let best = KELVIN_PRESETS[0];
+    let bestDiff = Math.abs(kelvin - best.k);
+    for (const p of KELVIN_PRESETS) {
+      const d = Math.abs(kelvin - p.k);
+      if (d < bestDiff) { best = p; bestDiff = d; }
+    }
+    return best.label;
+  })();
+
+  const draggingRef = useRef(false);
+
+  const handleMouseDown = () => {
+    draggingRef.current = true;
+    onStart?.();
+  };
+
+  const handleChange = (e) => {
+    const k = parseInt(e.target.value, 10);
+    onChange(k, kelvinToHex(k));
+  };
+
+  const handleMouseUp = () => {
+    if (draggingRef.current) {
+      draggingRef.current = false;
+      onCommit?.();
+    }
+  };
+
+  return (
+    <KelvinSliderWrap>
+      <KelvinRow>
+        <KelvinSwatch $color={hex} />
+        <KelvinValue>{kelvin}K</KelvinValue>
+        <KelvinLabel>{nearestPresetLabel}</KelvinLabel>
+      </KelvinRow>
+      <KelvinSlider
+        value={kelvin}
+        onMouseDown={handleMouseDown}
+        onChange={handleChange}
+        onMouseUp={handleMouseUp}
+        onTouchStart={handleMouseDown}
+        onTouchEnd={handleMouseUp}
+      />
+      <PresetsRow>
+        {KELVIN_PRESETS.map(p => (
+          <PresetBtn key={p.k} onClick={() => { onStart?.(); onChange(p.k, kelvinToHex(p.k)); onCommit?.(); }}>
+            {p.k}K
+          </PresetBtn>
+        ))}
+      </PresetsRow>
+    </KelvinSliderWrap>
+  );
+}
 
 const getStateForId = (id) => id === 'camera' ? sceneState.camera : sceneState.elements[id] ?? null;
 const THROTTLE_MS = 66;
@@ -448,24 +691,39 @@ export default function SelectionPanel() {
   const label = type === 'imported-model' ? (vals.fileName || 'Imported Model') : (LABEL_BY_TYPE[type] ?? selected);
   const icon = TYPE_ICON[type] ?? '○';
 
+  const handleScrubStart = () => { beginTransaction(); };
   const handleScrubChange = (field, newVal) => { setVals(v => ({ ...v, [field.key]: newVal })); if (selected === 'camera') updateCamera(field.key, newVal); else updateElement(selected, field.key, newVal); };
-  const handleScrubCommit = () => {};
+  const handleScrubCommit = () => { commitTransaction(); };
   const handleColorChange = (key, value) => { updateElement(selected, key, value); setVals(v => ({ ...v, [key]: value })); };
 
   const renderAxisField = (field) => (
-    <ScrubField key={field.key} label={field.axis.replace('r','').replace('s','').toUpperCase()} labelColor={AXIS_COLORS[field.axis]} value={vals[field.key] ?? 0} step={field.step} onChange={(v) => handleScrubChange(field, v)} onCommit={() => handleScrubCommit()} />
+    <ScrubField key={field.key} label={field.axis.replace('r','').replace('s','').toUpperCase()} labelColor={AXIS_COLORS[field.axis]} value={vals[field.key] ?? 0} step={field.step} onChange={(v) => handleScrubChange(field, v)} onStart={handleScrubStart} onCommit={() => handleScrubCommit()} />
   );
 
   const renderLabeledField = (field) => (
-    <ScrubField key={field.key} label={field.label} value={vals[field.key] ?? 0} step={field.step} wideLabel onChange={(v) => handleScrubChange(field, v)} onCommit={() => handleScrubCommit()} />
+    <ScrubField key={field.key} label={field.label} value={vals[field.key] ?? 0} step={field.step} wideLabel onChange={(v) => handleScrubChange(field, v)} onStart={handleScrubStart} onCommit={() => handleScrubCommit()} />
   );
 
   return (
     <Sidebar $collapsed={false}>
       <SidebarHeader>
         <HeaderLeft><SidebarLabel>Inspector</SidebarLabel><SelectedName>{icon} {label}</SelectedName></HeaderLeft>
-        <CollapseBtn onClick={() => toggleCollapse(true)} title="Collapse">‹</CollapseBtn>
+        <HeaderActions>
+          {selected && selected !== 'camera' && (
+            <HeaderIconBtn
+              $active={!!vals.locked}
+              onClick={() => { toggleLock(selected); setVals(v => ({ ...v, locked: !v.locked })); }}
+              title={vals.locked ? 'Unlock' : 'Lock (prevents accidental edits)'}
+            >
+              {vals.locked ? <LockClosedIcon /> : <LockOpenIcon />}
+            </HeaderIconBtn>
+          )}
+          <CollapseBtn onClick={() => toggleCollapse(true)} title="Collapse">‹</CollapseBtn>
+        </HeaderActions>
       </SidebarHeader>
+      {vals.locked && (
+        <LockedBanner><LockClosedIcon /> Locked — unlock to edit</LockedBanner>
+      )}
       <PropsScroll>
         {type === 'imported-model' && vals.fileName && (
           <AccordionSection title="File" defaultOpen={false}>
@@ -482,7 +740,16 @@ export default function SelectionPanel() {
           <AccordionSection title="Light" badge={LABEL_BY_TYPE[type]?.split(' ')[0]}>
             {lightFields.map(renderLabeledField)}
             {SINGLE_COLOR_TYPES.includes(type) && (
-              <ColorRow><PropLabel>Color</PropLabel><ColorSwatch value={vals.color ?? '#ffffff'} onChange={e => handleColorChange('color', e.target.value)} /><ColorHex>{(vals.color ?? '#ffffff').toUpperCase()}</ColorHex></ColorRow>
+              <KelvinPicker
+                value={vals.colorKelvin ?? 5600}
+                onStart={handleScrubStart}
+                onChange={(k, hex) => {
+                  setVals(v => ({ ...v, colorKelvin: k, color: hex }));
+                  updateElement(selected, 'colorKelvin', k);
+                  updateElement(selected, 'color', hex);
+                }}
+                onCommit={handleScrubCommit}
+              />
             )}
           </AccordionSection>
         )}
