@@ -31,7 +31,7 @@ export default function CameraView() {
     renderer.toneMappingExposure = 1.0;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 
     const container = mountRef.current;
     const w = container.clientWidth, h = container.clientHeight;
@@ -42,6 +42,8 @@ export default function CameraView() {
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
 
+    let needsRender = true;
+
     const unsub = onSceneChange(() => {
       const { x, y, z, rx, ry, rz } = sceneState.camera;
       camera.position.set(x, y, z);
@@ -50,9 +52,14 @@ export default function CameraView() {
       } else {
         camera.lookAt(0, PRODUCT.position.y, 0);
       }
+      needsRender = true;
     });
 
-    const renderLoopId = renderLoop.register(() => { renderer.render(scene, camera); }, 1);
+    const renderLoopId = renderLoop.register(() => {
+      if (!needsRender) return;
+      renderer.render(scene, camera);
+      needsRender = false;
+    }, 1);
 
     const onResize = () => {
       const w = container.clientWidth, h = container.clientHeight;
@@ -60,6 +67,7 @@ export default function CameraView() {
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
+      needsRender = true;
       renderLoop.markDirty();
     };
     window.addEventListener('resize', onResize);

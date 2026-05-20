@@ -28,8 +28,10 @@ export const createPointLight = (scene, elementMeshes, sceneState, notify) => {
   const light = new THREE.PointLight(0xffffff, 1.5, 100);
   light.position.set(0, 5, 0);
 
-  configureShadow(light, 4096, 0.1, 100, -0.0005);
+  configureShadow(light, 1024, 0.1, 100, -0.0005);
   light.shadow.normalBias = 0.02;
+  light.shadow.autoUpdate = false;
+  light.shadow.needsUpdate = true;
   light.userData.id = id;
   scene.add(light);
   elementMeshes[id] = light;
@@ -47,7 +49,9 @@ export const createSpotLight = (scene, elementMeshes, sceneState, notify) => {
   const light = new THREE.SpotLight(0xffffff, 2, 100, Math.PI / 6, 0.3);
   light.position.set(0, 5, 0);
   light.target.position.set(0, 0, 0);
-  configureShadow(light, 2048, 0.5, 50);
+  configureShadow(light, 1024, 0.5, 50);
+  light.shadow.autoUpdate = false;
+  light.shadow.needsUpdate = true;
   light.userData.id = id;
   scene.add(light);
   scene.add(light.target);
@@ -67,7 +71,9 @@ export const createDirectionalLight = (scene, elementMeshes, sceneState, notify)
   const light = new THREE.DirectionalLight(0xffffff, 1);
   light.position.set(5, 10, 5);
   light.target.position.set(0, 0, 0);
-  configureShadow(light, 2048, 0.5, 50, -0.0003);
+  configureShadow(light, 1024, 0.5, 50, -0.0003);
+  light.shadow.autoUpdate = false;
+  light.shadow.needsUpdate = true;
   light.shadow.camera.left = -10;
   light.shadow.camera.right = 10;
   light.shadow.camera.top = 10;

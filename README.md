@@ -60,21 +60,22 @@ npm install
 
 ## Running the app
 
-You need both servers running at the same time, in two separate terminals.
+From the project root:
 
-**Terminal 1 — backend** (from `backend/`):
 ```bash
 npm start
 ```
-Backend runs on http://localhost:3001
 
-**Terminal 2 — frontend** (from project root):
+This starts both the backend (http://localhost:3001) and the frontend (http://localhost:5173) in a single terminal. Output from each is labeled `[backend]` and `[frontend]`. Press Ctrl+C once to stop both.
+
+Open http://localhost:5173 in your browser, register an account, and start building scenes.
+
+**Running servers separately** (useful when debugging one side):
+
 ```bash
-npm run dev
+npm run backend   # backend only
+npm run dev       # frontend only
 ```
-Frontend runs on http://localhost:5173 (Vite will print the actual URL).
-
-Open the frontend URL in your browser, register an account, and start building scenes.
 
 ## Project Structure
 

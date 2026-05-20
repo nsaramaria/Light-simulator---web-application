@@ -111,6 +111,7 @@ export default function SetupView() {
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.shadowMap.enabled = false;
+    renderer.setPixelRatio(1);
     const container = mountRef.current;
     let w = container.clientWidth, h = container.clientHeight;
     renderer.setSize(w, h);
@@ -128,6 +129,7 @@ export default function SetupView() {
 
     const controls = new OrbitControls(helperCamera, renderer.domElement);
     controls.enableDamping = true;
+    controls.dampingFactor = 0.2;
     controls.target.set(0, 0, 0);
     controls.update();
 
@@ -138,7 +140,7 @@ export default function SetupView() {
     controls.addEventListener('end', () => {
       setTimeout(() => {
         if (orbitActive) { orbitActive = false; renderLoop.exitContinuous(); }
-      }, 600);
+      }, 200);
     });
 
     const photographerCamera = new THREE.PerspectiveCamera(
@@ -206,6 +208,20 @@ export default function SetupView() {
       }
     };
 
+    const updateOneProxyTransform = (id) => {
+      const proxy = proxies[id];
+      const mesh = elementMeshes[id];
+      const state = sceneState.elements[id];
+      if (!proxy || !mesh || !state) return;
+      proxy.position.copy(mesh.position);
+      proxy.rotation.set(
+        (state.rx ?? 0) * DEG2RAD,
+        (state.ry ?? 0) * DEG2RAD,
+        (state.rz ?? 0) * DEG2RAD
+      );
+      if (mesh.scale) proxy.scale.copy(mesh.scale);
+    };
+
     const rebuildAllProxies = () => {
       clearElementProxies();
       for (const [id, state] of Object.entries(sceneState.elements)) {
@@ -214,18 +230,37 @@ export default function SetupView() {
       updateProxyTransforms();
     };
 
+    let lastElementCount = 0;
     const incrementalSync = () => {
-      for (const id of Object.keys(proxies)) {
-        if (id === 'camera') continue;
-        if (!sceneState.elements[id]) disposeProxy(id);
+      const ids = Object.keys(sceneState.elements);
+      const proxyIds = Object.keys(proxies).filter(id => id !== 'camera');
+
+      const structuralChange =
+        ids.length !== lastElementCount ||
+        ids.length !== proxyIds.length ||
+        ids.some(id => !proxies[id]) ||
+        proxyIds.some(id => !sceneState.elements[id]);
+
+      if (structuralChange) {
+        for (const id of proxyIds) {
+          if (!sceneState.elements[id]) disposeProxy(id);
+        }
+        for (const [id, state] of Object.entries(sceneState.elements)) {
+          if (!proxies[id]) addProxy(id, state);
+        }
+        updateProxyTransforms();
+        lastElementCount = ids.length;
+        return;
       }
-      for (const [id, state] of Object.entries(sceneState.elements)) {
-        if (!proxies[id]) addProxy(id, state);
+
+      // only the selected element can be moving during interaction
+      if (sceneState.selected && sceneState.selected !== 'camera') {
+        updateOneProxyTransform(sceneState.selected);
       }
-      updateProxyTransforms();
     };
 
     rebuildAllProxies();
+    lastElementCount = Object.keys(sceneState.elements).length;
 
     const grid = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
     scene.add(grid);
@@ -425,6 +460,15 @@ export default function SetupView() {
       }
     };
 
+    const moveAxisDir = new THREE.Vector3();
+    const moveStartScreen = new THREE.Vector3();
+    const moveEndScreen = new THREE.Vector3();
+    const moveScreenDelta = new THREE.Vector2();
+    const mousePx = new THREE.Vector2();
+    const rotateGizmoPos = new THREE.Vector3();
+    const rotateRefPoint = new THREE.Vector3();
+    const rotateScreenDir = new THREE.Vector2();
+
     const onPointerMove = (e) => {
       if (!isDraggingGizmo || !dragAxis) return;
       const dx = e.clientX - dragStartMouse.x;
@@ -432,56 +476,69 @@ export default function SetupView() {
       const id = sceneState.selected;
 
       if (gizmoMode === 'move') {
-        const axisDir = new THREE.Vector3();
-        if (dragAxis === 'x') axisDir.set(1, 0, 0);
-        if (dragAxis === 'y') axisDir.set(0, 1, 0);
-        if (dragAxis === 'z') axisDir.set(0, 0, 1);
+        if (dragAxis === 'x') moveAxisDir.set(1, 0, 0);
+        else if (dragAxis === 'y') moveAxisDir.set(0, 1, 0);
+        else moveAxisDir.set(0, 0, 1);
 
-        const startScreen = dragStartPos.clone().project(helperCamera);
-        const endScreen = dragStartPos.clone().add(axisDir).project(helperCamera);
-        const axisScreenDelta = new THREE.Vector2(
-          (endScreen.x - startScreen.x) * container.clientWidth / 2,
-          (endScreen.y - startScreen.y) * container.clientHeight / 2
+        moveStartScreen.copy(dragStartPos).project(helperCamera);
+        moveEndScreen.copy(dragStartPos).add(moveAxisDir).project(helperCamera);
+        moveScreenDelta.set(
+          (moveEndScreen.x - moveStartScreen.x) * container.clientWidth / 2,
+          (moveEndScreen.y - moveStartScreen.y) * container.clientHeight / 2
         );
-        const pixelsPerUnit = axisScreenDelta.length();
+        const pixelsPerUnit = moveScreenDelta.length();
         if (pixelsPerUnit < 0.001) return;
 
-        const axisScreenDir = axisScreenDelta.normalize();
-        const mousePx = new THREE.Vector2(dx, -dy);
-        const projectedPixels = mousePx.dot(axisScreenDir);
+        moveScreenDelta.normalize();
+        mousePx.set(dx, -dy);
+        const projectedPixels = mousePx.dot(moveScreenDelta);
         const units = projectedPixels / pixelsPerUnit;
         const newVal = dragStartPos[dragAxis] + units;
 
         if (id === 'camera') updateCamera(dragAxis, newVal);
         else updateElement(id, dragAxis, newVal);
 
+        if (id && id !== 'camera') updateOneProxyTransform(id);
+        const activeGizmo = getActiveGizmo();
+        if (activeGizmo.visible) {
+          const pos = getSelectedPosition(id);
+          if (pos) activeGizmo.position.copy(pos);
+        }
+
         window.dispatchEvent(new CustomEvent('studio:position-update', {
           detail: { id, axis: dragAxis, val: newVal }
         }));
       } else {
-        const gizmoPos = rotateGizmo.position.clone();
-        const ref = gizmoPos.clone();
-        if (dragAxis === 'rx') ref.y += 1;
-        if (dragAxis === 'ry') ref.x += 1;
-        if (dragAxis === 'rz') ref.x += 1;
+        rotateGizmoPos.copy(rotateGizmo.position);
+        rotateRefPoint.copy(rotateGizmoPos);
+        if (dragAxis === 'rx') rotateRefPoint.y += 1;
+        if (dragAxis === 'ry') rotateRefPoint.x += 1;
+        if (dragAxis === 'rz') rotateRefPoint.x += 1;
 
-        const originScreen = gizmoPos.project(helperCamera);
-        const refScreen = ref.project(helperCamera);
-        const screenDir = new THREE.Vector2(
-          (refScreen.x - originScreen.x) * container.clientWidth / 2,
-          (refScreen.y - originScreen.y) * container.clientHeight / 2
+        rotateGizmoPos.project(helperCamera);
+        rotateRefPoint.project(helperCamera);
+        rotateScreenDir.set(
+          (rotateRefPoint.x - rotateGizmoPos.x) * container.clientWidth / 2,
+          (rotateRefPoint.y - rotateGizmoPos.y) * container.clientHeight / 2
         );
-        const pixelsDist = screenDir.length();
+        const pixelsDist = rotateScreenDir.length();
         if (pixelsDist < 0.001) return;
 
-        const screenDirNorm = screenDir.normalize();
-        const mousePx = new THREE.Vector2(dx, -dy);
-        const projectedPixels = mousePx.dot(screenDirNorm);
+        rotateScreenDir.normalize();
+        mousePx.set(dx, -dy);
+        const projectedPixels = mousePx.dot(rotateScreenDir);
         const deltaDeg = (projectedPixels / pixelsDist) * 180;
         const newVal = (dragStartRot[dragAxis] + deltaDeg) % 360;
 
         if (id === 'camera') updateCamera(dragAxis, newVal);
         else updateElement(id, dragAxis, newVal);
+
+        if (id && id !== 'camera') updateOneProxyTransform(id);
+        const activeGizmo = getActiveGizmo();
+        if (activeGizmo.visible) {
+          const pos = getSelectedPosition(id);
+          if (pos) activeGizmo.position.copy(pos);
+        }
 
         window.dispatchEvent(new CustomEvent('studio:position-update', {
           detail: { id, axis: dragAxis, val: newVal }

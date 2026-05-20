@@ -23,7 +23,7 @@ const notify = () => {
   renderLoop.markDirty();
   if (notifyQueued) return;
   notifyQueued = true;
-  Promise.resolve().then(() => {
+  requestAnimationFrame(() => {
     notifyQueued = false;
     listeners.forEach(fn => fn());
   });
@@ -44,15 +44,20 @@ export const sceneState = {
   camera:   { x: 0, y: 3, z: 8, rx: 0, ry: 0, rz: 0 },
 };
 
+const lightTargetDir = new THREE.Vector3();
+const lightTargetEuler = new THREE.Euler();
+const lightTargetOut = new THREE.Vector3();
+
 const computeLightTarget = (state) => {
-  const dir = new THREE.Vector3(0, -1, 0);
-  const euler = new THREE.Euler(
+  lightTargetDir.set(0, -1, 0);
+  lightTargetEuler.set(
     (state.rx ?? 0) * DEG2RAD,
     (state.ry ?? 0) * DEG2RAD,
     (state.rz ?? 0) * DEG2RAD
   );
-  dir.applyEuler(euler);
-  return new THREE.Vector3(state.x, state.y, state.z).add(dir.multiplyScalar(5));
+  lightTargetDir.applyEuler(lightTargetEuler);
+  lightTargetOut.set(state.x, state.y, state.z).add(lightTargetDir.multiplyScalar(5));
+  return lightTargetOut;
 };
 
 const AREA_LIGHT_BASE = new THREE.Euler(0, Math.PI, 0);
@@ -187,10 +192,20 @@ export const restoreFullSnapshot = (snapshot) => {
   }
 
   _snapshotVersion++;
+  markShadowsDirty();
   notifySync();
 };
 
 // ─── Updaters ───
+
+const markShadowsDirty = () => {
+  if (!sharedInstance) return;
+  for (const obj of Object.values(sharedInstance.elementMeshes)) {
+    if (obj.isLight && obj.shadow && obj.castShadow) {
+      obj.shadow.needsUpdate = true;
+    }
+  }
+};
 
 export const updateElement = (id, key, val) => {
   if (!sceneState.elements[id]) return;
@@ -204,6 +219,7 @@ export const updateElement = (id, key, val) => {
       const target = computeLightTarget(sceneState.elements[id]);
       obj.target.position.copy(target);
     }
+    markShadowsDirty();
     notify(); return;
   }
 
@@ -221,12 +237,13 @@ export const updateElement = (id, key, val) => {
     } else {
       obj.rotation[key === 'rx' ? 'x' : key === 'ry' ? 'y' : 'z'] = val * DEG2RAD;
     }
+    markShadowsDirty();
     notify(); return;
   }
 
-  if (key === 'sx') { obj.scale.x = val; notify(); return; }
-  if (key === 'sy') { obj.scale.y = val; notify(); return; }
-  if (key === 'sz') { obj.scale.z = val; notify(); return; }
+  if (key === 'sx') { obj.scale.x = val; markShadowsDirty(); notify(); return; }
+  if (key === 'sy') { obj.scale.y = val; markShadowsDirty(); notify(); return; }
+  if (key === 'sz') { obj.scale.z = val; markShadowsDirty(); notify(); return; }
 
   if (key === 'intensity') obj.intensity = val;
   else if (key === 'color') obj.color.set(val);
@@ -258,6 +275,7 @@ export const removeElement = (id) => {
   delete sharedInstance.elementMeshes[id];
   delete sceneState.elements[id];
   if (sceneState.selected === id) sceneState.selected = null;
+  markShadowsDirty();
   notify();
 };
 
