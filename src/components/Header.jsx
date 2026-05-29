@@ -246,6 +246,7 @@ export default function Header({
   onSave,
   onShowLoad,
   onNewScene,
+  onExport,
   saving,
   saveStatus,
 }) {
@@ -296,6 +297,7 @@ export default function Header({
       <SaveBtn onClick={onSave} disabled={saving || !sceneName.trim()}>
         {saving ? 'Saving…' : 'Save'}
       </SaveBtn>
+      <LoadBtn onClick={onExport} title="Export camera view as PNG">Export</LoadBtn>
 
       <Divider />
 

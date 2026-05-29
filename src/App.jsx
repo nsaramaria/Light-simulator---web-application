@@ -10,6 +10,7 @@ import Auth from './components/Auth';
 import StatusBar from './components/StatusBar';
 import Filmstrip from './components/Filmstrip';
 import SaveLoadManager from './components/SaveLoadManager';
+import ExportDialog from './components/ExportDialog';
 import {
   addPointLight, addSpotLight, addDirectionalLight, addAreaLight,
   addHemisphereLight, addProductCube, addCyclorama, addImportedModel,
@@ -128,6 +129,7 @@ export default function App() {
   });
   const [showHelp, setShowHelp] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [splitPct, setSplitPct] = useState(50);
   const [dragging, setDragging] = useState(false);
   const [maximized, setMaximized] = useState(null);
@@ -313,6 +315,7 @@ export default function App() {
         onSave={handleSave}
         onShowLoad={() => setShowLoadModal(true)}
         onNewScene={handleNewScene}
+        onExport={() => setShowExportModal(true)}
         saving={saving}
         saveStatus={saveStatus}
       />
@@ -348,6 +351,11 @@ export default function App() {
           onLoad={handleLoad}
         />
       )}
+      <ExportDialog
+        open={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        sceneName={sceneName}
+      />
       <ContextMenu />
       <StatusBar />
     </AppWrapper>

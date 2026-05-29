@@ -74,9 +74,74 @@ export default function CameraView() {
     const ro = new ResizeObserver(onResize);
     ro.observe(container);
 
+    // PNG export: spin up a temporary offscreen renderer at the target size,
+    // render one frame using the same scene + camera state, capture the canvas
+    // as a PNG, trigger a download, and dispose. The live renderer is left
+    // untouched so the on-screen view doesn't flicker.
+    const onRequestExport = async (e) => {
+      const { width, height, filename } = e.detail || {};
+      if (!width || !height) {
+        window.dispatchEvent(new CustomEvent('studio:export-error'));
+        return;
+      }
+
+      let offscreenRenderer = null;
+      try {
+        offscreenRenderer = new THREE.WebGLRenderer({
+          antialias: true,
+          preserveDrawingBuffer: true,
+        });
+        offscreenRenderer.shadowMap.enabled = true;
+        offscreenRenderer.shadowMap.type = THREE.PCFShadowMap;
+        offscreenRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+        offscreenRenderer.toneMappingExposure = 1.0;
+        offscreenRenderer.outputColorSpace = THREE.SRGBColorSpace;
+        offscreenRenderer.setPixelRatio(1);
+        offscreenRenderer.setSize(width, height, false);
+
+        const exportCamera = camera.clone();
+        exportCamera.aspect = width / height;
+        exportCamera.updateProjectionMatrix();
+
+        // Force shadows to refresh at the export resolution
+        scene.traverse((obj) => {
+          if (obj.isLight && obj.shadow && obj.castShadow) {
+            obj.shadow.needsUpdate = true;
+          }
+        });
+
+        offscreenRenderer.render(scene, exportCamera);
+
+        const blob = await new Promise((resolve, reject) => {
+          offscreenRenderer.domElement.toBlob((b) => {
+            if (b) resolve(b);
+            else reject(new Error('toBlob returned null'));
+          }, 'image/png');
+        });
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename || 'export.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        window.dispatchEvent(new CustomEvent('studio:export-complete'));
+      } catch (err) {
+        console.error('Export failed:', err);
+        window.dispatchEvent(new CustomEvent('studio:export-error'));
+      } finally {
+        if (offscreenRenderer) offscreenRenderer.dispose();
+      }
+    };
+    window.addEventListener('studio:request-export', onRequestExport);
+
     return () => {
       renderLoop.unregister(renderLoopId); unsub(); ro.disconnect();
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('studio:request-export', onRequestExport);
       if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
       renderer.dispose();
     };
