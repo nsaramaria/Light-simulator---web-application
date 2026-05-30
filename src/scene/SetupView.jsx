@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { createSharedScene, sceneState, onSceneChange, updateElement, updateCamera, removeElement, duplicateElement, undo, redo, beginTransaction, commitTransaction, toggleLock, getSnapshotVersion } from './sharedScene';
+import { createSharedScene, sceneState, onSceneChange, updateElement, updateCamera, removeElement, duplicateElement, undo, redo, beginTransaction, commitTransaction, toggleLock, unhideAll, getSnapshotVersion } from './sharedScene';
 import { CAMERA } from './sceneConfig';
 import renderLoop from './renderLoop';
 import styled from 'styled-components';
@@ -174,7 +174,10 @@ export default function SetupView() {
       } else if (obj.isHemisphereLight) {
         helper = new THREE.HemisphereLightHelper(obj, 1, 0xffaa00);
       }
-     
+      // RectAreaLight has a RectAreaLightHelper but it lives in examples/jsm
+      // and isn't strictly needed - the area light already has a visible plane
+      // proxy. Skip for simplicity.
+
       if (!helper) return null;
       helper.traverse(child => { child.layers.set(1); });
       scene.add(helper);
@@ -394,10 +397,14 @@ export default function SetupView() {
         if (child.userData.isHighlightOverlay) return;
 
         if (child.material.emissive) {
+          // Materials with emissive (e.g., MeshStandardMaterial on GLB models)
+          // glow nicely just by setting the emissive channel.
           child.material.emissive.setHex(color);
           child.material.emissiveIntensity = 0.3;
         } else if (child.material.wireframe) {
-  
+          // Wireframe meshes (cube, hemisphere, imported model placeholder)
+          // can't be made to "glow" by changing line color, so we attach a
+          // solid translucent overlay mesh that uses the same geometry.
           if (!child.userData.highlightOverlay) {
             const overlay = new THREE.Mesh(
               child.geometry,
@@ -417,7 +424,8 @@ export default function SetupView() {
             child.userData.highlightOverlay.visible = true;
           }
         } else if (child.material.color) {
-         
+          // Plain colored material (no emissive, not wireframe). Save the
+          // original color so we can restore it on reset.
           if (child.userData.originalColor === undefined) {
             child.userData.originalColor = child.material.color.getHex();
           }
@@ -451,7 +459,7 @@ export default function SetupView() {
         resetProxyColor(proxy);
       }
       if (id && proxies[id]) setProxyColor(proxies[id], 0x4a90d9);
-   
+      // Re-apply hover color if there's a hovered (non-selected) item
       if (hoveredId && hoveredId !== id && proxies[hoveredId]) {
         setProxyColor(proxies[hoveredId], 0x6699cc);
       }
@@ -460,12 +468,12 @@ export default function SetupView() {
 
     const setHoverHighlight = (id) => {
       if (id === hoveredId) return;
-      // Restore previous hover 
+      // Restore previous hover (unless it was the selected one, which keeps its own color)
       if (hoveredId && hoveredId !== sceneState.selected && proxies[hoveredId]) {
         resetProxyColor(proxies[hoveredId]);
       }
       hoveredId = id;
-      // Apply new hover 
+      // Apply new hover (don't override selection color)
       if (hoveredId && hoveredId !== sceneState.selected && proxies[hoveredId]) {
         setProxyColor(proxies[hoveredId], 0x6699cc);
       }
@@ -609,7 +617,7 @@ export default function SetupView() {
 
     const onPointerMove = (e) => {
       if (!isDraggingGizmo || !dragAxis) {
-       
+        // Not dragging — do hover detection instead
         const rect = container.getBoundingClientRect();
         mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
         mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
@@ -787,6 +795,20 @@ export default function SetupView() {
       if (e.key === 'e' || e.key === 'E') { setMode('rotate'); return; }
       if (e.key === 'x' || e.key === 'X') { toggleGizmoVisibility(); return; }
 
+      if ((e.key === 'h' || e.key === 'H') && e.altKey) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('studio:unhide-all'));
+        return;
+      }
+      if (e.key === 'h' || e.key === 'H') {
+        const id = sceneState.selected;
+        if (id && id !== 'camera') {
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent('studio:toggle-hidden', { detail: id }));
+        }
+        return;
+      }
+
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const id = sceneState.selected;
         if (id && id !== 'camera') {
@@ -861,7 +883,7 @@ export default function SetupView() {
       if (!id || id === 'camera') return;
       const newId = duplicateElement(id);
       if (!newId) return;
-     
+      // selection has already been moved to newId inside duplicateElement
       window.dispatchEvent(new CustomEvent('studio:select', { detail: newId }));
     };
 
@@ -873,6 +895,16 @@ export default function SetupView() {
       toggleLock(id);
     };
 
+    const onToggleHidden = (e) => {
+      const id = e.detail;
+      if (!id || id === 'camera') return;
+      const state = sceneState.elements[id];
+      if (!state) return;
+      updateElement(id, 'hidden', !state.hidden);
+    };
+
+    const onUnhideAll = () => { unhideAll(); };
+
     const onPointerLeave = () => { setHoverHighlight(null); };
 
     container.addEventListener('pointerdown', onPointerDown);
@@ -883,6 +915,8 @@ export default function SetupView() {
     window.addEventListener('studio:delete-element', onDeleteElement);
     window.addEventListener('studio:duplicate-element', onDuplicateElement);
     window.addEventListener('studio:toggle-lock', onToggleLock);
+    window.addEventListener('studio:toggle-hidden', onToggleHidden);
+    window.addEventListener('studio:unhide-all', onUnhideAll);
     window.addEventListener('studio:undo', onUndo);
     window.addEventListener('studio:redo', onRedo);
     window.addEventListener('keydown', onKeyDown);
@@ -935,6 +969,8 @@ export default function SetupView() {
       window.removeEventListener('studio:delete-element', onDeleteElement);
       window.removeEventListener('studio:duplicate-element', onDuplicateElement);
       window.removeEventListener('studio:toggle-lock', onToggleLock);
+      window.removeEventListener('studio:toggle-hidden', onToggleHidden);
+      window.removeEventListener('studio:unhide-all', onUnhideAll);
       window.removeEventListener('studio:undo', onUndo);
       window.removeEventListener('studio:redo', onRedo);
 

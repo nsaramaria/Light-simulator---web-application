@@ -38,6 +38,7 @@ export const createPointLight = (scene, elementMeshes, sceneState, notify) => {
   sceneState.elements[id] = {
     x: 0, y: 5, z: 0, rx: 0, ry: 0, rz: 0,
     intensity: 1.5, color: '#ffffff', colorKelvin: 5600, distance: 100,
+    castShadow: true,
     type: 'point-light'
   };
   notify();
@@ -60,6 +61,7 @@ export const createSpotLight = (scene, elementMeshes, sceneState, notify) => {
     x: 0, y: 5, z: 0, rx: 0, ry: 0, rz: 0,
     intensity: 2, color: '#ffffff', colorKelvin: 5600, distance: 100,
     angle: 30, penumbra: 0.3,
+    castShadow: true,
     type: 'spot-light'
   };
   notify();
@@ -85,6 +87,7 @@ export const createDirectionalLight = (scene, elementMeshes, sceneState, notify)
   sceneState.elements[id] = {
     x: 5, y: 10, z: 5, rx: 0, ry: 0, rz: 0,
     intensity: 1, color: '#ffffff', colorKelvin: 5600,
+    castShadow: true,
     type: 'directional-light'
   };
   notify();

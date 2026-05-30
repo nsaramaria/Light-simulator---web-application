@@ -107,6 +107,22 @@ const LockOpenIcon = () => (
   </svg>
 );
 
+const EyeOpenIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+const EyeClosedIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+    <path d="M14.12 14.12A3 3 0 1 1 9.88 9.88" />
+    <line x1="1" y1="1" x2="23" y2="23" />
+  </svg>
+);
+
 const LockedBanner = styled.div`
   padding: 8px 14px;
   font-size: 10px;
@@ -116,6 +132,33 @@ const LockedBanner = styled.div`
   display: flex;
   align-items: center;
   gap: 6px;
+`;
+
+const HiddenBanner = styled.div`
+  padding: 8px 14px;
+  font-size: 10px;
+  color: ${colors.textMuted};
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid ${colors.border};
+  display: flex;
+  align-items: center;
+  gap: 6px;
+`;
+
+const CheckboxRow = styled.label`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 11px;
+  color: ${colors.text};
+  cursor: pointer;
+  user-select: none;
+`;
+
+const Checkbox = styled.input.attrs({ type: 'checkbox' })`
+  cursor: pointer;
+  accent-color: ${colors.accent};
 `;
 
 const CollapsedLabel = styled.div`
@@ -430,6 +473,7 @@ const LABEL_BY_TYPE = { 'point-light': 'Point Light', 'spot-light': 'Focused Lig
 const TYPE_ICON = { 'point-light': '☀', 'spot-light': '◐', 'area-light': '▬', 'hemisphere-light': '◑', 'product-cube': '■', 'cyclorama': '⌐', 'imported-model': '⬡', camera: '◎' };
 const AXIS_COLORS = { x: colors.axisX, rx: colors.axisX, sx: colors.axisX, y: colors.axisY, ry: colors.axisY, sy: colors.axisY, z: colors.axisZ, rz: colors.axisZ, sz: colors.axisZ };
 const SINGLE_COLOR_TYPES = ['point-light', 'spot-light', 'directional-light', 'area-light'];
+const SHADOW_CASTING_TYPES = ['point-light', 'spot-light', 'directional-light'];
 const SCALABLE_TYPES = ['product-cube', 'cyclorama', 'imported-model'];
 
 // Convert color temperature (Kelvin) to an sRGB hex string using the
@@ -453,7 +497,6 @@ const kelvinToHex = (kelvin) => {
   return `#${hex(r)}${hex(g)}${hex(b)}`;
 };
 
-// Photographer-friendly preset labels for common values.
 const KELVIN_PRESETS = [
   { k: 1900, label: 'Candle' },
   { k: 2700, label: 'Warm bulb' },
@@ -477,16 +520,9 @@ const KelvinSlider = styled.input.attrs({ type: 'range', min: 1500, max: 12000, 
   appearance: none;
   -webkit-appearance: none;
   background: linear-gradient(to right,
-    #ff8c1a 0%,
-    #ffb46b 12%,
-    #ffd4a1 24%,
-    #ffe9c9 36%,
-    #fff5e0 48%,
-    #ffffff 56%,
-    #e6efff 68%,
-    #c2d7ff 80%,
-    #9bbcff 92%,
-    #7aa6ff 100%);
+    #ff8c1a 0%, #ffb46b 12%, #ffd4a1 24%, #ffe9c9 36%,
+    #fff5e0 48%, #ffffff 56%, #e6efff 68%, #c2d7ff 80%,
+    #9bbcff 92%, #7aa6ff 100%);
   border-radius: 6px;
   outline: none;
   cursor: pointer;
@@ -710,19 +746,31 @@ export default function SelectionPanel() {
         <HeaderLeft><SidebarLabel>Inspector</SidebarLabel><SelectedName>{icon} {label}</SelectedName></HeaderLeft>
         <HeaderActions>
           {selected && selected !== 'camera' && (
-            <HeaderIconBtn
-              $active={!!vals.locked}
-              onClick={() => { toggleLock(selected); setVals(v => ({ ...v, locked: !v.locked })); }}
-              title={vals.locked ? 'Unlock' : 'Lock (prevents accidental edits)'}
-            >
-              {vals.locked ? <LockClosedIcon /> : <LockOpenIcon />}
-            </HeaderIconBtn>
+            <>
+              <HeaderIconBtn
+                $active={!!vals.hidden}
+                onClick={() => { updateElement(selected, 'hidden', !vals.hidden); setVals(v => ({ ...v, hidden: !v.hidden })); }}
+                title={vals.hidden ? 'Show' : 'Hide (H)'}
+              >
+                {vals.hidden ? <EyeClosedIcon /> : <EyeOpenIcon />}
+              </HeaderIconBtn>
+              <HeaderIconBtn
+                $active={!!vals.locked}
+                onClick={() => { toggleLock(selected); setVals(v => ({ ...v, locked: !v.locked })); }}
+                title={vals.locked ? 'Unlock' : 'Lock (prevents accidental edits)'}
+              >
+                {vals.locked ? <LockClosedIcon /> : <LockOpenIcon />}
+              </HeaderIconBtn>
+            </>
           )}
           <CollapseBtn onClick={() => toggleCollapse(true)} title="Collapse">‹</CollapseBtn>
         </HeaderActions>
       </SidebarHeader>
       {vals.locked && (
         <LockedBanner><LockClosedIcon /> Locked — unlock to edit</LockedBanner>
+      )}
+      {vals.hidden && (
+        <HiddenBanner><EyeClosedIcon /> Hidden — won't appear in the camera view</HiddenBanner>
       )}
       <PropsScroll>
         {type === 'imported-model' && vals.fileName && (
@@ -750,6 +798,19 @@ export default function SelectionPanel() {
                 }}
                 onCommit={handleScrubCommit}
               />
+            )}
+            {SHADOW_CASTING_TYPES.includes(type) && (
+              <CheckboxRow>
+                Cast shadow
+                <Checkbox
+                  checked={vals.castShadow !== false}
+                  onChange={(e) => {
+                    const v = e.target.checked;
+                    updateElement(selected, 'castShadow', v);
+                    setVals(prev => ({ ...prev, castShadow: v }));
+                  }}
+                />
+              </CheckboxRow>
             )}
           </AccordionSection>
         )}

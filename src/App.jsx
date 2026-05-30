@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import styled from 'styled-components';
 import CameraView from './scene/CameraView';
 import SetupView from './scene/SetupView';
@@ -14,7 +14,7 @@ import ExportDialog from './components/ExportDialog';
 import {
   addPointLight, addSpotLight, addDirectionalLight, addAreaLight,
   addHemisphereLight, addProductCube, addCyclorama, addImportedModel,
-  getSceneSnapshot, restoreFullSnapshot, getDefaultSnapshot,
+  getSceneSnapshot, restoreFullSnapshot, getDefaultSnapshot, onSceneChange,
 } from './scene/sharedScene';
 import { saveScene, updateScene } from './api';
 import { colors } from './styles/theme';
@@ -154,6 +154,30 @@ export default function App() {
     setSaveStatus(prev => prev === 'saved' ? 'unsaved' : prev);
   }, []);
 
+  // Track whether the user has made changes since the last save/load.
+  // Used to decide whether to warn on tab close.
+  const [hasUserChanges, setHasUserChanges] = useState(false);
+
+  // Subscribe to scene changes so every mutation flips saved → unsaved
+  // and flags that the user has dirty work that hasn't been persisted.
+  useEffect(() => {
+    return onSceneChange(() => {
+      markUnsaved();
+      setHasUserChanges(true);
+    });
+  }, [markUnsaved]);
+
+  // Warn before closing/reloading the tab if there are unsaved changes.
+  useEffect(() => {
+    if (!hasUserChanges || saveStatus === 'saved') return;
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasUserChanges, saveStatus]);
+
   // ─── Save handler ───
   const handleSave = useCallback(async () => {
     const name = sceneName.trim();
@@ -177,6 +201,7 @@ export default function App() {
       }
 
       setSaveStatus('saved');
+      setHasUserChanges(false);
     } catch (err) {
       console.error('Save failed:', err);
       setSaveStatus('error');
@@ -203,6 +228,7 @@ export default function App() {
     }
 
     setSaveStatus('saved');
+    setHasUserChanges(false);
     window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
   }, []);
 
@@ -218,6 +244,7 @@ export default function App() {
         { id: 'shot-1', label: 'Shot 1', snapshot: defaultSnap },
       ]);
     }
+    setHasUserChanges(false);
     window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
   }, []);
 

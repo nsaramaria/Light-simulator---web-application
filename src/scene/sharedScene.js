@@ -50,11 +50,13 @@ const undoStack = [];
 const redoStack = [];
 let transactionDepth = 0;
 let pendingSnapshot = null;
-let historyEnabled = false; 
+let historyEnabled = false; // turned on after initial scene setup completes
 
 const snapshotToJSON = () => JSON.stringify(getSceneSnapshot());
 const applySnapshotJSON = (json) => restoreFullSnapshot(JSON.parse(json));
 
+// Public: wrap a series of mutations so only one history entry is created.
+// Used by drag handlers so a 200-pointermove drag becomes a single undo step.
 export const beginTransaction = () => {
   if (transactionDepth === 0) {
     pendingSnapshot = snapshotToJSON();
@@ -79,9 +81,11 @@ const pushHistory = (snapshotJSON) => {
   emitHistoryChange();
 };
 
+// Capture state BEFORE a mutation runs (outside a transaction).
+// Internal helper used by mutating functions.
 const recordHistory = () => {
   if (!historyEnabled) return;
-  if (transactionDepth > 0) return; 
+  if (transactionDepth > 0) return; // inside a transaction; will be captured at commit
   pushHistory(snapshotToJSON());
 };
 
@@ -209,7 +213,9 @@ const createElementFromDef = (desiredId, def) => {
     if (def.height !== undefined && obj.isRectAreaLight) obj.height = def.height;
     if (def.skyColor !== undefined && obj.isHemisphereLight) obj.color.set(def.skyColor);
     if (def.groundColor !== undefined && obj.isHemisphereLight) obj.groundColor.set(def.groundColor);
+    if (def.castShadow !== undefined && obj.shadow) obj.castShadow = !!def.castShadow;
   }
+  if (def.hidden !== undefined) obj.visible = !def.hidden;
 
   return desiredId;
 };
@@ -332,6 +338,13 @@ export const updateElement = (id, key, val) => {
   else if (key === 'height' && obj.isRectAreaLight) obj.height = val;
   else if (key === 'skyColor' && obj.isHemisphereLight) obj.color.set(val);
   else if (key === 'groundColor' && obj.isHemisphereLight) obj.groundColor.set(val);
+  else if (key === 'castShadow' && obj.isLight && obj.shadow) {
+    obj.castShadow = !!val;
+    obj.shadow.needsUpdate = true;
+  }
+  else if (key === 'hidden') {
+    obj.visible = !val;
+  }
 
   notify();
 };
@@ -360,11 +373,15 @@ export const removeElement = (id) => {
   notify();
 };
 
+// Duplicate an existing element. Creates a new element of the same type with
+// the same property values, offset slightly so it's visually distinct.
 export const duplicateElement = (sourceId) => {
   if (!sharedInstance) return null;
   const source = sceneState.elements[sourceId];
   if (!source) return null;
 
+  // Imported models are tricky because the underlying file blob lives in
+  // importedModelStore and is keyed by id. Skip them for now.
   if (source.type === 'imported-model') return null;
 
   recordHistory();
@@ -435,6 +452,21 @@ export const toggleLock = (id) => {
   notify();
 };
 
+export const unhideAll = () => {
+  if (!sharedInstance) return;
+  const anyHidden = Object.values(sceneState.elements).some(el => el.hidden);
+  if (!anyHidden) return;
+  recordHistory();
+  for (const [id, state] of Object.entries(sceneState.elements)) {
+    if (state.hidden) {
+      state.hidden = false;
+      const obj = sharedInstance.elementMeshes[id];
+      if (obj) obj.visible = true;
+    }
+  }
+  notify();
+};
+
 export const updateCamera = (key, val) => { sceneState.camera[key] = val; notify(); };
 
 export const setCameraAll = (cam) => {
@@ -500,14 +532,16 @@ const normalizeModel = (model) => {
   return scaleFactor;
 };
 
-/*
-  Prepare imported mesh for shadow casting.
-  - castShadow = true: model casts shadows onto floor/cyclorama
-  - receiveShadow = false: prevents self-shadowing where the model's own
-    geometry darkens itself through the shadow map (especially bad with
-    PointLight's cube shadow map which views from all 6 directions)
-  - alphaTest on transparent materials so shadows follow alpha cutouts
-  - depthWrite re-enabled if a GLB exporter incorrectly disabled it
+/**
+ * Prepare imported mesh for shadow casting.
+ *
+ * Key decisions:
+ * - castShadow = true: model casts shadows onto floor/cyclorama
+ * - receiveShadow = false: prevents self-shadowing where the model's own
+ *   geometry darkens itself through the shadow map (especially bad with
+ *   PointLight's cube shadow map which views from all 6 directions)
+ * - alphaTest on transparent materials so shadows follow alpha cutouts
+ * - depthWrite re-enabled if a GLB exporter incorrectly disabled it
  */
 const prepareMeshForShadows = (child) => {
   if (!child.isMesh) return;
@@ -724,6 +758,7 @@ export const createSharedScene = () => {
     sceneState.elements[id].z = LIGHT.position.z;
   }
 
+  // History is enabled only after the default scene is in place.
   historyEnabled = true;
 
   return sharedInstance;
