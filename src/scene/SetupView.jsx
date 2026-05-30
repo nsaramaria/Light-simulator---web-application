@@ -10,6 +10,7 @@ import { colors } from '../styles/theme';
 import { makeLightProxy, makeSpotProxy, makeAreaProxy, makeHemisphereProxy, makeProductProxy, makeCycloramaProxy, makeCameraProxy, makeImportedProxy } from './objects/proxies';
 import { makeMoveGizmo } from './gizmos/move';
 import { makeRotateGizmo } from './gizmos/rotate';
+import { makeScaleGizmo } from './gizmos/scale';
 
 const Wrapper = styled.div`
   width: 100%;
@@ -78,9 +79,35 @@ const RotateIcon = () => (
   </svg>
 );
 
+const ScaleIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="6" height="6" />
+    <line x1="9" y1="9" x2="13" y2="13" />
+    <polyline points="10,13 13,13 13,10" />
+  </svg>
+);
+
+const WorldIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+    <circle cx="8" cy="8" r="6" />
+    <line x1="2" y1="8" x2="14" y2="8" />
+    <path d="M8 2 a 6 4 0 0 0 0 12 a 6 4 0 0 0 0 -12" />
+  </svg>
+);
+
+const LocalIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+    <rect x="3" y="3" width="10" height="10" transform="rotate(15 8 8)" />
+    <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" />
+    <line x1="8" y1="14" x2="8" y2="14" />
+  </svg>
+);
+
 const AXIS_COLORS = {
   x:  0xe05a4e, y:  0x5aad5a, z:  0x4a90d9,
   rx: 0xe05a4e, ry: 0x5aad5a, rz: 0x4a90d9,
+  sx: 0xe05a4e, sy: 0x5aad5a, sz: 0x4a90d9,
+  suniform: 0xffffff,
   xy: 0x4a90d9, xz: 0x5aad5a, yz: 0xe05a4e,
 };
 const HIGHLIGHT_COLOR = 0xffffff;
@@ -101,6 +128,7 @@ const createProxyForType = (type, pos, id, elementState) => {
 export default function SetupView() {
   const mountRef = useRef(null);
   const [activeMode, setActiveMode] = useState('move');
+  const [activeCoordSpace, setActiveCoordSpace] = useState('world');
 
   useEffect(() => {
     const { scene, elementMeshes } = createSharedScene();
@@ -174,10 +202,7 @@ export default function SetupView() {
       } else if (obj.isHemisphereLight) {
         helper = new THREE.HemisphereLightHelper(obj, 1, 0xffaa00);
       }
-      // RectAreaLight has a RectAreaLightHelper but it lives in examples/jsm
-      // and isn't strictly needed - the area light already has a visible plane
-      // proxy. Skip for simplicity.
-
+    
       if (!helper) return null;
       helper.traverse(child => { child.layers.set(1); });
       scene.add(helper);
@@ -328,7 +353,11 @@ export default function SetupView() {
     rotateGizmo.visible = false;
     scene.add(rotateGizmo);
 
-    [moveGizmo, rotateGizmo].forEach(gizmo => {
+    const scaleGizmo = makeScaleGizmo();
+    scaleGizmo.visible = false;
+    scene.add(scaleGizmo);
+
+    [moveGizmo, rotateGizmo, scaleGizmo].forEach(gizmo => {
       gizmo.renderOrder = 999;
       gizmo.traverse(child => {
         if (child.isMesh && child.material) {
@@ -340,7 +369,12 @@ export default function SetupView() {
     });
 
     let gizmoMode = 'move';
-    const getActiveGizmo = () => gizmoMode === 'move' ? moveGizmo : rotateGizmo;
+    let coordinateSpace = 'world'; // world | local
+    const getActiveGizmo = () => {
+      if (gizmoMode === 'move') return moveGizmo;
+      if (gizmoMode === 'rotate') return rotateGizmo;
+      return scaleGizmo;
+    };
 
     const getSelectedPosition = (id) => {
       if (id === 'camera') return photographerCamera.position;
@@ -352,11 +386,27 @@ export default function SetupView() {
     const syncGizmos = (id) => {
       moveGizmo.visible = false;
       rotateGizmo.visible = false;
+      scaleGizmo.visible = false;
       if (gizmosHidden) return;
       const pos = getSelectedPosition(id);
       if (!pos || !id) return;
       const active = getActiveGizmo();
       active.position.copy(pos);
+
+      // For rotate and scale, orient the gizmo to match the element's
+      // rotation when in local coordinate space.
+      if (coordinateSpace === 'local' && (gizmoMode === 'rotate' || gizmoMode === 'scale')) {
+        const state = id === 'camera' ? sceneState.camera : sceneState.elements[id];
+        if (state) {
+          active.rotation.set(
+            (state.rx ?? 0) * DEG2RAD,
+            (state.ry ?? 0) * DEG2RAD,
+            (state.rz ?? 0) * DEG2RAD
+          );
+        }
+      } else {
+        active.rotation.set(0, 0, 0);
+      }
       active.visible = true;
     };
 
@@ -381,7 +431,7 @@ export default function SetupView() {
     };
 
     const resetGizmoColors = () => {
-      [moveGizmo, rotateGizmo].forEach(gizmo => {
+      [moveGizmo, rotateGizmo, scaleGizmo].forEach(gizmo => {
         gizmo.children.forEach(child => {
           const a = child.userData.gizmoAxis;
           child.material.color.setHex(AXIS_COLORS[a] ?? 0x888888);
@@ -397,14 +447,11 @@ export default function SetupView() {
         if (child.userData.isHighlightOverlay) return;
 
         if (child.material.emissive) {
-          // Materials with emissive (e.g., MeshStandardMaterial on GLB models)
-          // glow nicely just by setting the emissive channel.
+          
           child.material.emissive.setHex(color);
           child.material.emissiveIntensity = 0.3;
         } else if (child.material.wireframe) {
-          // Wireframe meshes (cube, hemisphere, imported model placeholder)
-          // can't be made to "glow" by changing line color, so we attach a
-          // solid translucent overlay mesh that uses the same geometry.
+          
           if (!child.userData.highlightOverlay) {
             const overlay = new THREE.Mesh(
               child.geometry,
@@ -424,8 +471,7 @@ export default function SetupView() {
             child.userData.highlightOverlay.visible = true;
           }
         } else if (child.material.color) {
-          // Plain colored material (no emissive, not wireframe). Save the
-          // original color so we can restore it on reset.
+          
           if (child.userData.originalColor === undefined) {
             child.userData.originalColor = child.material.color.getHex();
           }
@@ -468,12 +514,12 @@ export default function SetupView() {
 
     const setHoverHighlight = (id) => {
       if (id === hoveredId) return;
-      // Restore previous hover (unless it was the selected one, which keeps its own color)
+      // Restore previous hover 
       if (hoveredId && hoveredId !== sceneState.selected && proxies[hoveredId]) {
         resetProxyColor(proxies[hoveredId]);
       }
       hoveredId = id;
-      // Apply new hover (don't override selection color)
+      // Apply new hover 
       if (hoveredId && hoveredId !== sceneState.selected && proxies[hoveredId]) {
         setProxyColor(proxies[hoveredId], 0x6699cc);
       }
@@ -497,6 +543,17 @@ export default function SetupView() {
 
     const onToolbarMode = (e) => setMode(e.detail);
     window.addEventListener('studio:set-gizmo-mode', onToolbarMode);
+
+    const onToolbarCoordSpace = (e) => {
+      coordinateSpace = e.detail;
+      syncGizmos(sceneState.selected);
+      renderLoop.markDirty();
+    };
+    window.addEventListener('studio:set-coord-space', onToolbarCoordSpace);
+
+
+    const onCoordSpaceChanged = (e) => setActiveCoordSpace(e.detail);
+    window.addEventListener('studio:coordinate-space-changed', onCoordSpaceChanged);
 
     const syncPhotographerCamera = () => {
       const { x, y, z, rx, ry, rz } = sceneState.camera;
@@ -548,6 +605,7 @@ export default function SetupView() {
     let dragStartMouse = new THREE.Vector2();
     let dragStartPos = new THREE.Vector3();
     let dragStartRot = { rx: 0, ry: 0, rz: 0 };
+    let dragStartScale = { sx: 1, sy: 1, sz: 1 };
     let isDraggingGizmo = false;
     let pointerDownPos = { x: 0, y: 0 };
     let isPlaneDrag = false;
@@ -596,10 +654,15 @@ export default function SetupView() {
               dragPlane.setFromNormalAndCoplanarPoint(normal, dragStartPos);
               raycaster.ray.intersectPlane(dragPlane, dragPlaneStartHit);
             }
-          } else {
+          } else if (gizmoMode === 'rotate') {
             const id = sceneState.selected;
             const state = id === 'camera' ? sceneState.camera : sceneState.elements[id];
             dragStartRot = { rx: state?.rx ?? 0, ry: state?.ry ?? 0, rz: state?.rz ?? 0 };
+          } else {
+            // Scale mode
+            const id = sceneState.selected;
+            const state = id === 'camera' ? sceneState.camera : sceneState.elements[id];
+            dragStartScale = { sx: state?.sx ?? 1, sy: state?.sy ?? 1, sz: state?.sz ?? 1 };
           }
           return;
         }
@@ -614,6 +677,11 @@ export default function SetupView() {
     const rotateGizmoPos = new THREE.Vector3();
     const rotateRefPoint = new THREE.Vector3();
     const rotateScreenDir = new THREE.Vector2();
+    const scaleAxisDir = new THREE.Vector3();
+    const scaleStartScreen = new THREE.Vector3();
+    const scaleEndScreen = new THREE.Vector3();
+    const scaleScreenDelta = new THREE.Vector2();
+    const scaleMousePx = new THREE.Vector2();
 
     const onPointerMove = (e) => {
       if (!isDraggingGizmo || !dragAxis) {
@@ -710,7 +778,7 @@ export default function SetupView() {
         window.dispatchEvent(new CustomEvent('studio:position-update', {
           detail: { id, axis: dragAxis, val: newVal }
         }));
-      } else {
+      } else if (gizmoMode === 'rotate') {
         rotateGizmoPos.copy(rotateGizmo.position);
         rotateRefPoint.copy(rotateGizmoPos);
         if (dragAxis === 'rx') rotateRefPoint.y += 1;
@@ -745,6 +813,63 @@ export default function SetupView() {
         window.dispatchEvent(new CustomEvent('studio:position-update', {
           detail: { id, axis: dragAxis, val: newVal }
         }));
+      } else {
+      
+        if (id === 'camera') return; // camera doesn't scale
+
+        const activeGizmo = getActiveGizmo();
+        const SCALE_PIXELS = 140; 
+        const MIN_SCALE = 0.05;
+
+        let signedPx;
+        if (dragAxis === 'suniform') {
+          signedPx = dx - dy;
+        } else {
+          if (dragAxis === 'sx') scaleAxisDir.set(1, 0, 0);
+          else if (dragAxis === 'sy') scaleAxisDir.set(0, 1, 0);
+          else scaleAxisDir.set(0, 0, 1);
+          scaleAxisDir.applyQuaternion(activeGizmo.quaternion);
+
+          scaleStartScreen.copy(activeGizmo.position).project(helperCamera);
+          scaleEndScreen.copy(activeGizmo.position).add(scaleAxisDir).project(helperCamera);
+          scaleScreenDelta.set(
+            (scaleEndScreen.x - scaleStartScreen.x) * container.clientWidth / 2,
+            (scaleEndScreen.y - scaleStartScreen.y) * container.clientHeight / 2
+          );
+          const pixelsPerAxis = scaleScreenDelta.length();
+          if (pixelsPerAxis < 0.001) return;
+          scaleScreenDelta.normalize();
+          scaleMousePx.set(dx, -dy);
+          signedPx = scaleMousePx.dot(scaleScreenDelta);
+        }
+
+        const factor = Math.pow(2, signedPx / SCALE_PIXELS);
+
+        if (dragAxis === 'suniform') {
+          const nsx = Math.max(MIN_SCALE, dragStartScale.sx * factor);
+          const nsy = Math.max(MIN_SCALE, dragStartScale.sy * factor);
+          const nsz = Math.max(MIN_SCALE, dragStartScale.sz * factor);
+          updateElement(id, 'sx', nsx);
+          updateElement(id, 'sy', nsy);
+          updateElement(id, 'sz', nsz);
+          updateOneProxyTransform(id);
+          if (activeGizmo.visible) {
+            const pos = getSelectedPosition(id);
+            if (pos) activeGizmo.position.copy(pos);
+          }
+          window.dispatchEvent(new CustomEvent('studio:position-update', { detail: { id, axis: 'sx', val: nsx } }));
+          window.dispatchEvent(new CustomEvent('studio:position-update', { detail: { id, axis: 'sy', val: nsy } }));
+          window.dispatchEvent(new CustomEvent('studio:position-update', { detail: { id, axis: 'sz', val: nsz } }));
+        } else {
+          const newVal = Math.max(MIN_SCALE, dragStartScale[dragAxis] * factor);
+          updateElement(id, dragAxis, newVal);
+          updateOneProxyTransform(id);
+          if (activeGizmo.visible) {
+            const pos = getSelectedPosition(id);
+            if (pos) activeGizmo.position.copy(pos);
+          }
+          window.dispatchEvent(new CustomEvent('studio:position-update', { detail: { id, axis: dragAxis, val: newVal } }));
+        }
       }
     };
 
@@ -793,7 +918,15 @@ export default function SetupView() {
 
       if (e.key === 'w' || e.key === 'W') { setMode('move'); return; }
       if (e.key === 'e' || e.key === 'E') { setMode('rotate'); return; }
+      if (e.key === 'r' || e.key === 'R') { setMode('scale'); return; }
       if (e.key === 'x' || e.key === 'X') { toggleGizmoVisibility(); return; }
+      if (e.key === 'q' || e.key === 'Q') {
+        coordinateSpace = coordinateSpace === 'world' ? 'local' : 'world';
+        syncGizmos(sceneState.selected);
+        window.dispatchEvent(new CustomEvent('studio:coordinate-space-changed', { detail: coordinateSpace }));
+        renderLoop.markDirty();
+        return;
+      }
 
       if ((e.key === 'h' || e.key === 'H') && e.altKey) {
         e.preventDefault();
@@ -940,13 +1073,17 @@ export default function SetupView() {
       renderer.render(scene, helperCamera);
     }, 0);
 
+    let lastResizeW = 0, lastResizeH = 0;
     const onResize = () => {
       const w = container.clientWidth, h = container.clientHeight;
       if (w === 0 || h === 0) return;
+      if (w === lastResizeW && h === lastResizeH) return; // ignore no-op resizes
+      lastResizeW = w; lastResizeH = h;
       helperCamera.aspect = w / h;
       helperCamera.updateProjectionMatrix();
       renderer.setSize(w, h);
-      renderLoop.markDirty();
+    
+      renderer.render(scene, helperCamera);
     };
     window.addEventListener('resize', onResize);
 
@@ -960,6 +1097,8 @@ export default function SetupView() {
       window.removeEventListener('resize', onResize);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('studio:set-gizmo-mode', onToolbarMode);
+      window.removeEventListener('studio:set-coord-space', onToolbarCoordSpace);
+      window.removeEventListener('studio:coordinate-space-changed', onCoordSpaceChanged);
       window.removeEventListener('studio:select', onExternalSelect);
       container.removeEventListener('pointerdown', onPointerDown);
       container.removeEventListener('pointermove', onPointerMove);
@@ -1012,6 +1151,12 @@ export default function SetupView() {
     window.dispatchEvent(new CustomEvent('studio:set-gizmo-mode', { detail: mode }));
   };
 
+  const handleCoordSpaceClick = () => {
+    const next = activeCoordSpace === 'world' ? 'local' : 'world';
+    setActiveCoordSpace(next);
+    window.dispatchEvent(new CustomEvent('studio:set-coord-space', { detail: next }));
+  };
+
   return (
     <Wrapper>
       <Toolbar>
@@ -1020,6 +1165,16 @@ export default function SetupView() {
         </ToolBtn>
         <ToolBtn $active={activeMode === 'rotate'} onClick={() => handleToolClick('rotate')} title="Rotate (E)">
           <RotateIcon />
+        </ToolBtn>
+        <ToolBtn $active={activeMode === 'scale'} onClick={() => handleToolClick('scale')} title="Scale (R)">
+          <ScaleIcon />
+        </ToolBtn>
+        <ToolBtn
+          $active={activeCoordSpace === 'local'}
+          onClick={handleCoordSpaceClick}
+          title={`Coordinate space: ${activeCoordSpace} (Q to toggle)`}
+        >
+          {activeCoordSpace === 'world' ? <WorldIcon /> : <LocalIcon />}
         </ToolBtn>
       </Toolbar>
       <Mount ref={mountRef} />

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import styled from 'styled-components';
+import * as THREE from 'three';
 import { sceneState, updateElement, updateCamera, beginTransaction, commitTransaction, toggleLock } from '../scene/sharedScene';
 import { colors } from '../styles/theme';
 
@@ -159,6 +160,41 @@ const CheckboxRow = styled.label`
 const Checkbox = styled.input.attrs({ type: 'checkbox' })`
   cursor: pointer;
   accent-color: ${colors.accent};
+`;
+
+const AimRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 11px;
+  color: ${colors.text};
+`;
+
+const AimSelect = styled.select`
+  background: ${colors.surfaceHover};
+  color: ${colors.text};
+  border: 1px solid ${colors.border};
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+
+  &:focus { outline: none; border-color: ${colors.accent}; }
+`;
+
+const LumensReadout = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 10px;
+  color: ${colors.textMuted};
+  font-family: 'JetBrains Mono', monospace;
 `;
 
 const CollapsedLabel = styled.div`
@@ -363,7 +399,7 @@ const InfoValue = styled.span`
   text-overflow: ellipsis;
 `;
 
-function ScrubField({ label, labelColor, value, step, wideLabel, onChange, onStart, onCommit }) {
+function ScrubField({ label, labelColor, value, step, wideLabel, min, max, onChange, onStart, onCommit }) {
   const [editing, setEditing] = useState(false);
   const [editVal, setEditVal] = useState('');
   const [dragging, setDragging] = useState(false);
@@ -374,6 +410,13 @@ function ScrubField({ label, labelColor, value, step, wideLabel, onChange, onSta
   const inputRef = useRef(null);
 
   const numValue = typeof value === 'number' ? value : parseFloat(value) || 0;
+
+  const clamp = (v) => {
+    let r = v;
+    if (typeof min === 'number') r = Math.max(min, r);
+    if (typeof max === 'number') r = Math.min(max, r);
+    return r;
+  };
 
   const formatDisplay = () => {
     if (step < 0.1) return numValue.toFixed(2);
@@ -400,7 +443,7 @@ function ScrubField({ label, labelColor, value, step, wideLabel, onChange, onSta
       }
       const sensitivity = e.shiftKey ? step * 0.1 : step;
       const delta = dx * sensitivity;
-      const newVal = parseFloat((dragStartVal.current + delta).toFixed(4));
+      const newVal = clamp(parseFloat((dragStartVal.current + delta).toFixed(4)));
       onChange(newVal);
     };
 
@@ -427,7 +470,7 @@ function ScrubField({ label, labelColor, value, step, wideLabel, onChange, onSta
   const handleEditBlur = () => {
     setEditing(false);
     const num = parseFloat(editVal);
-    if (!isNaN(num)) { onStart?.(); onChange(num); onCommit(num); }
+    if (!isNaN(num)) { const c = clamp(num); onStart?.(); onChange(c); onCommit(c); }
   };
 
   const handleEditKeyDown = (e) => {
@@ -459,11 +502,11 @@ const POS_FIELDS = {
 };
 
 const LIGHT_FIELDS = {
-  'point-light':       [{ key: 'intensity', label: 'Intensity', step: 0.05 }, { key: 'distance', label: 'Distance', step: 1 }],
-  'spot-light':        [{ key: 'intensity', label: 'Intensity', step: 0.05 }, { key: 'distance', label: 'Distance', step: 1 }, { key: 'angle', label: 'Angle', step: 1 }, { key: 'penumbra', label: 'Penumbra', step: 0.05 }],
-  'directional-light': [{ key: 'intensity', label: 'Intensity', step: 0.05 }],
-  'area-light':        [{ key: 'intensity', label: 'Intensity', step: 0.1 }, { key: 'width', label: 'Width', step: 0.1 }, { key: 'height', label: 'Height', step: 0.1 }],
-  'hemisphere-light':  [{ key: 'intensity', label: 'Intensity', step: 0.05 }],
+  'point-light':       [{ key: 'intensity', label: 'Intensity', step: 0.05, min: 0 }, { key: 'distance', label: 'Distance', step: 1, min: 0 }],
+  'spot-light':        [{ key: 'intensity', label: 'Intensity', step: 0.05, min: 0 }, { key: 'distance', label: 'Distance', step: 1, min: 0 }, { key: 'angle', label: 'Angle', step: 1, min: 1, max: 89 }, { key: 'penumbra', label: 'Penumbra', step: 0.05, min: 0, max: 1 }],
+  'directional-light': [{ key: 'intensity', label: 'Intensity', step: 0.05, min: 0 }],
+  'area-light':        [{ key: 'intensity', label: 'Intensity', step: 0.1, min: 0 }, { key: 'width', label: 'Width', step: 0.1, min: 0.1 }, { key: 'height', label: 'Height', step: 0.1, min: 0.1 }],
+  'hemisphere-light':  [{ key: 'intensity', label: 'Intensity', step: 0.05, min: 0 }],
 };
 
 const ROT_FIELDS = [{ key: 'rx', axis: 'rx', step: 1 }, { key: 'ry', axis: 'ry', step: 1 }, { key: 'rz', axis: 'rz', step: 1 }];
@@ -475,9 +518,28 @@ const AXIS_COLORS = { x: colors.axisX, rx: colors.axisX, sx: colors.axisX, y: co
 const SINGLE_COLOR_TYPES = ['point-light', 'spot-light', 'directional-light', 'area-light'];
 const SHADOW_CASTING_TYPES = ['point-light', 'spot-light', 'directional-light'];
 const SCALABLE_TYPES = ['product-cube', 'cyclorama', 'imported-model'];
+const AIMABLE_TYPES = ['spot-light', 'directional-light', 'area-light'];
 
-// Convert color temperature (Kelvin) to an sRGB hex string using the
-// Tanner Helland approximation. Valid roughly 1000K – 40000K.
+const computeAimRotation = (sourcePos, targetPos, lightType) => {
+  const dir = new THREE.Vector3().subVectors(targetPos, sourcePos);
+  if (dir.lengthSq() < 1e-8) return null;
+  dir.normalize();
+
+  const forward = lightType === 'area-light'
+    ? new THREE.Vector3(0, 0, 1)
+    : new THREE.Vector3(0, -1, 0);
+
+  const q = new THREE.Quaternion().setFromUnitVectors(forward, dir);
+  const e = new THREE.Euler().setFromQuaternion(q, 'XYZ');
+
+  const RAD2DEG = 180 / Math.PI;
+  return {
+    rx: e.x * RAD2DEG,
+    ry: e.y * RAD2DEG,
+    rz: e.z * RAD2DEG,
+  };
+};
+
 const kelvinToHex = (kelvin) => {
   const t = Math.max(1000, Math.min(40000, kelvin)) / 100;
   let r, g, b;
@@ -737,7 +799,7 @@ export default function SelectionPanel() {
   );
 
   const renderLabeledField = (field) => (
-    <ScrubField key={field.key} label={field.label} value={vals[field.key] ?? 0} step={field.step} wideLabel onChange={(v) => handleScrubChange(field, v)} onStart={handleScrubStart} onCommit={() => handleScrubCommit()} />
+    <ScrubField key={field.key} label={field.label} value={vals[field.key] ?? 0} step={field.step} min={field.min} max={field.max} wideLabel onChange={(v) => handleScrubChange(field, v)} onStart={handleScrubStart} onCommit={() => handleScrubCommit()} />
   );
 
   return (
@@ -798,6 +860,57 @@ export default function SelectionPanel() {
                 }}
                 onCommit={handleScrubCommit}
               />
+            )}
+            {SINGLE_COLOR_TYPES.includes(type) && (
+              <LumensReadout>
+                <span>Approx. lumens</span>
+                <span>{Math.round((vals.intensity ?? 1) * 683)} lm</span>
+              </LumensReadout>
+            )}
+            {AIMABLE_TYPES.includes(type) && (
+              <AimRow>
+                <span style={{ flexShrink: 0 }}>Aim at</span>
+                <AimSelect
+                  value=""
+                  onChange={(e) => {
+                    const targetId = e.target.value;
+                    if (!targetId) return;
+                    const targetState = targetId === 'camera'
+                      ? sceneState.camera
+                      : sceneState.elements[targetId];
+                    if (!targetState) return;
+
+                    const sourcePos = new THREE.Vector3(vals.x ?? 0, vals.y ?? 0, vals.z ?? 0);
+                    const targetPos = new THREE.Vector3(
+                      targetState.x ?? 0,
+                      targetState.y ?? 0,
+                      targetState.z ?? 0
+                    );
+                    const rot = computeAimRotation(sourcePos, targetPos, type);
+                    if (!rot) return;
+
+                    beginTransaction();
+                    updateElement(selected, 'rx', rot.rx);
+                    updateElement(selected, 'ry', rot.ry);
+                    updateElement(selected, 'rz', rot.rz);
+                    commitTransaction();
+                    setVals(v => ({ ...v, rx: rot.rx, ry: rot.ry, rz: rot.rz }));
+
+                    // Reset the dropdown back to placeholder
+                    e.target.value = '';
+                  }}
+                >
+                  <option value="" disabled>Pick target…</option>
+                  <option value="camera">Camera</option>
+                  {Object.entries(sceneState.elements)
+                    .filter(([id, st]) => id !== selected && !st.locked)
+                    .map(([id, st]) => (
+                      <option key={id} value={id}>
+                        {LABEL_BY_TYPE[st.type] ?? id}
+                      </option>
+                    ))}
+                </AimSelect>
+              </AimRow>
             )}
             {SHADOW_CASTING_TYPES.includes(type) && (
               <CheckboxRow>

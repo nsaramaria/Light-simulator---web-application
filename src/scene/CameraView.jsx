@@ -61,23 +61,23 @@ export default function CameraView() {
       needsRender = false;
     }, 1);
 
+    let lastResizeW = 0, lastResizeH = 0;
     const onResize = () => {
       const w = container.clientWidth, h = container.clientHeight;
       if (w === 0 || h === 0) return;
+      if (w === lastResizeW && h === lastResizeH) return; // ignore no-op resizes
+      lastResizeW = w; lastResizeH = h;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
-      needsRender = true;
-      renderLoop.markDirty();
+    
+      renderer.render(scene, camera);
+      needsRender = false;
     };
     window.addEventListener('resize', onResize);
     const ro = new ResizeObserver(onResize);
     ro.observe(container);
 
-    // PNG export: spin up a temporary offscreen renderer at the target size,
-    // render one frame using the same scene + camera state, capture the canvas
-    // as a PNG, trigger a download, and dispose. The live renderer is left
-    // untouched so the on-screen view doesn't flicker.
     const onRequestExport = async (e) => {
       const { width, height, filename } = e.detail || {};
       if (!width || !height) {

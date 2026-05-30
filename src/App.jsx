@@ -34,6 +34,15 @@ const ViewsContainer = styled.div`
   user-select: ${({ $dragging }) => $dragging ? 'none' : 'auto'};
 `;
 
+const ViewsArea = styled.div`
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+`;
+
 const ViewPanel = styled.div`
   position: relative;
   width: ${({ $width }) => $width}%;
@@ -141,7 +150,7 @@ export default function App() {
   const [sceneName, setSceneName] = useState('Untitled Scene');
   const [activeSceneId, setActiveSceneId] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState('new'); // 'new' | 'unsaved' | 'saving' | 'saved' | 'error'
+  const [saveStatus, setSaveStatus] = useState('new'); // new| unsaved| saving | saved | error
 
   // Mark as unsaved when scene name changes
   const handleSceneNameChange = (name) => {
@@ -154,12 +163,8 @@ export default function App() {
     setSaveStatus(prev => prev === 'saved' ? 'unsaved' : prev);
   }, []);
 
-  // Track whether the user has made changes since the last save/load.
-  // Used to decide whether to warn on tab close.
   const [hasUserChanges, setHasUserChanges] = useState(false);
 
-  // Subscribe to scene changes so every mutation flips saved → unsaved
-  // and flags that the user has dirty work that hasn't been persisted.
   useEffect(() => {
     return onSceneChange(() => {
       markUnsaved();
@@ -167,7 +172,7 @@ export default function App() {
     });
   }, [markUnsaved]);
 
-  // Warn before closing/reloading the tab if there are unsaved changes.
+  // Warn before closing/reloading the tab if there are unsaved changes
   useEffect(() => {
     if (!hasUserChanges || saveStatus === 'saved') return;
     const handler = (e) => {
@@ -264,7 +269,6 @@ export default function App() {
       const rect = containerRef.current.getBoundingClientRect();
       const pct = ((e.clientX - rect.left) / rect.width) * 100;
       setSplitPct(Math.min(Math.max(pct, 15), 85));
-      window.dispatchEvent(new Event('resize'));
     };
     const onMouseUp = () => {
       setDragging(false);
@@ -352,22 +356,24 @@ export default function App() {
         accept=".glb,.gltf"
         onChange={handleFileUpload}
       />
-      <ViewsContainer ref={containerRef} $dragging={dragging}>
-        <ViewPanel $width={cameraWidth}>
-          <ViewLabel>CAM</ViewLabel>
-          <MaximizeBtn onClick={() => toggleMaximize('camera')}>
-            {maximized === 'camera' ? '⤡' : '⤢'}
-          </MaximizeBtn>
-          <CameraView />
-        </ViewPanel>
-        {showDividerEl && <Divider onMouseDown={onDividerMouseDown} />}
-        <ViewPanel $width={setupWidth}>
-          <ViewLabel>3D</ViewLabel>
-          <MaximizeBtn onClick={() => toggleMaximize('setup')}>
-            {maximized === 'setup' ? '⤡' : '⤢'}
-          </MaximizeBtn>
-          <SetupView />
-        </ViewPanel>
+      <ViewsContainer $dragging={dragging}>
+        <ViewsArea ref={containerRef}>
+          <ViewPanel $width={cameraWidth}>
+            <ViewLabel>CAM</ViewLabel>
+            <MaximizeBtn onClick={() => toggleMaximize('camera')}>
+              {maximized === 'camera' ? '⤡' : '⤢'}
+            </MaximizeBtn>
+            <CameraView />
+          </ViewPanel>
+          {showDividerEl && <Divider onMouseDown={onDividerMouseDown} />}
+          <ViewPanel $width={setupWidth}>
+            <ViewLabel>3D</ViewLabel>
+            <MaximizeBtn onClick={() => toggleMaximize('setup')}>
+              {maximized === 'setup' ? '⤡' : '⤢'}
+            </MaximizeBtn>
+            <SetupView />
+          </ViewPanel>
+        </ViewsArea>
         <SelectionPanel />
       </ViewsContainer>
       <Filmstrip ref={filmstripRef} onShotsChange={markUnsaved} />

@@ -81,11 +81,9 @@ const pushHistory = (snapshotJSON) => {
   emitHistoryChange();
 };
 
-// Capture state BEFORE a mutation runs (outside a transaction).
-// Internal helper used by mutating functions.
 const recordHistory = () => {
   if (!historyEnabled) return;
-  if (transactionDepth > 0) return; // inside a transaction; will be captured at commit
+  if (transactionDepth > 0) return; 
   pushHistory(snapshotToJSON());
 };
 
@@ -289,9 +287,27 @@ const markShadowsDirty = () => {
   }
 };
 
+const clampValue = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const clampElementValue = (key, val) => {
+  if (typeof val !== 'number' || Number.isNaN(val)) return val;
+  switch (key) {
+    case 'intensity': return Math.max(0, val);
+    case 'distance':  return Math.max(0, val);
+    case 'angle':     return clampValue(val, 1, 89);
+    case 'penumbra':  return clampValue(val, 0, 1);
+    case 'width':     return Math.max(0.1, val);
+    case 'height':    return Math.max(0.1, val);
+    case 'sx':
+    case 'sy':
+    case 'sz':        return Math.max(0.05, val);
+    default:          return val;
+  }
+};
+
 export const updateElement = (id, key, val) => {
   if (!sceneState.elements[id]) return;
   if (sceneState.elements[id].locked) return;
+  val = clampElementValue(key, val);
   recordHistory();
   sceneState.elements[id][key] = val;
   const obj = sharedInstance?.elementMeshes[id];
@@ -373,15 +389,11 @@ export const removeElement = (id) => {
   notify();
 };
 
-// Duplicate an existing element. Creates a new element of the same type with
-// the same property values, offset slightly so it's visually distinct.
 export const duplicateElement = (sourceId) => {
   if (!sharedInstance) return null;
   const source = sceneState.elements[sourceId];
   if (!source) return null;
 
-  // Imported models are tricky because the underlying file blob lives in
-  // importedModelStore and is keyed by id. Skip them for now.
   if (source.type === 'imported-model') return null;
 
   recordHistory();
@@ -758,7 +770,6 @@ export const createSharedScene = () => {
     sceneState.elements[id].z = LIGHT.position.z;
   }
 
-  // History is enabled only after the default scene is in place.
   historyEnabled = true;
 
   return sharedInstance;
