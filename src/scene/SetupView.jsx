@@ -158,6 +158,48 @@ export default function SetupView() {
     scene.add(photographerCamera);
 
     const proxies = {};
+    const lightHelpers = {};
+
+    const makeLightHelper = (id) => {
+      const obj = elementMeshes[id];
+      if (!obj || !obj.isLight) return null;
+
+      let helper = null;
+      if (obj.isSpotLight) {
+        helper = new THREE.SpotLightHelper(obj, 0xffaa00);
+      } else if (obj.isDirectionalLight) {
+        helper = new THREE.DirectionalLightHelper(obj, 1.5, 0xffaa00);
+      } else if (obj.isPointLight) {
+        helper = new THREE.PointLightHelper(obj, 0.4, 0xffaa00);
+      } else if (obj.isHemisphereLight) {
+        helper = new THREE.HemisphereLightHelper(obj, 1, 0xffaa00);
+      }
+     
+      if (!helper) return null;
+      helper.traverse(child => { child.layers.set(1); });
+      scene.add(helper);
+      return helper;
+    };
+
+    const addLightHelper = (id) => {
+      if (lightHelpers[id]) return;
+      const helper = makeLightHelper(id);
+      if (helper) lightHelpers[id] = helper;
+    };
+
+    const removeLightHelper = (id) => {
+      const helper = lightHelpers[id];
+      if (!helper) return;
+      scene.remove(helper);
+      if (helper.dispose) helper.dispose();
+      delete lightHelpers[id];
+    };
+
+    const updateLightHelpers = () => {
+      for (const helper of Object.values(lightHelpers)) {
+        if (helper.update) helper.update();
+      }
+    };
 
     const cameraProxy = makeCameraProxy(photographerCamera.position);
     cameraProxy.traverse(child => { child.layers.set(1); });
@@ -176,6 +218,7 @@ export default function SetupView() {
         }
       });
       delete proxies[id];
+      removeLightHelper(id);
     };
 
     const clearElementProxies = () => {
@@ -192,6 +235,7 @@ export default function SetupView() {
       proxy.traverse(child => { child.layers.set(1); });
       scene.add(proxy);
       proxies[id] = proxy;
+      addLightHelper(id);
     };
 
     const updateProxyTransforms = () => {
@@ -207,6 +251,7 @@ export default function SetupView() {
         );
         if (mesh.scale) proxy.scale.copy(mesh.scale);
       }
+      updateLightHelpers();
     };
 
     const updateOneProxyTransform = (id) => {
@@ -221,6 +266,8 @@ export default function SetupView() {
         (state.rz ?? 0) * DEG2RAD
       );
       if (mesh.scale) proxy.scale.copy(mesh.scale);
+      const helper = lightHelpers[id];
+      if (helper && helper.update) helper.update();
     };
 
     const rebuildAllProxies = () => {
@@ -297,14 +344,23 @@ export default function SetupView() {
       return elementMeshes[id]?.position ?? null;
     };
 
+    let gizmosHidden = false;
+
     const syncGizmos = (id) => {
       moveGizmo.visible = false;
       rotateGizmo.visible = false;
+      if (gizmosHidden) return;
       const pos = getSelectedPosition(id);
       if (!pos || !id) return;
       const active = getActiveGizmo();
       active.position.copy(pos);
       active.visible = true;
+    };
+
+    const toggleGizmoVisibility = () => {
+      gizmosHidden = !gizmosHidden;
+      syncGizmos(sceneState.selected);
+      renderLoop.markDirty();
     };
 
     const highlightGizmoAxis = (axis) => {
@@ -335,10 +391,36 @@ export default function SetupView() {
     const setProxyColor = (proxy, color) => {
       proxy.traverse(child => {
         if (!child.isMesh || !child.material || child.userData.skipHighlight) return;
+        if (child.userData.isHighlightOverlay) return;
+
         if (child.material.emissive) {
           child.material.emissive.setHex(color);
           child.material.emissiveIntensity = 0.3;
+        } else if (child.material.wireframe) {
+  
+          if (!child.userData.highlightOverlay) {
+            const overlay = new THREE.Mesh(
+              child.geometry,
+              new THREE.MeshBasicMaterial({
+                color,
+                transparent: true,
+                opacity: 0.25,
+                depthWrite: false,
+              })
+            );
+            overlay.userData.isHighlightOverlay = true;
+            overlay.layers.mask = child.layers.mask;
+            child.add(overlay);
+            child.userData.highlightOverlay = overlay;
+          } else {
+            child.userData.highlightOverlay.material.color.setHex(color);
+            child.userData.highlightOverlay.visible = true;
+          }
         } else if (child.material.color) {
+         
+          if (child.userData.originalColor === undefined) {
+            child.userData.originalColor = child.material.color.getHex();
+          }
           child.material.color.setHex(color);
         }
       });
@@ -347,19 +429,48 @@ export default function SetupView() {
     const resetProxyColor = (proxy) => {
       proxy.traverse(child => {
         if (!child.isMesh || !child.material || child.userData.skipHighlight) return;
+        if (child.userData.isHighlightOverlay) return;
+
         if (child.material.emissive) {
           child.material.emissive.setHex(0x000000);
           child.material.emissiveIntensity = 0;
         }
+        if (child.userData.highlightOverlay) {
+          child.userData.highlightOverlay.visible = false;
+        }
+        if (child.userData.originalColor !== undefined && child.material.color) {
+          child.material.color.setHex(child.userData.originalColor);
+        }
       });
     };
+
+    let hoveredId = null;
 
     const highlightObject = (id) => {
       for (const [pid, proxy] of Object.entries(proxies)) {
         resetProxyColor(proxy);
       }
       if (id && proxies[id]) setProxyColor(proxies[id], 0x4a90d9);
+   
+      if (hoveredId && hoveredId !== id && proxies[hoveredId]) {
+        setProxyColor(proxies[hoveredId], 0x6699cc);
+      }
       syncGizmos(id);
+    };
+
+    const setHoverHighlight = (id) => {
+      if (id === hoveredId) return;
+      // Restore previous hover 
+      if (hoveredId && hoveredId !== sceneState.selected && proxies[hoveredId]) {
+        resetProxyColor(proxies[hoveredId]);
+      }
+      hoveredId = id;
+      // Apply new hover 
+      if (hoveredId && hoveredId !== sceneState.selected && proxies[hoveredId]) {
+        setProxyColor(proxies[hoveredId], 0x6699cc);
+      }
+      container.style.cursor = hoveredId ? 'pointer' : '';
+      renderLoop.markDirty();
     };
 
     const setMode = (mode) => {
@@ -497,7 +608,27 @@ export default function SetupView() {
     const rotateScreenDir = new THREE.Vector2();
 
     const onPointerMove = (e) => {
-      if (!isDraggingGizmo || !dragAxis) return;
+      if (!isDraggingGizmo || !dragAxis) {
+       
+        const rect = container.getBoundingClientRect();
+        mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+        mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, helperCamera);
+
+        const clickables = [];
+        Object.entries(proxies).forEach(([pid, proxy]) => {
+          proxy.traverse(child => { if (child.isMesh) clickables.push(child); });
+        });
+        const hits = raycaster.intersectObjects(clickables);
+        let newHoverId = null;
+        if (hits.length > 0) {
+          let obj = hits[0].object;
+          while (obj && !obj.userData.id) obj = obj.parent;
+          newHoverId = obj?.userData.id ?? null;
+        }
+        setHoverHighlight(newHoverId);
+        return;
+      }
       const dx = e.clientX - dragStartMouse.x;
       const dy = e.clientY - dragStartMouse.y;
       const id = sceneState.selected;
@@ -654,6 +785,7 @@ export default function SetupView() {
 
       if (e.key === 'w' || e.key === 'W') { setMode('move'); return; }
       if (e.key === 'e' || e.key === 'E') { setMode('rotate'); return; }
+      if (e.key === 'x' || e.key === 'X') { toggleGizmoVisibility(); return; }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const id = sceneState.selected;
@@ -729,7 +861,7 @@ export default function SetupView() {
       if (!id || id === 'camera') return;
       const newId = duplicateElement(id);
       if (!newId) return;
-      // selection has already been moved to newId inside duplicateElement
+     
       window.dispatchEvent(new CustomEvent('studio:select', { detail: newId }));
     };
 
@@ -741,9 +873,12 @@ export default function SetupView() {
       toggleLock(id);
     };
 
+    const onPointerLeave = () => { setHoverHighlight(null); };
+
     container.addEventListener('pointerdown', onPointerDown);
     container.addEventListener('pointermove', onPointerMove);
     container.addEventListener('pointerup', onPointerUp);
+    container.addEventListener('pointerleave', onPointerLeave);
     container.addEventListener('contextmenu', onContextMenu);
     window.addEventListener('studio:delete-element', onDeleteElement);
     window.addEventListener('studio:duplicate-element', onDuplicateElement);
@@ -795,6 +930,7 @@ export default function SetupView() {
       container.removeEventListener('pointerdown', onPointerDown);
       container.removeEventListener('pointermove', onPointerMove);
       container.removeEventListener('pointerup', onPointerUp);
+      container.removeEventListener('pointerleave', onPointerLeave);
       container.removeEventListener('contextmenu', onContextMenu);
       window.removeEventListener('studio:delete-element', onDeleteElement);
       window.removeEventListener('studio:duplicate-element', onDuplicateElement);
