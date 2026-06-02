@@ -21,6 +21,7 @@ const Wrapper = styled.div`
 const Mount = styled.div`
   width: 100%;
   height: 100%;
+  position: relative;
   background: ${colors.sceneBg};
   cursor: pointer;
 `;
@@ -202,7 +203,7 @@ export default function SetupView() {
       } else if (obj.isHemisphereLight) {
         helper = new THREE.HemisphereLightHelper(obj, 1, 0xffaa00);
       }
-    
+
       if (!helper) return null;
       helper.traverse(child => { child.layers.set(1); });
       scene.add(helper);
@@ -369,7 +370,7 @@ export default function SetupView() {
     });
 
     let gizmoMode = 'move';
-    let coordinateSpace = 'world'; // world | local
+    let coordinateSpace = 'world'; // 'world' | 'local' — used for rotate and scale
     const getActiveGizmo = () => {
       if (gizmoMode === 'move') return moveGizmo;
       if (gizmoMode === 'rotate') return rotateGizmo;
@@ -393,8 +394,6 @@ export default function SetupView() {
       const active = getActiveGizmo();
       active.position.copy(pos);
 
-      // For rotate and scale, orient the gizmo to match the element's
-      // rotation when in local coordinate space.
       if (coordinateSpace === 'local' && (gizmoMode === 'rotate' || gizmoMode === 'scale')) {
         const state = id === 'camera' ? sceneState.camera : sceneState.elements[id];
         if (state) {
@@ -447,11 +446,11 @@ export default function SetupView() {
         if (child.userData.isHighlightOverlay) return;
 
         if (child.material.emissive) {
-          
+       
           child.material.emissive.setHex(color);
           child.material.emissiveIntensity = 0.3;
         } else if (child.material.wireframe) {
-          
+       
           if (!child.userData.highlightOverlay) {
             const overlay = new THREE.Mesh(
               child.geometry,
@@ -471,7 +470,7 @@ export default function SetupView() {
             child.userData.highlightOverlay.visible = true;
           }
         } else if (child.material.color) {
-          
+         
           if (child.userData.originalColor === undefined) {
             child.userData.originalColor = child.material.color.getHex();
           }
@@ -500,27 +499,43 @@ export default function SetupView() {
 
     let hoveredId = null;
 
-    const highlightObject = (id) => {
-      for (const [pid, proxy] of Object.entries(proxies)) {
-        resetProxyColor(proxy);
+    const isSelected = (id) => id != null && (sceneState.selected === id || sceneState.selectedIds.includes(id));
+
+    const highlightSelection = () => {
+      for (const proxy of Object.values(proxies)) resetProxyColor(proxy);
+      const primary = sceneState.selected;
+      for (const sid of sceneState.selectedIds) {
+        if (sid === 'camera' || !proxies[sid]) continue;
+        setProxyColor(proxies[sid], sid === primary ? 0x4a90d9 : 0x2f6f9f);
       }
-      if (id && proxies[id]) setProxyColor(proxies[id], 0x4a90d9);
-      // Re-apply hover color if there's a hovered (non-selected) item
-      if (hoveredId && hoveredId !== id && proxies[hoveredId]) {
+      if (hoveredId && !isSelected(hoveredId) && proxies[hoveredId]) {
         setProxyColor(proxies[hoveredId], 0x6699cc);
       }
-      syncGizmos(id);
+      syncGizmos(primary);
+    };
+
+    const applySelection = (rawIds) => {
+      let ids, primary;
+      if (rawIds.length === 1 && rawIds[0] === 'camera') {
+        ids = []; primary = 'camera';
+      } else {
+        ids = rawIds.filter(id => id && id !== 'camera' && sceneState.elements[id]);
+        primary = ids.length ? ids[ids.length - 1] : null;
+      }
+      sceneState.selectedIds = ids;
+      sceneState.selected = primary;
+      highlightSelection();
+      window.dispatchEvent(new CustomEvent('studio:selection-changed', { detail: { ids, primary } }));
+      renderLoop.markDirty();
     };
 
     const setHoverHighlight = (id) => {
       if (id === hoveredId) return;
-      // Restore previous hover 
-      if (hoveredId && hoveredId !== sceneState.selected && proxies[hoveredId]) {
+      if (hoveredId && !isSelected(hoveredId) && proxies[hoveredId]) {
         resetProxyColor(proxies[hoveredId]);
       }
       hoveredId = id;
-      // Apply new hover 
-      if (hoveredId && hoveredId !== sceneState.selected && proxies[hoveredId]) {
+      if (hoveredId && !isSelected(hoveredId) && proxies[hoveredId]) {
         setProxyColor(proxies[hoveredId], 0x6699cc);
       }
       container.style.cursor = hoveredId ? 'pointer' : '';
@@ -534,12 +549,11 @@ export default function SetupView() {
       renderLoop.markDirty();
     };
 
-    const onExternalSelect = (e) => {
-      sceneState.selected = e.detail;
-      highlightObject(e.detail);
-      renderLoop.markDirty();
-    };
+    const onExternalSelect = (e) => { applySelection(e.detail ? [e.detail] : []); };
     window.addEventListener('studio:select', onExternalSelect);
+
+    const onSelectSet = (e) => { applySelection(e.detail?.ids || []); };
+    window.addEventListener('studio:select-set', onSelectSet);
 
     const onToolbarMode = (e) => setMode(e.detail);
     window.addEventListener('studio:set-gizmo-mode', onToolbarMode);
@@ -551,7 +565,7 @@ export default function SetupView() {
     };
     window.addEventListener('studio:set-coord-space', onToolbarCoordSpace);
 
-
+    // React state mirror for coord space (driven from inside the effect)
     const onCoordSpaceChanged = (e) => setActiveCoordSpace(e.detail);
     window.addEventListener('studio:coordinate-space-changed', onCoordSpaceChanged);
 
@@ -589,12 +603,7 @@ export default function SetupView() {
         incrementalSync();
       }
 
-      if (sceneState.selected) {
-        syncGizmos(sceneState.selected);
-      } else {
-        moveGizmo.visible = false;
-        rotateGizmo.visible = false;
-      }
+      highlightSelection();
     });
 
     const raycaster = new THREE.Raycaster();
@@ -609,6 +618,12 @@ export default function SetupView() {
     let isDraggingGizmo = false;
     let pointerDownPos = { x: 0, y: 0 };
     let isPlaneDrag = false;
+    let boxSelecting = false;
+    let boxStartX = 0, boxStartY = 0;
+    const boxVec = new THREE.Vector3();
+    const marquee = document.createElement('div');
+    marquee.style.cssText = 'position:absolute;border:1px solid #4a90d9;background:rgba(74,144,217,0.12);pointer-events:none;display:none;z-index:6;';
+    container.appendChild(marquee);
     const dragPlane = new THREE.Plane();
     const dragPlaneStartHit = new THREE.Vector3();
     const dragPlaneCurrentHit = new THREE.Vector3();
@@ -667,8 +682,26 @@ export default function SetupView() {
           return;
         }
       }
-    };
 
+      // Shift-drag on empty space begins a box (marquee) selection.
+      if (e.shiftKey) {
+        raycaster.setFromCamera(mouse, helperCamera);
+        const clickables = [];
+        Object.values(proxies).forEach(proxy => proxy.traverse(c => { if (c.isMesh) clickables.push(c); }));
+        if (raycaster.intersectObjects(clickables).length === 0) {
+          const rect = container.getBoundingClientRect();
+          boxSelecting = true;
+          boxStartX = e.clientX - rect.left;
+          boxStartY = e.clientY - rect.top;
+          marquee.style.left = boxStartX + 'px';
+          marquee.style.top = boxStartY + 'px';
+          marquee.style.width = '0px';
+          marquee.style.height = '0px';
+          marquee.style.display = 'block';
+          controls.enabled = false;
+        }
+      }
+    };
     const moveAxisDir = new THREE.Vector3();
     const moveStartScreen = new THREE.Vector3();
     const moveEndScreen = new THREE.Vector3();
@@ -684,6 +717,15 @@ export default function SetupView() {
     const scaleMousePx = new THREE.Vector2();
 
     const onPointerMove = (e) => {
+      if (boxSelecting) {
+        const rect = container.getBoundingClientRect();
+        const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+        marquee.style.left = Math.min(cx, boxStartX) + 'px';
+        marquee.style.top = Math.min(cy, boxStartY) + 'px';
+        marquee.style.width = Math.abs(cx - boxStartX) + 'px';
+        marquee.style.height = Math.abs(cy - boxStartY) + 'px';
+        return;
+      }
       if (!isDraggingGizmo || !dragAxis) {
         // Not dragging — do hover detection instead
         const rect = container.getBoundingClientRect();
@@ -814,11 +856,11 @@ export default function SetupView() {
           detail: { id, axis: dragAxis, val: newVal }
         }));
       } else {
-      
+    
         if (id === 'camera') return; // camera doesn't scale
 
         const activeGizmo = getActiveGizmo();
-        const SCALE_PIXELS = 140; 
+        const SCALE_PIXELS = 140; // pixels of drag along the handle for a 2x change
         const MIN_SCALE = 0.05;
 
         let signedPx;
@@ -886,6 +928,30 @@ export default function SetupView() {
         return;
       }
 
+      if (boxSelecting) {
+        boxSelecting = false;
+        marquee.style.display = 'none';
+        controls.enabled = true;
+        const rect = container.getBoundingClientRect();
+        const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+        const minX = Math.min(cx, boxStartX), maxX = Math.max(cx, boxStartX);
+        const minY = Math.min(cy, boxStartY), maxY = Math.max(cy, boxStartY);
+        if (maxX - minX < 4 && maxY - minY < 4) return;
+        const found = [];
+        for (const [pid, proxy] of Object.entries(proxies)) {
+          if (sceneState.elements[pid]?.hidden) continue;
+          boxVec.setFromMatrixPosition(proxy.matrixWorld).project(helperCamera);
+          if (boxVec.z > 1) continue;
+          const sx = (boxVec.x * 0.5 + 0.5) * rect.width;
+          const sy = (-boxVec.y * 0.5 + 0.5) * rect.height;
+          if (sx >= minX && sx <= maxX && sy >= minY && sy <= maxY) found.push(pid);
+        }
+        const merged = sceneState.selectedIds.filter(x => x !== 'camera');
+        for (const id of found) if (!merged.includes(id)) merged.push(id);
+        applySelection(merged);
+        return;
+      }
+
       const dx = e.clientX - pointerDownPos.x;
       const dy = e.clientY - pointerDownPos.y;
       if (Math.sqrt(dx * dx + dy * dy) > 4) return;
@@ -901,15 +967,22 @@ export default function SetupView() {
       });
 
       const hits = raycaster.intersectObjects(clickables);
+      let clickedId = null;
       if (hits.length > 0) {
         let obj = hits[0].object;
         while (obj && !obj.userData.id) obj = obj.parent;
-        sceneState.selected = obj?.userData.id ?? null;
-      } else {
-        sceneState.selected = null;
+        clickedId = obj?.userData.id ?? null;
       }
-      highlightObject(sceneState.selected);
-      window.dispatchEvent(new CustomEvent('studio:select', { detail: sceneState.selected }));
+
+      if (e.shiftKey) {
+        if (clickedId) {
+          const cur = sceneState.selectedIds.filter(x => x !== 'camera');
+          const next = cur.includes(clickedId) ? cur.filter(x => x !== clickedId) : [...cur, clickedId];
+          applySelection(next);
+        }
+      } else {
+        applySelection(clickedId ? [clickedId] : []);
+      }
     };
 
     const onKeyDown = (e) => {
@@ -943,10 +1016,9 @@ export default function SetupView() {
       }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        const id = sceneState.selected;
-        if (id && id !== 'camera') {
+        if (sceneState.selectedIds.some(id => id && id !== 'camera')) {
           e.preventDefault();
-          window.dispatchEvent(new CustomEvent('studio:delete-element', { detail: id }));
+          window.dispatchEvent(new CustomEvent('studio:delete-selection'));
         }
         return;
       }
@@ -1006,9 +1078,18 @@ export default function SetupView() {
       if (state?.locked) return;
       disposeProxy(id);
       removeElement(id);
-      highlightObject(null);
-      window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
+      applySelection(sceneState.selectedIds.slice());
       window.dispatchEvent(new CustomEvent('studio:element-deleted', { detail: id }));
+    };
+
+    const onDeleteSelection = () => {
+      const ids = sceneState.selectedIds.filter(id => id && id !== 'camera' && !sceneState.elements[id]?.locked);
+      if (!ids.length) return;
+      beginTransaction();
+      for (const id of ids) { disposeProxy(id); removeElement(id); }
+      commitTransaction();
+      applySelection([]);
+      ids.forEach(id => window.dispatchEvent(new CustomEvent('studio:element-deleted', { detail: id })));
     };
 
     const onDuplicateElement = (e) => {
@@ -1016,7 +1097,6 @@ export default function SetupView() {
       if (!id || id === 'camera') return;
       const newId = duplicateElement(id);
       if (!newId) return;
-      // selection has already been moved to newId inside duplicateElement
       window.dispatchEvent(new CustomEvent('studio:select', { detail: newId }));
     };
 
@@ -1046,6 +1126,7 @@ export default function SetupView() {
     container.addEventListener('pointerleave', onPointerLeave);
     container.addEventListener('contextmenu', onContextMenu);
     window.addEventListener('studio:delete-element', onDeleteElement);
+    window.addEventListener('studio:delete-selection', onDeleteSelection);
     window.addEventListener('studio:duplicate-element', onDuplicateElement);
     window.addEventListener('studio:toggle-lock', onToggleLock);
     window.addEventListener('studio:toggle-hidden', onToggleHidden);
@@ -1082,7 +1163,6 @@ export default function SetupView() {
       helperCamera.aspect = w / h;
       helperCamera.updateProjectionMatrix();
       renderer.setSize(w, h);
-    
       renderer.render(scene, helperCamera);
     };
     window.addEventListener('resize', onResize);
@@ -1100,12 +1180,15 @@ export default function SetupView() {
       window.removeEventListener('studio:set-coord-space', onToolbarCoordSpace);
       window.removeEventListener('studio:coordinate-space-changed', onCoordSpaceChanged);
       window.removeEventListener('studio:select', onExternalSelect);
+      window.removeEventListener('studio:select-set', onSelectSet);
       container.removeEventListener('pointerdown', onPointerDown);
       container.removeEventListener('pointermove', onPointerMove);
       container.removeEventListener('pointerup', onPointerUp);
       container.removeEventListener('pointerleave', onPointerLeave);
       container.removeEventListener('contextmenu', onContextMenu);
+      marquee.remove();
       window.removeEventListener('studio:delete-element', onDeleteElement);
+      window.removeEventListener('studio:delete-selection', onDeleteSelection);
       window.removeEventListener('studio:duplicate-element', onDuplicateElement);
       window.removeEventListener('studio:toggle-lock', onToggleLock);
       window.removeEventListener('studio:toggle-hidden', onToggleHidden);

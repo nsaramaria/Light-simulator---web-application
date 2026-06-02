@@ -5,16 +5,16 @@ import { sceneState, updateElement, updateCamera, beginTransaction, commitTransa
 import { colors } from '../styles/theme';
 
 const Sidebar = styled.div`
-  width: ${({ $collapsed }) => $collapsed ? '24px' : '240px'};
+  width: ${({ $collapsed, $embedded }) => $embedded ? '100%' : $collapsed ? '24px' : '240px'};
   height: 100%;
-  background: ${colors.surfaceDark};
-  backdrop-filter: blur(16px);
-  border-left: 1px solid ${colors.border};
+  background: ${({ $embedded }) => $embedded ? 'transparent' : colors.surfaceDark};
+  backdrop-filter: ${({ $embedded }) => $embedded ? 'none' : 'blur(16px)'};
+  border-left: ${({ $embedded }) => $embedded ? 'none' : `1px solid ${colors.border}`};
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   overflow: hidden;
-  transition: width 0.25s cubic-bezier(0.16,1,0.3,1);
+  transition: ${({ $embedded }) => $embedded ? 'none' : 'width 0.25s cubic-bezier(0.16,1,0.3,1)'};
 `;
 
 const SidebarHeader = styled.div`
@@ -734,7 +734,7 @@ function AccordionSection({ title, badge, defaultOpen = true, children }) {
   );
 }
 
-export default function SelectionPanel() {
+export default function SelectionPanel({ embedded = false }) {
   const [selected, setSelected] = useState(null);
   const [vals, setVals] = useState({});
   const [collapsed, setCollapsed] = useState(false);
@@ -744,8 +744,8 @@ export default function SelectionPanel() {
   const toggleCollapse = (val) => { setCollapsed(val); requestAnimationFrame(() => window.dispatchEvent(new Event('resize'))); };
 
   useEffect(() => {
-    const handler = (e) => { const id = e.detail; setSelected(id); if (id) setVals({ ...getStateForId(id) }); };
-    window.addEventListener('studio:select', handler);
+    const handler = (e) => { const id = e.detail?.primary ?? null; setSelected(id); if (id) setVals({ ...getStateForId(id) }); };
+    window.addEventListener('studio:selection-changed', handler);
     const posHandler = (e) => {
       const { axis, val } = e.detail;
       pendingUpdateRef.current = { ...(pendingUpdateRef.current || {}), [axis]: val };
@@ -759,10 +759,10 @@ export default function SelectionPanel() {
       }
     };
     window.addEventListener('studio:position-update', posHandler);
-    return () => { window.removeEventListener('studio:select', handler); window.removeEventListener('studio:position-update', posHandler); if (throttleRef.current) clearTimeout(throttleRef.current); };
+    return () => { window.removeEventListener('studio:selection-changed', handler); window.removeEventListener('studio:position-update', posHandler); if (throttleRef.current) clearTimeout(throttleRef.current); };
   }, []);
 
-  if (collapsed) return (
+  if (collapsed && !embedded) return (
     <Sidebar $collapsed>
       <SidebarHeader style={{ justifyContent: 'center', padding: '8px 0' }}>
         <CollapseBtn onClick={() => toggleCollapse(false)} title="Expand">›</CollapseBtn>
@@ -774,10 +774,10 @@ export default function SelectionPanel() {
   );
 
   if (!selected) return (
-    <Sidebar $collapsed={false}>
+    <Sidebar $collapsed={false} $embedded={embedded}>
       <SidebarHeader>
         <HeaderLeft><SidebarLabel>Inspector</SidebarLabel></HeaderLeft>
-        <CollapseBtn onClick={() => toggleCollapse(true)} title="Collapse">‹</CollapseBtn>
+        {!embedded && <CollapseBtn onClick={() => toggleCollapse(true)} title="Collapse">‹</CollapseBtn>}
       </SidebarHeader>
       <SidebarHint>Select an element in the Setup View to inspect its properties</SidebarHint>
     </Sidebar>
@@ -803,7 +803,7 @@ export default function SelectionPanel() {
   );
 
   return (
-    <Sidebar $collapsed={false}>
+    <Sidebar $collapsed={false} $embedded={embedded}>
       <SidebarHeader>
         <HeaderLeft><SidebarLabel>Inspector</SidebarLabel><SelectedName>{icon} {label}</SelectedName></HeaderLeft>
         <HeaderActions>
@@ -825,7 +825,7 @@ export default function SelectionPanel() {
               </HeaderIconBtn>
             </>
           )}
-          <CollapseBtn onClick={() => toggleCollapse(true)} title="Collapse">‹</CollapseBtn>
+          {!embedded && <CollapseBtn onClick={() => toggleCollapse(true)} title="Collapse">‹</CollapseBtn>}
         </HeaderActions>
       </SidebarHeader>
       {vals.locked && (

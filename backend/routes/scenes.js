@@ -19,8 +19,6 @@ const auth = (req, res, next) => {
   }
 };
 
-// Helpers to keep the same response shape the frontend already expects.
-// The DB stores scene_data as a JSON string; we parse on read, stringify on write.
 const toListRow = (s) => ({
   id: s.id,
   name: s.name,
@@ -99,8 +97,7 @@ router.put('/:id', auth, async (req, res) => {
   try {
     const { name, sceneData } = req.body;
 
-    // updateMany lets us scope by userId in the same query (security: a user
-    // can't update someone else's scene even if they guess the id).
+    // updateMany lets scope by userId in the same query
     const result = await prisma.scene.updateMany({
       where: { id: parseInt(req.params.id, 10), userId: req.user.id },
       data: { name, sceneData: JSON.stringify(sceneData) },
@@ -110,7 +107,12 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(404).json({ error: 'Scene not found' });
     }
 
-    res.json({ message: 'Scene updated' });
+    const updated = await prisma.scene.findUnique({
+      where: { id: parseInt(req.params.id, 10) },
+      select: { updatedAt: true },
+    });
+
+    res.json({ message: 'Scene updated', updated_at: updated?.updatedAt });
   } catch (err) {
     console.error('Update scene error:', err);
     res.status(500).json({ error: 'Server error' });

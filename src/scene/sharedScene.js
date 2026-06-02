@@ -40,6 +40,7 @@ export const getSnapshotVersion = () => _snapshotVersion;
 
 export const sceneState = {
   selected: null,
+  selectedIds: [],
   elements: {},
   camera:   { x: 0, y: 3, z: 8, rx: 0, ry: 0, rz: 0 },
 };
@@ -55,8 +56,6 @@ let historyEnabled = false; // turned on after initial scene setup completes
 const snapshotToJSON = () => JSON.stringify(getSceneSnapshot());
 const applySnapshotJSON = (json) => restoreFullSnapshot(JSON.parse(json));
 
-// Public: wrap a series of mutations so only one history entry is created.
-// Used by drag handlers so a 200-pointermove drag becomes a single undo step.
 export const beginTransaction = () => {
   if (transactionDepth === 0) {
     pendingSnapshot = snapshotToJSON();
@@ -239,6 +238,7 @@ export const clearAllElements = () => {
   }
   sceneState.elements = {};
   sceneState.selected = null;
+  sceneState.selectedIds = [];
 };
 
 export const restoreFullSnapshot = (snapshot) => {
@@ -265,6 +265,7 @@ export const restoreFullSnapshot = (snapshot) => {
     sceneState.camera.ry = snapshot.camera.ry ?? 0;
     sceneState.camera.rz = snapshot.camera.rz ?? 0;
     sceneState.selected = null;
+    sceneState.selectedIds = [];
   } finally {
     notifySuppressed = false;
     notifyQueued = false;
@@ -383,7 +384,10 @@ export const removeElement = (id) => {
   }
   delete sharedInstance.elementMeshes[id];
   delete sceneState.elements[id];
-  if (sceneState.selected === id) sceneState.selected = null;
+  sceneState.selectedIds = sceneState.selectedIds.filter(x => x !== id);
+  if (sceneState.selected === id) {
+    sceneState.selected = sceneState.selectedIds.length ? sceneState.selectedIds[sceneState.selectedIds.length - 1] : null;
+  }
   _snapshotVersion++;
   markShadowsDirty();
   notify();
@@ -451,6 +455,7 @@ export const duplicateElement = (sourceId) => {
   }
 
   sceneState.selected = newId;
+  sceneState.selectedIds = [newId];
   _snapshotVersion++;
   markShadowsDirty();
   notify();
@@ -544,17 +549,6 @@ const normalizeModel = (model) => {
   return scaleFactor;
 };
 
-/**
- * Prepare imported mesh for shadow casting.
- *
- * Key decisions:
- * - castShadow = true: model casts shadows onto floor/cyclorama
- * - receiveShadow = false: prevents self-shadowing where the model's own
- *   geometry darkens itself through the shadow map (especially bad with
- *   PointLight's cube shadow map which views from all 6 directions)
- * - alphaTest on transparent materials so shadows follow alpha cutouts
- * - depthWrite re-enabled if a GLB exporter incorrectly disabled it
- */
 const prepareMeshForShadows = (child) => {
   if (!child.isMesh) return;
 
@@ -770,6 +764,7 @@ export const createSharedScene = () => {
     sceneState.elements[id].z = LIGHT.position.z;
   }
 
+  // History is enabled only after the default scene is in place.
   historyEnabled = true;
 
   return sharedInstance;

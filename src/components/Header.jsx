@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
-import AddMenu from './AddMenu';
-import { colors } from '../styles/theme';
+import { colors, shadows } from '../styles/theme';
 
 const HeaderBar = styled.div`
   height: 48px;
@@ -31,9 +30,88 @@ const Logo = styled.div`
   flex-shrink: 0;
 `;
 
+const FileWrap = styled.div`
+  position: relative;
+`;
+
+const FileBtn = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: 6px;
+  cursor: pointer;
+  background: ${({ $open }) => $open ? colors.accentSubtle : 'transparent'};
+  border: 1px solid ${({ $open }) => $open ? colors.accent : colors.border};
+  color: ${({ $open }) => $open ? colors.accent : colors.text};
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: ${colors.accent};
+    color: ${colors.accent};
+  }
+`;
+
+const FileDropdown = styled.div`
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 200;
+  min-width: 190px;
+  padding: 4px;
+  background: ${colors.surfaceOverlay};
+  border: 1px solid ${colors.borderStrong};
+  border-radius: 10px;
+  box-shadow: ${shadows.dropdown};
+  display: flex;
+  flex-direction: column;
+`;
+
+const FileRow = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: ${colors.text};
+  transition: all 0.1s;
+
+  &:hover {
+    background: ${colors.accentFaint};
+    color: ${colors.accent};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const FileHint = styled.span`
+  font-size: 10px;
+  color: ${colors.textDim};
+`;
+
+const FileDivider = styled.div`
+  height: 1px;
+  background: ${colors.border};
+  margin: 4px 0;
+`;
+
 const SceneInfo = styled.div`
   display: flex;
   flex-direction: column;
+  align-items: center;
   min-width: 0;
 `;
 
@@ -52,23 +130,16 @@ const SceneNameInput = styled.input`
   color: ${colors.text};
   font-family: inherit;
   padding: 0;
+  text-align: center;
   width: ${({ $charWidth }) => Math.max(8, $charWidth)}ch;
   min-width: 8ch;
-  max-width: 240px;
+  max-width: 260px;
   border-bottom: 1px solid transparent;
   transition: border-color 0.2s;
 
-  &:hover {
-    border-bottom-color: ${colors.borderHover};
-  }
-
-  &:focus {
-    border-bottom-color: ${colors.accent};
-  }
-
-  &::placeholder {
-    color: ${colors.placeholder};
-  }
+  &:hover { border-bottom-color: ${colors.borderHover}; }
+  &:focus { border-bottom-color: ${colors.accent}; }
+  &::placeholder { color: ${colors.placeholder}; }
 `;
 
 const SaveDot = styled.span`
@@ -93,78 +164,6 @@ const Spacer = styled.div`
   flex: 1;
 `;
 
-const HeaderBtn = styled.button`
-  padding: 6px 14px;
-  font-size: 11px;
-  font-weight: 600;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.15s;
-  font-family: inherit;
-`;
-
-const SaveBtn = styled(HeaderBtn)`
-  background: ${colors.accent};
-  border: 1px solid ${colors.accent};
-  color: ${colors.textOnAccent};
-
-  &:hover {
-    background: ${colors.accentHover};
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
-
-const LoadBtn = styled(HeaderBtn)`
-  background: transparent;
-  border: 1px solid ${colors.border};
-  color: ${colors.textMuted};
-
-  &:hover {
-    border-color: ${colors.accent};
-    color: ${colors.accent};
-  }
-`;
-
-const ModeTabs = styled.div`
-  display: flex;
-  gap: 1px;
-  background: ${colors.surfaceHover};
-  border-radius: 8px;
-  padding: 3px;
-  border: 1px solid ${colors.border};
-`;
-
-const ModeTab = styled.button`
-  padding: 6px 16px;
-  font-size: 11px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: ${({ $active }) => $active ? colors.accentSoft : 'transparent'};
-  color: ${({ $active }) => $active ? colors.accent : colors.textMuted};
-  transition: all 0.2s;
-
-  &:hover {
-    color: ${({ $active }) => $active ? colors.accent : colors.text};
-    background: ${({ $active }) => $active ? colors.accentSoft : colors.surfaceHover};
-  }
-`;
-
-const ModeIcon = styled.span`
-  font-size: 12px;
-`;
-
 const HelpBtn = styled.button`
   width: 28px;
   height: 28px;
@@ -179,10 +178,7 @@ const HelpBtn = styled.button`
   justify-content: center;
   transition: all 0.2s;
 
-  &:hover {
-    border-color: ${colors.accent};
-    color: ${colors.accent};
-  }
+  &:hover { border-color: ${colors.accent}; color: ${colors.accent}; }
 `;
 
 const Avatar = styled.div`
@@ -201,9 +197,7 @@ const Avatar = styled.div`
   cursor: pointer;
   transition: border-color 0.2s;
 
-  &:hover {
-    border-color: ${colors.accent};
-  }
+  &:hover { border-color: ${colors.accent}; }
 `;
 
 const LogoutBtn = styled.button`
@@ -216,9 +210,7 @@ const LogoutBtn = styled.button`
   border-radius: 4px;
   transition: all 0.2s;
 
-  &:hover {
-    color: ${colors.danger};
-  }
+  &:hover { color: ${colors.danger}; }
 `;
 
 const Divider = styled.div`
@@ -236,8 +228,37 @@ const SAVE_STATUS_TEXT = {
   error:    'Save failed',
 };
 
+function FileMenu({ onNewScene, onShowLoad, onSave, onExport, canSave }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const run = (fn) => { fn?.(); setOpen(false); };
+
+  return (
+    <FileWrap ref={ref}>
+      <FileBtn $open={open} onClick={() => setOpen(v => !v)}>
+        File <span style={{ fontSize: 9 }}>▾</span>
+      </FileBtn>
+      {open && (
+        <FileDropdown>
+          <FileRow onClick={() => run(onNewScene)}>New <FileHint>blank scene</FileHint></FileRow>
+          <FileRow onClick={() => run(onShowLoad)}>Open… <FileHint>saved scenes</FileHint></FileRow>
+          <FileDivider />
+          <FileRow disabled={!canSave} onClick={() => canSave && run(onSave)}>Save</FileRow>
+          <FileRow onClick={() => run(onExport)}>Export… <FileHint>PNG</FileHint></FileRow>
+        </FileDropdown>
+      )}
+    </FileWrap>
+  );
+}
+
 export default function Header({
-  onAdd,
   onShowHelp,
   user,
   onLogout,
@@ -250,14 +271,21 @@ export default function Header({
   saving,
   saveStatus,
 }) {
-  const [activeMode, setActiveMode] = useState('scene');
-
   const initial = user?.email ? user.email.charAt(0).toUpperCase() : 'U';
   const effectiveStatus = saving ? 'saving' : saveStatus;
 
   return (
     <HeaderBar>
       <Logo>S</Logo>
+      <FileMenu
+        onNewScene={onNewScene}
+        onShowLoad={onShowLoad}
+        onSave={onSave}
+        onExport={onExport}
+        canSave={!saving && !!sceneName.trim()}
+      />
+
+      <Spacer />
 
       <SceneInfo>
         <SceneNameRow>
@@ -275,40 +303,8 @@ export default function Header({
 
       <Spacer />
 
-      <ModeTabs>
-        {[
-          { id: 'scene', label: 'Scene', icon: '◫' },
-        ].map(tab => (
-          <ModeTab
-            key={tab.id}
-            $active={activeMode === tab.id}
-            onClick={() => setActiveMode(tab.id)}
-          >
-            <ModeIcon>{tab.icon}</ModeIcon>
-            {tab.label}
-          </ModeTab>
-        ))}
-      </ModeTabs>
-
-      <Spacer />
-
-      <LoadBtn onClick={onNewScene}>New</LoadBtn>
-      <LoadBtn onClick={onShowLoad}>Load</LoadBtn>
-      <SaveBtn onClick={onSave} disabled={saving || !sceneName.trim()}>
-        {saving ? 'Saving…' : 'Save'}
-      </SaveBtn>
-      <LoadBtn onClick={onExport} title="Export camera view as PNG">Export</LoadBtn>
-
+      <HelpBtn onClick={onShowHelp} title="How to use">?</HelpBtn>
       <Divider />
-
-      <AddMenu onAdd={onAdd} />
-
-      <HelpBtn onClick={onShowHelp} title="How to use">
-        ?
-      </HelpBtn>
-
-      <Divider />
-
       {user && (
         <>
           <Avatar title={user.email}>{initial}</Avatar>

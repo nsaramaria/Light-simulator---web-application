@@ -11,12 +11,13 @@ import StatusBar from './components/StatusBar';
 import Filmstrip from './components/Filmstrip';
 import SaveLoadManager from './components/SaveLoadManager';
 import ExportDialog from './components/ExportDialog';
+import Outliner from './components/Outliner';
 import {
   addPointLight, addSpotLight, addDirectionalLight, addAreaLight,
   addHemisphereLight, addProductCube, addCyclorama, addImportedModel,
   getSceneSnapshot, restoreFullSnapshot, getDefaultSnapshot, onSceneChange,
 } from './scene/sharedScene';
-import { saveScene, updateScene } from './api';
+import { saveScene, updateScene, getScene } from './api';
 import { colors } from './styles/theme';
 
 const AppWrapper = styled.div`
@@ -71,6 +72,47 @@ const Divider = styled.div`
     height: 100%;
     left: -4px;
     cursor: col-resize;
+  }
+`;
+
+const RightColumn = styled.div`
+  width: 252px;
+  flex-shrink: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: ${colors.surfaceDark};
+  border-left: 1px solid ${colors.border};
+`;
+
+const OutlinerPane = styled.div`
+  flex-shrink: 0;
+  min-height: 90px;
+  display: flex;
+`;
+
+const InspectorPane = styled.div`
+  flex: 1;
+  min-height: 90px;
+  overflow: hidden;
+  display: flex;
+`;
+
+const HDivider = styled.div`
+  height: 4px;
+  flex-shrink: 0;
+  background: ${colors.border};
+  cursor: row-resize;
+  transition: background 0.2s;
+  position: relative;
+  &:hover, &:active { background: ${colors.accent}; }
+  &::after {
+    content: '';
+    position: absolute;
+    height: 11px;
+    width: 100%;
+    top: -4px;
+    cursor: row-resize;
   }
 `;
 
@@ -142,15 +184,17 @@ export default function App() {
   const [splitPct, setSplitPct] = useState(50);
   const [dragging, setDragging] = useState(false);
   const [maximized, setMaximized] = useState(null);
+  const [outlinerPct, setOutlinerPct] = useState(42);
   const containerRef = useRef(null);
+  const rightColRef = useRef(null);
   const fileInputRef = useRef(null);
   const filmstripRef = useRef(null);
 
   // ─── Scene persistence state ───
   const [sceneName, setSceneName] = useState('Untitled Scene');
   const [activeSceneId, setActiveSceneId] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState('new'); // new| unsaved| saving | saved | error
+  const [saving, setSaving] = useState(false)
+  const [saveStatus, setSaveStatus] = useState('new'); // new | unsaved| saving | saved| error
 
   // Mark as unsaved when scene name changes
   const handleSceneNameChange = (name) => {
@@ -165,12 +209,65 @@ export default function App() {
 
   const [hasUserChanges, setHasUserChanges] = useState(false);
 
+  const sceneNameRef = useRef(sceneName);
+  const activeSceneIdRef = useRef(activeSceneId);
+  const userRef = useRef(user);
+  const saveStatusRef = useRef(saveStatus);
+  const syncedUpdatedAtRef = useRef(null);
+  const suppressDirtyRef = useRef(false);
+  const dirtyRef = useRef(false);
+  const autosaveTimerRef = useRef(null);
+  const performSaveRef = useRef(() => {});
+  useEffect(() => { sceneNameRef.current = sceneName; }, [sceneName]);
+  useEffect(() => { activeSceneIdRef.current = activeSceneId; }, [activeSceneId]);
+  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { saveStatusRef.current = saveStatus; }, [saveStatus]);
+
+  // Quietly swap the live scene without flagging it dirty or triggering autosave.
+  const loadSnapshotQuietly = useCallback((snapshot) => {
+    suppressDirtyRef.current = true;
+    restoreFullSnapshot(snapshot);
+    suppressDirtyRef.current = false;
+  }, []);
+
+  const cancelAutosave = () => {
+    if (autosaveTimerRef.current) { clearTimeout(autosaveTimerRef.current); autosaveTimerRef.current = null; }
+  };
+
   useEffect(() => {
     return onSceneChange(() => {
+      if (suppressDirtyRef.current) return;
       markUnsaved();
       setHasUserChanges(true);
+      dirtyRef.current = true;
+      if (!autosaveTimerRef.current && userRef.current) {
+        autosaveTimerRef.current = setTimeout(() => {
+          autosaveTimerRef.current = null;
+          if (dirtyRef.current && userRef.current) performSaveRef.current();
+        }, 120000);
+      }
     });
   }, [markUnsaved]);
+
+  useEffect(() => {
+    const onFocus = async () => {
+      const id = activeSceneIdRef.current;
+      if (!id || !userRef.current || saveStatusRef.current !== 'saved') return;
+      try {
+        const rec = await getScene(id);
+        if (!rec?.updated_at || rec.updated_at === syncedUpdatedAtRef.current) return;
+        syncedUpdatedAtRef.current = rec.updated_at;
+        if (rec.scene_data?.snapshot) loadSnapshotQuietly(rec.scene_data.snapshot);
+        if (rec.scene_data?.shots && filmstripRef.current?.restoreShots) filmstripRef.current.restoreShots(rec.scene_data.shots);
+        setSceneName(rec.name);
+        setSaveStatus('saved');
+        setHasUserChanges(false);
+        window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
+      } catch { /* offline or removed ,keep local copy */ }
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [loadSnapshotQuietly]);
 
   // Warn before closing/reloading the tab if there are unsaved changes
   useEffect(() => {
@@ -192,19 +289,22 @@ export default function App() {
     setSaveStatus('saving');
 
     try {
-      // Gather scene data: snapshot + filmstrip shots
       const sceneData = {
         snapshot: getSceneSnapshot(),
         shots: filmstripRef.current?.getShots?.() || [],
       };
 
+      let res;
       if (activeSceneId) {
-        await updateScene(activeSceneId, name, sceneData);
+        res = await updateScene(activeSceneId, name, sceneData);
       } else {
-        const result = await saveScene(name, sceneData);
-        setActiveSceneId(result.id);
+        res = await saveScene(name, sceneData);
+        setActiveSceneId(res.id);
       }
+      if (res?.updated_at) syncedUpdatedAtRef.current = res.updated_at;
 
+      dirtyRef.current = false;
+      cancelAutosave();
       setSaveStatus('saved');
       setHasUserChanges(false);
     } catch (err) {
@@ -214,20 +314,22 @@ export default function App() {
       setSaving(false);
     }
   }, [sceneName, activeSceneId]);
+  useEffect(() => { performSaveRef.current = handleSave; }, [handleSave]);
 
   // ─── Load handler ───
   const handleLoad = useCallback((sceneRecord) => {
+    dirtyRef.current = false;
+    cancelAutosave();
     setActiveSceneId(sceneRecord.id);
     setSceneName(sceneRecord.name);
+    syncedUpdatedAtRef.current = sceneRecord.updated_at ?? null;
 
     const sceneData = sceneRecord.scene_data;
 
-    // Restore the 3D scene snapshot
     if (sceneData.snapshot) {
-      restoreFullSnapshot(sceneData.snapshot);
+      loadSnapshotQuietly(sceneData.snapshot);
     }
 
-    // Restore filmstrip shots if available
     if (sceneData.shots && filmstripRef.current?.restoreShots) {
       filmstripRef.current.restoreShots(sceneData.shots);
     }
@@ -235,15 +337,18 @@ export default function App() {
     setSaveStatus('saved');
     setHasUserChanges(false);
     window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
-  }, []);
+  }, [loadSnapshotQuietly]);
 
   // ─── New Scene handler ───
   const handleNewScene = useCallback(() => {
+    dirtyRef.current = false;
+    cancelAutosave();
     setActiveSceneId(null);
     setSceneName('Untitled Scene');
     setSaveStatus('new');
+    syncedUpdatedAtRef.current = null;
     const defaultSnap = getDefaultSnapshot();
-    restoreFullSnapshot(defaultSnap);
+    loadSnapshotQuietly(defaultSnap);
     if (filmstripRef.current?.restoreShots) {
       filmstripRef.current.restoreShots([
         { id: 'shot-1', label: 'Shot 1', snapshot: defaultSnap },
@@ -251,7 +356,7 @@ export default function App() {
     }
     setHasUserChanges(false);
     window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
-  }, []);
+  }, [loadSnapshotQuietly]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -268,6 +373,7 @@ export default function App() {
     const onMouseMove = (e) => {
       const rect = containerRef.current.getBoundingClientRect();
       const pct = ((e.clientX - rect.left) / rect.width) * 100;
+    
       setSplitPct(Math.min(Math.max(pct, 15), 85));
     };
     const onMouseUp = () => {
@@ -286,6 +392,23 @@ export default function App() {
       requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
     });
   };
+
+  const onRightDividerMouseDown = useCallback((e) => {
+    e.preventDefault();
+    setDragging(true);
+    const onMouseMove = (e) => {
+      const rect = rightColRef.current.getBoundingClientRect();
+      const pct = ((e.clientY - rect.top) / rect.height) * 100;
+      setOutlinerPct(Math.min(Math.max(pct, 20), 78));
+    };
+    const onMouseUp = () => {
+      setDragging(false);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }, []);
 
   const handleFileUpload = useCallback(async (e) => {
     const file = e.target.files?.[0];
@@ -337,7 +460,6 @@ export default function App() {
   return (
     <AppWrapper>
       <Header
-        onAdd={handleAdd}
         onShowHelp={() => setShowHelp(true)}
         user={user}
         onLogout={handleLogout}
@@ -374,7 +496,15 @@ export default function App() {
             <SetupView />
           </ViewPanel>
         </ViewsArea>
-        <SelectionPanel />
+        <RightColumn ref={rightColRef}>
+          <OutlinerPane style={{ height: `${outlinerPct}%` }}>
+            <Outliner embedded onAdd={handleAdd} />
+          </OutlinerPane>
+          <HDivider onMouseDown={onRightDividerMouseDown} />
+          <InspectorPane>
+            <SelectionPanel embedded />
+          </InspectorPane>
+        </RightColumn>
       </ViewsContainer>
       <Filmstrip ref={filmstripRef} onShotsChange={markUnsaved} />
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
