@@ -12,6 +12,7 @@ import Filmstrip from './components/Filmstrip';
 import SaveLoadManager from './components/SaveLoadManager';
 import ExportDialog from './components/ExportDialog';
 import Outliner from './components/Outliner';
+import GenerateDialog from './components/GenerateDialog';
 import {
   addPointLight, addSpotLight, addDirectionalLight, addAreaLight,
   addHemisphereLight, addProductCube, addCyclorama, addImportedModel,
@@ -181,6 +182,7 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showGenerate, setShowGenerate] = useState(false);
   const [splitPct, setSplitPct] = useState(50);
   const [dragging, setDragging] = useState(false);
   const [maximized, setMaximized] = useState(null);
@@ -193,8 +195,8 @@ export default function App() {
   // ─── Scene persistence state ───
   const [sceneName, setSceneName] = useState('Untitled Scene');
   const [activeSceneId, setActiveSceneId] = useState(null);
-  const [saving, setSaving] = useState(false)
-  const [saveStatus, setSaveStatus] = useState('new'); // new | unsaved| saving | saved| error
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState('new'); // new | unsaved | saving | saved | error
 
   // Mark as unsaved when scene name changes
   const handleSceneNameChange = (name) => {
@@ -209,6 +211,7 @@ export default function App() {
 
   const [hasUserChanges, setHasUserChanges] = useState(false);
 
+  // Refs mirror state for use inside one-time listeners (autosave / focus sync)
   const sceneNameRef = useRef(sceneName);
   const activeSceneIdRef = useRef(activeSceneId);
   const userRef = useRef(user);
@@ -223,7 +226,7 @@ export default function App() {
   useEffect(() => { userRef.current = user; }, [user]);
   useEffect(() => { saveStatusRef.current = saveStatus; }, [saveStatus]);
 
-  // Quietly swap the live scene without flagging it dirty or triggering autosave.
+  // Quietly swap the live scene without flagging it dirty or triggering autosave
   const loadSnapshotQuietly = useCallback((snapshot) => {
     suppressDirtyRef.current = true;
     restoreFullSnapshot(snapshot);
@@ -263,13 +266,13 @@ export default function App() {
         setSaveStatus('saved');
         setHasUserChanges(false);
         window.dispatchEvent(new CustomEvent('studio:select', { detail: null }));
-      } catch { /* offline or removed ,keep local copy */ }
+      } catch { /* offline or removed , keep local copy */ }
     };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, [loadSnapshotQuietly]);
 
-  // Warn before closing/reloading the tab if there are unsaved changes
+  // Warn before closing/reloading the tab if there are unsaved changes.
   useEffect(() => {
     if (!hasUserChanges || saveStatus === 'saved') return;
     const handler = (e) => {
@@ -290,7 +293,7 @@ export default function App() {
 
     try {
       const sceneData = {
-        snapshot: getSceneSnapshot(),
+        snapshot: getSceneSnapshot({ embedModels: true }),
         shots: filmstripRef.current?.getShots?.() || [],
       };
 
@@ -373,7 +376,7 @@ export default function App() {
     const onMouseMove = (e) => {
       const rect = containerRef.current.getBoundingClientRect();
       const pct = ((e.clientX - rect.left) / rect.width) * 100;
-    
+
       setSplitPct(Math.min(Math.max(pct, 15), 85));
     };
     const onMouseUp = () => {
@@ -435,7 +438,12 @@ export default function App() {
       return;
     }
 
-    if (itemId === 'import-generate' || itemId === 'import-scan') {
+    if (itemId === 'import-generate') {
+      setShowGenerate(true);
+      return;
+    }
+
+    if (itemId === 'import-scan') {
       return;
     }
 
@@ -519,6 +527,7 @@ export default function App() {
         onClose={() => setShowExportModal(false)}
         sceneName={sceneName}
       />
+      <GenerateDialog open={showGenerate} onClose={() => setShowGenerate(false)} />
       <ContextMenu />
       <StatusBar />
     </AppWrapper>

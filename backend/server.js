@@ -4,6 +4,7 @@ require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
 const sceneRoutes = require('./routes/scenes');
+const generateRoutes = require('./routes/generate');
 
 const app = express();
 
@@ -11,11 +12,12 @@ const app = express();
 app.use(cors());
 
 // Parse JSON request bodies
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/scenes', sceneRoutes);
+app.use('/api/generate', generateRoutes);
 
 // Test route
 app.get('/', (req, res) => {

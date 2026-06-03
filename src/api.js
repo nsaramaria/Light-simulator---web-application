@@ -22,7 +22,11 @@ const request = async (path, options = {}) => {
     throw new Error('Session expired. Please log in again.');
   }
 
-  if (!res.ok) throw new Error(data.error || 'Something went wrong');
+  if (!res.ok) {
+    const err = new Error(data.error || 'Something went wrong');
+    err.data = data;
+    throw err;
+  }
   return data;
 };
 
@@ -58,3 +62,29 @@ export const updateScene = (id, name, sceneData) =>
 
 export const deleteScene = (id) =>
   request(`/scenes/${id}`, { method: 'DELETE' });
+
+export const startImageTo3D = (imageDataUri, texturePrompt, testMode = false) =>
+  request('/generate/image-to-3d', {
+    method: 'POST',
+    body: JSON.stringify({ imageDataUri, texturePrompt, testMode }),
+  });
+
+export const getImageTo3D = (taskId, testMode = false) =>
+  request(`/generate/image-to-3d/${taskId}${testMode ? '?test=1' : ''}`);
+
+export const getGenerationUsage = () => request('/generate/usage');
+
+export const purchaseCredits = (pack) =>
+  request('/generate/purchase', { method: 'POST', body: JSON.stringify({ pack }) });
+
+export const fetchGeneratedModel = async (taskId, testMode = false) => {
+  const token = getToken();
+  const res = await fetch(`${API_URL}/generate/image-to-3d/${taskId}/model${testMode ? '?test=1' : ''}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to download generated model');
+  }
+  return res.blob();
+};

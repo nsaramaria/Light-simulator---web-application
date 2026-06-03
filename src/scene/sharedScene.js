@@ -82,7 +82,7 @@ const pushHistory = (snapshotJSON) => {
 
 const recordHistory = () => {
   if (!historyEnabled) return;
-  if (transactionDepth > 0) return; 
+  if (transactionDepth > 0) return; // inside a transaction; will be captured at commit
   pushHistory(snapshotToJSON());
 };
 
@@ -491,10 +491,19 @@ export const setCameraAll = (cam) => {
   notify();
 };
 
-export const getSceneSnapshot = () => {
+export const getSceneSnapshot = ({ embedModels = false } = {}) => {
   const elementsCopy = {};
   for (const [id, el] of Object.entries(sceneState.elements)) {
-    elementsCopy[id] = { ...el };
+    const copy = { ...el };
+    delete copy.modelB64;
+    if (embedModels && el.type === 'imported-model') {
+      const stored = importedModelStore[id];
+      if (stored?.b64) {
+        copy.modelB64 = stored.b64;
+        copy.fileName = stored.fileName || el.fileName || 'model.glb';
+      }
+    }
+    elementsCopy[id] = copy;
   }
   return { camera: { ...sceneState.camera }, elements: elementsCopy };
 };
@@ -525,6 +534,13 @@ const gltfLoader = new GLTFLoader();
 
 const importedModelStore = {};
 
+const b64ToFile = (b64, name, type = 'model/gltf-binary') => {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new File([bytes], name || 'model.glb', { type });
+};
+
 export const getImportedModelStore = () => importedModelStore;
 
 const normalizeModel = (model) => {
@@ -549,6 +565,17 @@ const normalizeModel = (model) => {
   return scaleFactor;
 };
 
+/**
+ * Prepare imported mesh for shadow casting.
+ *
+ * Key decisions:
+ * - castShadow = true: model casts shadows onto floor/cyclorama
+ * - receiveShadow = false: prevents self-shadowing where the model's own
+ *   geometry darkens itself through the shadow map (especially bad with
+ *   PointLight's cube shadow map which views from all 6 directions)
+ * - alphaTest on transparent materials so shadows follow alpha cutouts
+ * - depthWrite re-enabled if a GLB exporter incorrectly disabled it
+ */
 const prepareMeshForShadows = (child) => {
   if (!child.isMesh) return;
 
@@ -635,9 +662,16 @@ export const addImportedModel = (file) => {
 
         importedModelStore[id] = { file, fileName: file.name };
 
-
         addModelToScene(id, model, file.name);
-        resolve(id);
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          const b64 = String(reader.result).split(',')[1] || '';
+          if (importedModelStore[id]) importedModelStore[id].b64 = b64;
+          resolve(id);
+        };
+        reader.onerror = () => resolve(id);
+        reader.readAsDataURL(file);
       },
       undefined,
       (err) => {
@@ -653,8 +687,18 @@ const restoreImportedModel = (desiredId, def) => {
   if (!sharedInstance) return null;
   const { scene, elementMeshes } = sharedInstance;
 
-  const stored = importedModelStore[desiredId];
-  if (!stored) {
+  let stored = importedModelStore[desiredId];
+
+  if ((!stored || !stored.file) && def.modelB64) {
+    const file = b64ToFile(def.modelB64, def.fileName);
+    stored = { file, fileName: def.fileName || 'model.glb', b64: def.modelB64 };
+    importedModelStore[desiredId] = stored;
+  }
+
+  const leanDef = { ...def };
+  delete leanDef.modelB64;
+
+  if (!stored || !stored.file) {
     const group = new THREE.Group();
     group.userData.id = desiredId;
     const placeholder = new THREE.Mesh(
@@ -671,7 +715,7 @@ const restoreImportedModel = (desiredId, def) => {
     group.position.set(def.x ?? 0, def.y ?? 0, def.z ?? 0);
     scene.add(group);
     elementMeshes[desiredId] = group;
-    sceneState.elements[desiredId] = { ...def };
+    sceneState.elements[desiredId] = leanDef;
     return desiredId;
   }
 
@@ -687,7 +731,7 @@ const restoreImportedModel = (desiredId, def) => {
   );
   scene.add(group);
   elementMeshes[desiredId] = group;
-  sceneState.elements[desiredId] = { ...def };
+  sceneState.elements[desiredId] = leanDef;
 
   gltfLoader.load(url, (gltf) => {
     URL.revokeObjectURL(url);

@@ -11,11 +11,14 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now()) @map("created_at")
-  scenes    Scene[]
+  id              Int      @id @default(autoincrement())
+  email           String   @unique
+  password        String
+  plan            String   @default("free")
+  generationsUsed Int      @default(0) @map("generations_used")
+  purchasedCredits Int     @default(0) @map("purchased_credits")
+  createdAt       DateTime @default(now()) @map("created_at")
+  scenes          Scene[]
 
   @@map("users")
 }
