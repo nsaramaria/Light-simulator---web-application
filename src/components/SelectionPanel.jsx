@@ -502,8 +502,8 @@ const POS_FIELDS = {
 };
 
 const LIGHT_FIELDS = {
-  'point-light':       [{ key: 'intensity', label: 'Intensity', step: 0.05, min: 0 }, { key: 'distance', label: 'Distance', step: 1, min: 0 }],
-  'spot-light':        [{ key: 'intensity', label: 'Intensity', step: 0.05, min: 0 }, { key: 'distance', label: 'Distance', step: 1, min: 0 }, { key: 'angle', label: 'Angle', step: 1, min: 1, max: 89 }, { key: 'penumbra', label: 'Penumbra', step: 0.05, min: 0, max: 1 }],
+  'point-light':       [{ key: 'intensity', label: 'Intensity', step: 0.05, min: 0 }],
+  'spot-light':        [{ key: 'intensity', label: 'Intensity', step: 0.05, min: 0 }, { key: 'angle', label: 'Angle', step: 1, min: 1, max: 89 }, { key: 'penumbra', label: 'Penumbra', step: 0.05, min: 0, max: 1 }],
   'directional-light': [{ key: 'intensity', label: 'Intensity', step: 0.05, min: 0 }],
   'area-light':        [{ key: 'intensity', label: 'Intensity', step: 0.1, min: 0 }, { key: 'width', label: 'Width', step: 0.1, min: 0.1 }, { key: 'height', label: 'Height', step: 0.1, min: 0.1 }],
   'hemisphere-light':  [{ key: 'intensity', label: 'Intensity', step: 0.05, min: 0 }],
@@ -750,11 +750,16 @@ export default function SelectionPanel({ embedded = false }) {
       const { axis, val } = e.detail;
       pendingUpdateRef.current = { ...(pendingUpdateRef.current || {}), [axis]: val };
       if (!throttleRef.current) {
-        setVals(v => ({ ...v, ...pendingUpdateRef.current }));
+        const snapshot = pendingUpdateRef.current;
         pendingUpdateRef.current = null;
+        setVals(v => ({ ...v, ...snapshot }));
         throttleRef.current = setTimeout(() => {
           throttleRef.current = null;
-          if (pendingUpdateRef.current) { setVals(v => ({ ...v, ...pendingUpdateRef.current })); pendingUpdateRef.current = null; }
+          if (pendingUpdateRef.current) {
+            const trailing = pendingUpdateRef.current;
+            pendingUpdateRef.current = null;
+            setVals(v => ({ ...v, ...trailing }));
+          }
         }, THROTTLE_MS);
       }
     };
@@ -860,6 +865,16 @@ export default function SelectionPanel({ embedded = false }) {
                 }}
                 onCommit={handleScrubCommit}
               />
+            )}
+            {SINGLE_COLOR_TYPES.includes(type) && (
+              <ColorRow>
+                <PropLabel>Color</PropLabel>
+                <ColorSwatch
+                  value={vals.color ?? '#ffffff'}
+                  onChange={e => handleColorChange('color', e.target.value)}
+                />
+                <ColorHex>{(vals.color ?? '#ffffff').toUpperCase()}</ColorHex>
+              </ColorRow>
             )}
             {SINGLE_COLOR_TYPES.includes(type) && (
               <LumensReadout>

@@ -283,6 +283,16 @@ export default function SetupView() {
       updateLightHelpers();
     };
 
+    const applyProxyVisibility = () => {
+      for (const [id, state] of Object.entries(sceneState.elements)) {
+        const visible = !state.hidden;
+        const proxy = proxies[id];
+        if (proxy) proxy.visible = visible;
+        const helper = lightHelpers[id];
+        if (helper) helper.visible = visible;
+      }
+    };
+
     const updateOneProxyTransform = (id) => {
       const proxy = proxies[id];
       const mesh = elementMeshes[id];
@@ -338,6 +348,7 @@ export default function SetupView() {
 
     rebuildAllProxies();
     lastElementCount = Object.keys(sceneState.elements).length;
+    applyProxyVisibility();
 
     const grid = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
     scene.add(grid);
@@ -391,10 +402,16 @@ export default function SetupView() {
       if (gizmosHidden) return;
       const pos = getSelectedPosition(id);
       if (!pos || !id) return;
+      const gizmoState = id === 'camera' ? sceneState.camera : sceneState.elements[id];
+      if (gizmoState && gizmoState.hidden) return;
+      if (gizmoMode === 'scale') {
+        const t = id === 'camera' ? 'camera' : (gizmoState && gizmoState.type);
+        if (t !== 'product-cube' && t !== 'cyclorama' && t !== 'imported-model') return;
+      }
       const active = getActiveGizmo();
       active.position.copy(pos);
 
-      if (coordinateSpace === 'local' && (gizmoMode === 'rotate' || gizmoMode === 'scale')) {
+      if (coordinateSpace === 'local') {
         const state = id === 'camera' ? sceneState.camera : sceneState.elements[id];
         if (state) {
           active.rotation.set(
@@ -603,7 +620,10 @@ export default function SetupView() {
         incrementalSync();
       }
 
+      applyProxyVisibility();
       highlightSelection();
+
+      renderLoop.markDirty();
     });
 
     const raycaster = new THREE.Raycaster();
@@ -633,11 +653,6 @@ export default function SetupView() {
       xz: new THREE.Vector3(0, 1, 0),
       yz: new THREE.Vector3(1, 0, 0),
     };
-    const planeAxisPair = {
-      xy: ['x', 'y'],
-      xz: ['x', 'z'],
-      yz: ['y', 'z'],
-    };
 
     const onPointerDown = (e) => {
       pointerDownPos = { x: e.clientX, y: e.clientY };
@@ -665,14 +680,22 @@ export default function SetupView() {
           if (gizmoMode === 'move') {
             dragStartPos.copy(getSelectedPosition(sceneState.selected));
             if (isPlaneDrag) {
-              const normal = planeNormalByAxis[dragAxis];
-              dragPlane.setFromNormalAndCoplanarPoint(normal, dragStartPos);
+              planeNormalWorld.copy(planeNormalByAxis[dragAxis]);
+              if (coordinateSpace === 'local') planeNormalWorld.applyQuaternion(activeGizmo.quaternion);
+              dragPlane.setFromNormalAndCoplanarPoint(planeNormalWorld, dragStartPos);
               raycaster.ray.intersectPlane(dragPlane, dragPlaneStartHit);
             }
           } else if (gizmoMode === 'rotate') {
             const id = sceneState.selected;
             const state = id === 'camera' ? sceneState.camera : sceneState.elements[id];
             dragStartRot = { rx: state?.rx ?? 0, ry: state?.ry ?? 0, rz: state?.rz ?? 0 };
+            eulerScratch.set(
+              dragStartRot.rx * DEG2RAD,
+              dragStartRot.ry * DEG2RAD,
+              dragStartRot.rz * DEG2RAD,
+              'XYZ'
+            );
+            dragStartQuat.setFromEuler(eulerScratch);
           } else {
             // Scale mode
             const id = sceneState.selected;
@@ -703,6 +726,13 @@ export default function SetupView() {
       }
     };
     const moveAxisDir = new THREE.Vector3();
+    const planeNormalWorld = new THREE.Vector3();
+    const rotRefDir = new THREE.Vector3();
+    const rotAxisVec = new THREE.Vector3();
+    const dqQuat = new THREE.Quaternion();
+    const curQuat = new THREE.Quaternion();
+    const dragStartQuat = new THREE.Quaternion();
+    const eulerScratch = new THREE.Euler();
     const moveStartScreen = new THREE.Vector3();
     const moveEndScreen = new THREE.Vector3();
     const moveScreenDelta = new THREE.Vector2();
@@ -760,16 +790,13 @@ export default function SetupView() {
           if (!raycaster.ray.intersectPlane(dragPlane, dragPlaneCurrentHit)) return;
 
           dragPlaneDelta.subVectors(dragPlaneCurrentHit, dragPlaneStartHit);
-          const [a, b] = planeAxisPair[dragAxis];
-          const newA = dragStartPos[a] + dragPlaneDelta[a];
-          const newB = dragStartPos[b] + dragPlaneDelta[b];
-
-          if (id === 'camera') {
-            updateCamera(a, newA);
-            updateCamera(b, newB);
-          } else {
-            updateElement(id, a, newA);
-            updateElement(id, b, newB);
+          const planeChanged = [];
+          for (const ax of ['x', 'y', 'z']) {
+            if (Math.abs(dragPlaneDelta[ax]) < 1e-9) continue;
+            const nv = dragStartPos[ax] + dragPlaneDelta[ax];
+            if (id === 'camera') updateCamera(ax, nv);
+            else updateElement(id, ax, nv);
+            planeChanged.push([ax, nv]);
           }
 
           if (id && id !== 'camera') updateOneProxyTransform(id);
@@ -779,18 +806,18 @@ export default function SetupView() {
             if (pos) activeGizmo.position.copy(pos);
           }
 
-          window.dispatchEvent(new CustomEvent('studio:position-update', {
-            detail: { id, axis: a, val: newA }
-          }));
-          window.dispatchEvent(new CustomEvent('studio:position-update', {
-            detail: { id, axis: b, val: newB }
-          }));
+          for (const [ax, nv] of planeChanged) {
+            window.dispatchEvent(new CustomEvent('studio:position-update', {
+              detail: { id, axis: ax, val: nv }
+            }));
+          }
           return;
         }
 
         if (dragAxis === 'x') moveAxisDir.set(1, 0, 0);
         else if (dragAxis === 'y') moveAxisDir.set(0, 1, 0);
         else moveAxisDir.set(0, 0, 1);
+        if (coordinateSpace === 'local') moveAxisDir.applyQuaternion(getActiveGizmo().quaternion);
 
         moveStartScreen.copy(dragStartPos).project(helperCamera);
         moveEndScreen.copy(dragStartPos).add(moveAxisDir).project(helperCamera);
@@ -805,10 +832,16 @@ export default function SetupView() {
         mousePx.set(dx, -dy);
         const projectedPixels = mousePx.dot(moveScreenDelta);
         const units = projectedPixels / pixelsPerUnit;
-        const newVal = dragStartPos[dragAxis] + units;
 
-        if (id === 'camera') updateCamera(dragAxis, newVal);
-        else updateElement(id, dragAxis, newVal);
+        const axisChanged = [];
+        for (const ax of ['x', 'y', 'z']) {
+          const d = moveAxisDir[ax] * units;
+          if (Math.abs(d) < 1e-9) continue;
+          const nv = dragStartPos[ax] + d;
+          if (id === 'camera') updateCamera(ax, nv);
+          else updateElement(id, ax, nv);
+          axisChanged.push([ax, nv]);
+        }
 
         if (id && id !== 'camera') updateOneProxyTransform(id);
         const activeGizmo = getActiveGizmo();
@@ -817,15 +850,19 @@ export default function SetupView() {
           if (pos) activeGizmo.position.copy(pos);
         }
 
-        window.dispatchEvent(new CustomEvent('studio:position-update', {
-          detail: { id, axis: dragAxis, val: newVal }
-        }));
+        for (const [ax, nv] of axisChanged) {
+          window.dispatchEvent(new CustomEvent('studio:position-update', {
+            detail: { id, axis: ax, val: nv }
+          }));
+        }
       } else if (gizmoMode === 'rotate') {
         rotateGizmoPos.copy(rotateGizmo.position);
         rotateRefPoint.copy(rotateGizmoPos);
-        if (dragAxis === 'rx') rotateRefPoint.y += 1;
-        if (dragAxis === 'ry') rotateRefPoint.x += 1;
-        if (dragAxis === 'rz') rotateRefPoint.x += 1;
+        if (dragAxis === 'rx') rotRefDir.set(0, 1, 0);
+        else if (dragAxis === 'ry') rotRefDir.set(1, 0, 0);
+        else rotRefDir.set(1, 0, 0);
+        if (coordinateSpace === 'local') rotRefDir.applyQuaternion(rotateGizmo.quaternion);
+        rotateRefPoint.add(rotRefDir);
 
         rotateGizmoPos.project(helperCamera);
         rotateRefPoint.project(helperCamera);
@@ -840,10 +877,25 @@ export default function SetupView() {
         mousePx.set(dx, -dy);
         const projectedPixels = mousePx.dot(rotateScreenDir);
         const deltaDeg = (projectedPixels / pixelsDist) * 180;
-        const newVal = (dragStartRot[dragAxis] + deltaDeg) % 360;
+        const theta = deltaDeg * DEG2RAD;
 
-        if (id === 'camera') updateCamera(dragAxis, newVal);
-        else updateElement(id, dragAxis, newVal);
+        if (dragAxis === 'rx') rotAxisVec.set(1, 0, 0);
+        else if (dragAxis === 'ry') rotAxisVec.set(0, 1, 0);
+        else rotAxisVec.set(0, 0, 1);
+        dqQuat.setFromAxisAngle(rotAxisVec, theta);
+        if (coordinateSpace === 'local') curQuat.multiplyQuaternions(dragStartQuat, dqQuat);
+        else curQuat.multiplyQuaternions(dqQuat, dragStartQuat);
+
+        eulerScratch.setFromQuaternion(curQuat, 'XYZ');
+        const nrx = eulerScratch.x * RAD2DEG;
+        const nry = eulerScratch.y * RAD2DEG;
+        const nrz = eulerScratch.z * RAD2DEG;
+
+        if (id === 'camera') {
+          updateCamera('rx', nrx); updateCamera('ry', nry); updateCamera('rz', nrz);
+        } else {
+          updateElement(id, 'rx', nrx); updateElement(id, 'ry', nry); updateElement(id, 'rz', nrz);
+        }
 
         if (id && id !== 'camera') updateOneProxyTransform(id);
         const activeGizmo = getActiveGizmo();
@@ -852,9 +904,9 @@ export default function SetupView() {
           if (pos) activeGizmo.position.copy(pos);
         }
 
-        window.dispatchEvent(new CustomEvent('studio:position-update', {
-          detail: { id, axis: dragAxis, val: newVal }
-        }));
+        window.dispatchEvent(new CustomEvent('studio:position-update', { detail: { id, axis: 'rx', val: nrx } }));
+        window.dispatchEvent(new CustomEvent('studio:position-update', { detail: { id, axis: 'ry', val: nry } }));
+        window.dispatchEvent(new CustomEvent('studio:position-update', { detail: { id, axis: 'rz', val: nrz } }));
       } else {
     
         if (id === 'camera') return; // camera doesn't scale
@@ -1170,7 +1222,22 @@ export default function SetupView() {
     const ro = new ResizeObserver(onResize);
     ro.observe(container);
 
+    let initialPaintDisposed = false;
+    let initialPaintRaf1 = 0, initialPaintRaf2 = 0;
+    const forceInitialPaint = () => {
+      if (initialPaintDisposed) return;
+      onResize();
+      renderLoop.markDirty();
+    };
+    initialPaintRaf1 = requestAnimationFrame(() => {
+      forceInitialPaint();
+      initialPaintRaf2 = requestAnimationFrame(forceInitialPaint);
+    });
+
     return () => {
+      initialPaintDisposed = true;
+      cancelAnimationFrame(initialPaintRaf1);
+      cancelAnimationFrame(initialPaintRaf2);
       renderLoop.unregister(renderLoopId);
       unsub();
       ro.disconnect();
@@ -1211,7 +1278,16 @@ export default function SetupView() {
         delete proxies[id];
       }
 
-      [cameraHelper, photographerCamera, grid, axesHelper, moveGizmo, rotateGizmo].forEach(obj => {
+      for (const id of Object.keys(lightHelpers)) {
+        const helper = lightHelpers[id];
+        if (helper) {
+          scene.remove(helper);
+          if (helper.dispose) helper.dispose();
+        }
+        delete lightHelpers[id];
+      }
+
+      [cameraHelper, photographerCamera, grid, axesHelper, moveGizmo, rotateGizmo, scaleGizmo].forEach(obj => {
         scene.remove(obj);
         if (obj.dispose) obj.dispose();
         obj.traverse?.(child => {

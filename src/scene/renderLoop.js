@@ -48,6 +48,7 @@ const renderLoop = {
 
   markDirty() {
     dirty = true;
+    ensureRunning();
   },
 
   enterContinuous() {
@@ -61,6 +62,7 @@ const renderLoop = {
 
   forceRender() {
     dirty = true;
+    ensureRunning();
   },
 };
 

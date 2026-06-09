@@ -176,6 +176,21 @@ const ShotLabel = styled.div`
   text-overflow: ellipsis;
 `;
 
+const LabelInput = styled.input`
+  position: absolute;
+  bottom: 3px;
+  left: 5px;
+  right: 5px;
+  font-size: 8px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid ${colors.accent};
+  border-radius: 3px;
+  padding: 1px 3px;
+  outline: none;
+`;
+
 const ActiveBar = styled.div`
   position: absolute;
   bottom: 0;
@@ -224,6 +239,8 @@ const Filmstrip = forwardRef(function Filmstrip({ onShotsChange }, ref) {
   const [activeId, setActiveId] = useState('shot-1');
   const [menuOpen, setMenuOpen] = useState(false);
   const [dupSubmenu, setDupSubmenu] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [draftLabel, setDraftLabel] = useState('');
   const nextIdRef = useRef(2);
   const menuRef = useRef(null);
   const shotsRef = useRef(shots);
@@ -351,6 +368,20 @@ const Filmstrip = forwardRef(function Filmstrip({ onShotsChange }, ref) {
 
   const getElementCount = (shot) => Object.keys(shot.snapshot.elements).length;
 
+  const startRename = (e, shot) => {
+    e.stopPropagation();
+    if (e.preventDefault) e.preventDefault();
+    setEditingId(shot.id);
+    setDraftLabel(shot.label);
+  };
+
+  const commitRename = () => {
+    const name = draftLabel.trim();
+    setShots(prev => prev.map(s => s.id === editingId ? { ...s, label: name || s.label } : s));
+    setEditingId(null);
+    onShotsChange?.();
+  };
+
   return (
     <Strip>
       <AddWrap ref={menuRef}>
@@ -388,7 +419,27 @@ const Filmstrip = forwardRef(function Filmstrip({ onShotsChange }, ref) {
                   <ShotActionBtn $danger onClick={(e) => deleteShot(e, shot.id)} title="Delete shot">✕</ShotActionBtn>
                 </ShotActions>
               )}
-              <ShotLabel $active={isActive}>{shot.label}</ShotLabel>
+              {editingId === shot.id ? (
+                <LabelInput
+                  autoFocus
+                  value={draftLabel}
+                  onChange={e => setDraftLabel(e.target.value)}
+                  onClick={e => e.stopPropagation()}
+                  onFocus={e => e.target.select()}
+                  onBlur={commitRename}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
+                    else if (e.key === 'Escape') { e.preventDefault(); setEditingId(null); }
+                  }}
+                />
+              ) : (
+                <ShotLabel
+                  $active={isActive}
+                  title="Double-click to rename"
+                  onDoubleClick={e => startRename(e, shot)}
+                  onContextMenu={e => startRename(e, shot)}
+                >{shot.label}</ShotLabel>
+              )}
               {isActive && <ActiveBar />}
             </ShotCard>
           );

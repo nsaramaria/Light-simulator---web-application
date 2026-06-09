@@ -10,6 +10,7 @@ let sharedInstance = null;
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => { sharedInstance = null; });
+  import.meta.hot.accept(() => { window.location.reload(); });
 }
 
 const listeners = new Set();
@@ -33,6 +34,13 @@ const notifySync = () => {
   renderLoop.markDirty();
   notifyQueued = false;
   listeners.forEach(fn => fn());
+};
+
+const requestRender = () => {
+  renderLoop.markDirty();
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('studio:request-render'));
+  }
 };
 
 let _snapshotVersion = 0;
@@ -739,7 +747,7 @@ const restoreImportedModel = (desiredId, def) => {
     normalizeModel(model);
     model.traverse(prepareMeshForShadows);
     group.add(model);
-    renderLoop.markDirty();
+    requestRender();
   }, undefined, () => { URL.revokeObjectURL(url); });
 
   return desiredId;
@@ -771,17 +779,18 @@ export const createSharedScene = () => {
   const elementMeshes = {};
 
   const texLoader = new THREE.TextureLoader();
+  const onFloorTexLoaded = () => requestRender();
   const floorRepeat = 4;
 
-  const colorMap = texLoader.load('/textures/floor/Tiles013_4K-PNG_Color.png');
+  const colorMap = texLoader.load('/textures/floor/Tiles013_4K-PNG_Color.png', onFloorTexLoaded);
   colorMap.wrapS = colorMap.wrapT = THREE.RepeatWrapping;
   colorMap.repeat.set(floorRepeat, floorRepeat);
 
-  const normalMap = texLoader.load('/textures/floor/Tiles013_4K-PNG_NormalGL.png');
+  const normalMap = texLoader.load('/textures/floor/Tiles013_4K-PNG_NormalGL.png', onFloorTexLoaded);
   normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
   normalMap.repeat.set(floorRepeat, floorRepeat);
 
-  const roughnessMap = texLoader.load('/textures/floor/Tiles013_4K-PNG_Roughness.png');
+  const roughnessMap = texLoader.load('/textures/floor/Tiles013_4K-PNG_Roughness.png', onFloorTexLoaded);
   roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
   roughnessMap.repeat.set(floorRepeat, floorRepeat);
 

@@ -61,6 +61,9 @@ export default function CameraView() {
       needsRender = false;
     }, 1);
 
+    const onRequestRender = () => { needsRender = true; };
+    window.addEventListener('studio:request-render', onRequestRender);
+
     let lastResizeW = 0, lastResizeH = 0;
     const onResize = () => {
       const w = container.clientWidth, h = container.clientHeight;
@@ -77,6 +80,19 @@ export default function CameraView() {
     window.addEventListener('resize', onResize);
     const ro = new ResizeObserver(onResize);
     ro.observe(container);
+
+    let initialPaintDisposed = false;
+    let initialPaintRaf1 = 0, initialPaintRaf2 = 0;
+    const forceInitialPaint = () => {
+      if (initialPaintDisposed) return;
+      onResize();
+      needsRender = true;
+      renderLoop.markDirty();
+    };
+    initialPaintRaf1 = requestAnimationFrame(() => {
+      forceInitialPaint();
+      initialPaintRaf2 = requestAnimationFrame(forceInitialPaint);
+    });
 
     const onRequestExport = async (e) => {
       const { width, height, filename } = e.detail || {};
@@ -139,9 +155,13 @@ export default function CameraView() {
     window.addEventListener('studio:request-export', onRequestExport);
 
     return () => {
+      initialPaintDisposed = true;
+      cancelAnimationFrame(initialPaintRaf1);
+      cancelAnimationFrame(initialPaintRaf2);
       renderLoop.unregister(renderLoopId); unsub(); ro.disconnect();
       window.removeEventListener('resize', onResize);
       window.removeEventListener('studio:request-export', onRequestExport);
+      window.removeEventListener('studio:request-render', onRequestRender);
       if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
       renderer.dispose();
     };
