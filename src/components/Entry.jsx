@@ -35,6 +35,7 @@ const prefersReduced = () =>
 
 export default function Entry({ onLogin }) {
   const [screen, setScreen] = useState('landing');
+  const [shooting, setShooting] = useState(false);
   const frameRef = useRef(null);
   const cameraRef = useRef(null);
   const landingRef = useRef(null);
@@ -52,46 +53,53 @@ export default function Entry({ onLogin }) {
     animating.current = true;
     const fr = frame.getBoundingClientRect();
     const cr = cam.getBoundingClientRect();
-    const lx = (cr.left - fr.left) + cr.width * (116 / 232);
-    const ly = (cr.top - fr.top) + cr.height * (116 / 190);
+    const lx = (cr.left - fr.left) + cr.width * 0.5;
+    const ly = (cr.top - fr.top) + cr.height * 0.5;
     const R = Math.hypot(fr.width, fr.height) * 1.1;
 
-    loginEl.style.transition = 'none';
-    loginEl.style.opacity = '1';
-    loginEl.style.visibility = 'visible';
-    loginEl.style.clipPath = `circle(0px at ${lx}px ${ly}px)`;
-    loginEl.style.webkitClipPath = `circle(0px at ${lx}px ${ly}px)`;
-    loginEl.style.zIndex = '80';
-    void loginEl.offsetWidth;
-
-    landing.style.transformOrigin = `${lx}px ${ly}px`;
-    landing.style.transition = 'transform .9s cubic-bezier(.66,0,.34,1), opacity .9s ease';
-    landing.style.transform = 'scale(11)';
-    landing.style.opacity = '0';
-
-    if (flash) {
-      flash.style.transition = 'opacity .12s';
-      flash.style.opacity = '.5';
-      setTimeout(() => { flash.style.transition = 'opacity .5s'; flash.style.opacity = '0'; }, 150);
-    }
-
-    loginEl.style.transition = 'clip-path .85s cubic-bezier(.5,0,.3,1), -webkit-clip-path .85s cubic-bezier(.5,0,.3,1)';
-    loginEl.style.clipPath = `circle(${R}px at ${lx}px ${ly}px)`;
-    loginEl.style.webkitClipPath = `circle(${R}px at ${lx}px ${ly}px)`;
+    setShooting(true);
 
     setTimeout(() => {
-      setScreen('login');
-      landing.style.cssText = '';
-      loginEl.style.cssText = '';
-      animating.current = false;
-    }, 950);
+      if (flash) {
+        flash.style.transition = 'opacity .07s ease-out';
+        flash.style.opacity = '.92';
+        setTimeout(() => { flash.style.transition = 'opacity .45s ease'; flash.style.opacity = '0'; }, 80);
+      }
+    }, 250);
+
+    setTimeout(() => {
+      loginEl.style.transition = 'none';
+      loginEl.style.opacity = '1';
+      loginEl.style.visibility = 'visible';
+      loginEl.style.clipPath = `circle(0px at ${lx}px ${ly}px)`;
+      loginEl.style.webkitClipPath = `circle(0px at ${lx}px ${ly}px)`;
+      loginEl.style.zIndex = '80';
+      void loginEl.offsetWidth;
+
+      landing.style.transformOrigin = `${lx}px ${ly}px`;
+      landing.style.transition = 'transform .85s cubic-bezier(.66,0,.34,1), opacity .85s ease';
+      landing.style.transform = 'scale(11)';
+      landing.style.opacity = '0';
+
+      loginEl.style.transition = 'clip-path .82s cubic-bezier(.5,0,.3,1), -webkit-clip-path .82s cubic-bezier(.5,0,.3,1)';
+      loginEl.style.clipPath = `circle(${R}px at ${lx}px ${ly}px)`;
+      loginEl.style.webkitClipPath = `circle(${R}px at ${lx}px ${ly}px)`;
+
+      setTimeout(() => {
+        setScreen('login');
+        landing.style.cssText = '';
+        loginEl.style.cssText = '';
+        setShooting(false);
+        animating.current = false;
+      }, 860);
+    }, 330);
   };
 
   return (
     <Frame ref={frameRef}>
       <Flash ref={flashRef} />
       <Layer ref={landingRef} $active={screen === 'landing'}>
-        <Landing onTryNow={takeShot} cameraRef={cameraRef} />
+        <Landing onTryNow={takeShot} cameraRef={cameraRef} shooting={shooting} />
       </Layer>
       <Layer ref={loginRef} $active={screen === 'login'}>
         <Auth onLogin={onLogin} onBack={() => setScreen('landing')} />

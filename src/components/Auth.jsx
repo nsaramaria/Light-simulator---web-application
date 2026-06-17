@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { colors, shadows } from '../styles/theme';
+import { LogoMark } from './brandMarks';
 import { login, register } from '../api';
 
 const Wrapper = styled.div`
@@ -50,10 +51,12 @@ const Mark = styled.div`
   height: 52px;
   border-radius: 16px;
   background: ${colors.periTint};
+  color: ${colors.ink};
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 18px;
+  svg { width: 40px; height: 40px; }
 `;
 
 const Title = styled.h1`
@@ -221,7 +224,7 @@ export default function Auth({ onLogin, onBack }) {
       )}
       <Card>
         <Mark>
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#17171C" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M16.2 7.4 C15.4 5.3 12.3 4.6 9.9 5.9 C7.3 7.2 7.6 10 10.5 11.1 C12.4 11.9 14.4 12.4 15.6 13.6 C17.2 15.1 16.7 17.9 13.8 18.9 C11 19.9 8.1 18.8 7.6 16.6" /></svg>
+          <LogoMark />
         </Mark>
         <Title>{isRegister ? 'Create an account' : 'Welcome back'}</Title>
         <Lead>{isRegister ? 'Sign up to save your studio.' : 'Log in to your studio.'}</Lead>

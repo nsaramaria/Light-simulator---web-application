@@ -43,6 +43,8 @@ export default function CameraView() {
     renderer.domElement.style.height = '100%';
 
     let needsRender = true;
+    let warmupActive = true;
+    renderLoop.enterContinuous();
 
     const unsub = onSceneChange(() => {
       const { x, y, z, rx, ry, rz } = sceneState.camera;
@@ -56,6 +58,10 @@ export default function CameraView() {
     });
 
     const renderLoopId = renderLoop.register(() => {
+      if (warmupActive) {
+        renderer.render(scene, camera);
+        return;
+      }
       if (!needsRender) return;
       renderer.render(scene, camera);
       needsRender = false;
@@ -93,6 +99,15 @@ export default function CameraView() {
       forceInitialPaint();
       initialPaintRaf2 = requestAnimationFrame(forceInitialPaint);
     });
+
+    const warmupTimer = setTimeout(() => {
+      if (warmupActive) {
+        warmupActive = false;
+        renderLoop.exitContinuous();
+      }
+      needsRender = true;
+      renderLoop.markDirty();
+    }, 1200);
 
     const onRequestExport = async (e) => {
       const { width, height, filename } = e.detail || {};
@@ -158,6 +173,8 @@ export default function CameraView() {
       initialPaintDisposed = true;
       cancelAnimationFrame(initialPaintRaf1);
       cancelAnimationFrame(initialPaintRaf2);
+      clearTimeout(warmupTimer);
+      if (warmupActive) renderLoop.exitContinuous();
       renderLoop.unregister(renderLoopId); unsub(); ro.disconnect();
       window.removeEventListener('resize', onResize);
       window.removeEventListener('studio:request-export', onRequestExport);

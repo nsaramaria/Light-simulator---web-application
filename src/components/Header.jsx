@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import { colors, shadows } from '../styles/theme';
+import { LogoMark, FaceMark } from './brandMarks';
 
 const HeaderBar = styled.div`
   height: 60px;
@@ -25,14 +26,8 @@ const Logo = styled.div`
   justify-content: center;
   flex-shrink: 0;
   color: ${colors.ink};
-  svg { width: 25px; height: 25px; }
+  svg { width: 30px; height: 30px; }
 `;
-
-const LogoMark = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M16.2 7.4 C15.4 5.3 12.3 4.6 9.9 5.9 C7.3 7.2 7.6 10 10.5 11.1 C12.4 11.9 14.4 12.4 15.6 13.6 C17.2 15.1 16.7 17.9 13.8 18.9 C11 19.9 8.1 18.8 7.6 16.6" />
-  </svg>
-);
 
 const FileWrap = styled.div`
   position: relative;
@@ -218,20 +213,9 @@ const Avatar = styled.button`
   color: ${colors.ink};
   cursor: pointer;
   transition: transform .14s;
-  svg { width: 24px; height: 24px; }
+  svg { width: 100%; height: 100%; }
   &:hover { transform: translateY(-1px); }
 `;
-
-const AvatarFigure = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="8" fill="#fff" stroke="currentColor" strokeWidth="1.5" />
-    <path d="M7.4 6.2 C9 4.8 11.6 4 13.6 4.4 C16.4 5 18.6 7.2 19.2 10 C18 9.2 16.6 8.9 15.2 9.2 C15.6 7.6 14 6.6 12 6.8 C10.4 7 8.8 7.6 7.8 8.6 C7 7.8 6.8 6.9 7.4 6.2 Z" fill="currentColor" stroke="none" />
-    <path d="M15.2 9.2 C17.4 9.8 19 11.6 19.2 14 C18.2 13.2 17 13.2 16 13.8" fill="none" stroke="currentColor" strokeWidth="1.4" />
-    <circle cx="10" cy="12.4" r="0.85" fill="currentColor" stroke="none" />
-    <path d="M8.7 10.9 C9.3 10.4 10.5 10.4 11.1 10.9" fill="none" stroke="currentColor" strokeWidth="1.1" />
-    <path d="M4.3 12.6 C3.7 13.2 3.7 14.1 4.5 14.4" fill="none" stroke="currentColor" strokeWidth="1.3" />
-  </svg>
-);
 
 const AccountWrap = styled.div`
   position: relative;
@@ -268,7 +252,7 @@ const AccountAvatarMini = styled.div`
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  svg { width: 24px; height: 24px; }
+  svg { width: 100%; height: 100%; }
 `;
 
 const AccountLabel = styled.div`
@@ -320,11 +304,11 @@ function AccountMenu({ user, onLogout }) {
 
   return (
     <AccountWrap ref={ref}>
-      <Avatar onClick={() => setOpen(v => !v)} title="Account" aria-label="Account"><AvatarFigure /></Avatar>
+      <Avatar onClick={() => setOpen(v => !v)} title="Account" aria-label="Account"><FaceMark /></Avatar>
       {open && (
         <AccountDropdown>
           <AccountHead>
-            <AccountAvatarMini><AvatarFigure /></AccountAvatarMini>
+            <AccountAvatarMini><FaceMark /></AccountAvatarMini>
             <div>
               <AccountLabel>Signed in</AccountLabel>
               <AccountEmail title={user?.email}>{user?.email || 'Account'}</AccountEmail>

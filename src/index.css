@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&display=swap');
 
 :root {
   --bg: #D9E0FC;
@@ -26,7 +26,7 @@
   --r-lg: 20px;
   --r: 14px;
   --r-sm: 10px;
-  --ui: 'Poppins', system-ui, -apple-system, sans-serif;
+  --ui: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
 }
 
 *, *::before, *::after {
