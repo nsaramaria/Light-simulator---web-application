@@ -1,34 +1,36 @@
 import React, { useEffect, useState, useRef } from 'react';
 import styled from 'styled-components';
 import { sceneState, onSceneChange } from '../scene/sharedScene';
-import { colors } from '../styles/theme';
+import { colors, shadows } from '../styles/theme';
 
 const Bar = styled.div`
-  height: 24px;
-  background: ${colors.surface};
-  border-top: 1px solid ${colors.borderLight};
   display: flex;
   align-items: center;
-  padding: 0 16px;
-  gap: 16px;
-  font-size: 10px;
+  padding: 0 2px;
+  gap: 6px;
   flex-shrink: 0;
-  font-family: 'JetBrains Mono', monospace;
+`;
+
+const Chip = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  box-shadow: ${shadows.cardSm};
+  font-size: 10.5px;
+  font-weight: 500;
+  color: ${({ $color }) => $color || colors.ink2};
+  font-variant-numeric: tabular-nums;
 `;
 
 const StatusDot = styled.span`
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: ${({ $color }) => $color};
   flex-shrink: 0;
-`;
-
-const StatusItem = styled.span`
-  color: ${({ $color }) => $color || colors.placeholder};
-  display: flex;
-  align-items: center;
-  gap: 4px;
 `;
 
 const Spacer = styled.div`
@@ -77,11 +79,11 @@ export default function StatusBar() {
 
   return (
     <Bar>
-      <StatusItem><StatusDot $color={colors.statusGood} />Ready</StatusItem>
-      <StatusItem>{objectCount} objects</StatusItem>
-      <StatusItem>{lightCount} lights</StatusItem>
+      <Chip><StatusDot $color={colors.statusGood} />Ready</Chip>
+      <Chip>{objectCount} objects</Chip>
+      <Chip>{lightCount} lights</Chip>
       <Spacer />
-      <StatusItem $color={fpsColor}>{fps} FPS</StatusItem>
+      <Chip $color={fpsColor}><StatusDot $color={fpsColor} />{fps} FPS</Chip>
     </Bar>
   );
 }

@@ -20,5 +20,12 @@ export const makeRotateGizmo = () => {
     group.add(ring);
   }
 
+  const freeMat = new THREE.MeshBasicMaterial({ color: 0xcfd4da, depthTest: false, side: THREE.DoubleSide });
+  const free = new THREE.Mesh(new THREE.RingGeometry(1.42, 1.55, 64), freeMat);
+  free.userData.gizmoAxis = 'rfree';
+  free.userData.gizmoType = 'rotate';
+  free.layers.set(1);
+  group.add(free);
+
   return group;
 };

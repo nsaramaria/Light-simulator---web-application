@@ -1,42 +1,43 @@
-
 const palette = {
-  accent:       '#6A9FD8',
-  accentHover:  '#5889BF',
-  danger:       '#C75450',
-  black:        '#000000',
-  white:        '#FFFFFF',
+  bg:         '#D9E0FC',
+  bgDeep:     '#C7D2FB',
+  card:       '#FFFFFF',
+  ink:        '#17171C',
+  ink2:       '#41424C',
+  mut:        '#7E8295',
 
-  // Cool neutrals (dark → light)
-  neutral950:   '#0C0E14',
-  neutral900:   '#0E1018',
-  neutral850:   '#12141C',
-  neutral800:   '#1A1D28',
-  neutral700:   '#242836',
-  neutral600:   '#363A4A',
-  neutral500:   '#585E6E',
-  neutral400:   '#8890A0',
-  neutral300:   '#D0D5DF',
+  peri:       '#8C9BF2',
+  periHover:  '#7585EC',
+  periSoft:   '#B9C3FB',
+  periTint:   '#EBEEFE',
+  periTint2:  '#F1F3FC',
 
-  // Axis colors
-  red:          '#E05A4E',
-  green:        '#5AAD5A',
-  blue:         '#4A90D9',
+  pink:       '#F18FD0',
+  pinkSoft:   '#FBD3EE',
+  yellow:     '#F4C84F',
+  yellowSoft: '#FCEFC5',
+  yellowInk:  '#9a7414',
+  purple:     '#C49BEA',
+  purpleSoft: '#EEE0FB',
+  mint:       '#8FE3C0',
+  mintSoft:   '#D8F6EA',
+  mintInk:    '#2a9e6a',
+  blue:       '#A9B8FB',
 
-  // Semantic
-  lightIcon:    '#D4B94E',
-  productIcon:  '#A5B0D4',
-  sky:          '#87ceeb',
+  danger:     '#E5556E',
+  white:      '#FFFFFF',
+  black:      '#17171C',
+
+  fieldBg:    '#F4F6FD',
+  fieldBorder:'#E4E7F4',
+
+  axisRed:    '#ED6A5A',
+  axisGreen:  '#33A76A',
 };
-
-//Opacity helpers
 
 const hexToRgb = (hex) => {
   const h = hex.replace('#', '');
-  return {
-    r: parseInt(h.substring(0, 2), 16),
-    g: parseInt(h.substring(2, 4), 16),
-    b: parseInt(h.substring(4, 6), 16),
-  };
+  return { r: parseInt(h.substring(0, 2), 16), g: parseInt(h.substring(2, 4), 16), b: parseInt(h.substring(4, 6), 16) };
 };
 
 export const alpha = (hex, opacity) => {
@@ -44,102 +45,130 @@ export const alpha = (hex, opacity) => {
   return `rgba(${r},${g},${b},${opacity})`;
 };
 
-// ─── Semantic tokens ───
+export const radii = { xl: '26px', lg: '20px', md: '14px', sm: '10px' };
 
 export const colors = {
-  // Text
-  text:              palette.neutral300,
-  textMuted:         palette.neutral400,
-  textDim:           palette.neutral500,
-  textOnAccent:      palette.black,
+  // raw pastel palette
+  bg: palette.bg,
+  bgDeep: palette.bgDeep,
+  card: palette.card,
+  ink: palette.ink,
+  ink2: palette.ink2,
+  mut: palette.mut,
+  peri: palette.peri,
+  periHover: palette.periHover,
+  periSoft: palette.periSoft,
+  periTint: palette.periTint,
+  pink: palette.pink,
+  pinkSoft: palette.pinkSoft,
+  yellow: palette.yellow,
+  yellowSoft: palette.yellowSoft,
+  yellowInk: palette.yellowInk,
+  purple: palette.purple,
+  purpleSoft: palette.purpleSoft,
+  mint: palette.mint,
+  mintSoft: palette.mintSoft,
+  mintInk: palette.mintInk,
+  blue: palette.blue,
+  fieldBg: palette.fieldBg,
+  fieldBorder: palette.fieldBorder,
 
-  // Accent
-  accent:            palette.accent,
-  accentHover:       palette.accentHover,
-  accentSoft:        alpha(palette.accent, 0.12),
-  accentSubtle:      alpha(palette.accent, 0.08),
-  accentFaint:       alpha(palette.accent, 0.06),
-  accentGhost:       alpha(palette.accent, 0.04),
-  accentBorder:      alpha(palette.accent, 0.3),
-  accentBorderHover: alpha(palette.accent, 0.5),
+  // text
+  text:              palette.ink,
+  textMuted:         palette.mut,
+  textDim:           '#9aa0bc',
+  textOnAccent:      palette.white,
 
-  // Danger
+  // accent (periwinkle)
+  accent:            palette.peri,
+  accentHover:       palette.periHover,
+  accentSoft:        palette.periTint,
+  accentSubtle:      palette.periTint2,
+  accentFaint:       '#F4F6FD',
+  accentGhost:       '#F7F8FE',
+  accentBorder:      alpha(palette.peri, 0.45),
+  accentBorderHover: alpha(palette.peri, 0.75),
+
+  // danger
   danger:            palette.danger,
-  dangerSoft:        alpha(palette.danger, 0.08),
-  dangerBorder:      alpha(palette.danger, 0.2),
+  dangerSoft:        '#FBE3EA',
+  dangerBorder:      alpha(palette.danger, 0.3),
 
-  // Backgrounds
-  background:        palette.neutral950,
-  sceneBg:           palette.neutral900,
-  surface:           alpha(palette.white, 0.015),
-  surfaceHover:      alpha(palette.white, 0.03),
-  surfaceActive:     alpha(palette.white, 0.04),
-  surfaceStrong:     alpha(palette.white, 0.05),
-  surfaceDark:       alpha(palette.neutral850, 0.95),
-  surfaceOverlay:    alpha(palette.neutral850, 0.97),
-  surfacePanel:      alpha(palette.neutral850, 0.85),
-  surfaceModal:      alpha(palette.neutral800, 0.85),
+  // backgrounds
+  background:        palette.bg,
+  sceneBg:           '#EEF0FB',
+  surface:           palette.card,
+  surfaceHover:      '#F4F6FD',
+  surfaceActive:     '#EDF0FB',
+  surfaceStrong:     palette.card,
+  surfaceDark:       palette.card,
+  surfaceOverlay:    palette.card,
+  surfacePanel:      palette.card,
+  surfaceModal:      palette.card,
 
-  // Borders
-  border:            alpha(palette.white, 0.06),
-  borderLight:       alpha(palette.white, 0.04),
-  borderSubtle:      alpha(palette.white, 0.03),
-  borderHover:       alpha(palette.white, 0.12),
-  borderStrong:      alpha(palette.white, 0.08),
+  // borders
+  border:            palette.fieldBorder,
+  borderLight:       '#ECEEF8',
+  borderSubtle:      '#F1F3FC',
+  borderHover:       '#C7CEF6',
+  borderStrong:      '#D6DBF3',
 
-  // Shadows
-  shadowHeavy:       alpha(palette.black, 0.7),
-  shadowMedium:      alpha(palette.black, 0.6),
-  shadowLight:       alpha(palette.black, 0.5),
+  // shadows (soft lavender)
+  shadowHeavy:       alpha('#7887E6', 0.28),
+  shadowMedium:      alpha('#7887E6', 0.18),
+  shadowLight:       alpha('#7887E6', 0.14),
 
-  // Scrollbar
-  scrollThumb:       alpha(palette.white, 0.08),
-  scrollThumbHover:  alpha(palette.white, 0.15),
+  // scrollbar
+  scrollThumb:       '#D4DAF2',
+  scrollThumbHover:  '#C2CAEC',
   scrollTrack:       'transparent',
 
-  // Selection / focus
-  selection:         alpha(palette.accent, 0.3),
-  focusRing:         alpha(palette.accent, 0.5),
+  // selection / focus
+  selection:         alpha(palette.peri, 0.3),
+  focusRing:         alpha(palette.peri, 0.5),
 
-  // Placeholder
-  placeholder:       alpha(palette.white, 0.2),
-  placeholderSubtle: alpha(palette.white, 0.15),
+  // placeholder
+  placeholder:       '#aab0c6',
+  placeholderSubtle: '#c3c8da',
 
-  // Axes
-  axisX:             palette.red,
-  axisY:             palette.green,
-  axisZ:             palette.blue,
+  // axes (inspector: X red, Y green, Z peri)
+  axisX:             palette.axisRed,
+  axisY:             palette.axisGreen,
+  axisZ:             palette.peri,
 
-  // Domain-specific
-  lightIcon:         palette.lightIcon,
-  productIcon:       palette.productIcon,
+  // domain-specific
+  lightIcon:         palette.yellow,
+  productIcon:       '#8E94AE',
 
-  // Misc
-  black:             palette.black,
+  // misc
+  black:             palette.ink,
   white:             palette.white,
 
-  // Logo gradient
-  logoFrom:          palette.accent,
-  logoTo:            palette.lightIcon,
+  // logo gradient (peri → purple)
+  logoFrom:          palette.peri,
+  logoTo:            palette.purple,
 
-  // Avatar
-  avatarFrom:        palette.neutral600,
-  avatarTo:          palette.neutral700,
-  avatarBorder:      alpha(palette.white, 0.08),
+  // avatar (pink → yellow)
+  avatarFrom:        palette.pink,
+  avatarTo:          palette.yellow,
+  avatarBorder:      palette.fieldBorder,
 
-  // Status bar
-  statusGood:        palette.green,
-  statusWarn:        palette.lightIcon,
+  // status bar
+  statusGood:        '#2fb277',
+  statusWarn:        palette.yellow,
   statusBad:         palette.danger,
 
-  // Shot card colors (filmstrip)
-  shotColors: ['#101828', '#15102A', '#0E1A18', '#181014', '#0E1520', '#181A10', '#121028'],
+  // shot cards (filmstrip): blue, pink, yellow, purple
+  shotColors: ['#A9B8FB', '#F18FD0', '#F4C84F', '#C49BEA', '#A9B8FB', '#F18FD0', '#F4C84F'],
 };
 
-// ─── Shadows ───
-
 export const shadows = {
-  dropdown: `0 16px 64px ${alpha(palette.black, 0.7)}, 0 0 0 1px ${alpha(palette.white, 0.04)}`,
-  menu:     `0 8px 32px ${alpha(palette.black, 0.6)}, 0 0 0 1px ${alpha(palette.white, 0.04)}`,
-  modal:    `0 20px 25px -5px ${alpha(palette.black, 0.5)}`,
+  card:      '0 12px 30px rgba(120,135,230,.16)',
+  cardSm:    '0 4px 14px rgba(120,135,230,.14)',
+  btn:       '0 5px 0 #050509',
+  btnSm:     '0 4px 0 #050509',
+  btnActive: '0 1px 0 #050509',
+  dropdown:  '0 16px 48px rgba(120,135,230,.28), 0 0 0 1px #E4E7F4',
+  menu:      '0 8px 28px rgba(120,135,230,.2), 0 0 0 1px #E4E7F4',
+  modal:     '0 24px 60px rgba(120,135,230,.3)',
 };

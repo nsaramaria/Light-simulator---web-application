@@ -79,8 +79,7 @@ const PresetLabel = styled.span`
 
 const PresetDim = styled.span`
   font-size: 10px;
-  color: ${colors.textMuted};
-  font-family: 'JetBrains Mono', monospace;
+  color: ${colors.textMuted};
 `;
 
 const Actions = styled.div`

@@ -1,178 +1,189 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { colors } from '../styles/theme';
+import { colors, shadows } from '../styles/theme';
 import { login, register } from '../api';
 
 const Wrapper = styled.div`
-  width: 100vw;
-  height: 100vh;
-  background: ${colors.background};
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(110% 70% at 50% 0%, #EAEEFE, ${colors.bg} 62%);
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
+  padding: 30px;
   overflow: hidden;
 `;
 
-const AmbientOrb = styled.div`
+const Back = styled.button`
   position: absolute;
-  width: 500px;
-  height: 500px;
-  border-radius: 50%;
-  background: radial-gradient(circle, ${colors.accentFaint} 0%, transparent 70%);
-  top: 20%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
+  top: 26px;
+  left: 30px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: ${colors.ink2};
+  cursor: pointer;
+  background: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 999px;
+  box-shadow: ${shadows.cardSm};
+  transition: transform .12s;
+  &:hover { transform: translateX(-2px); }
+  svg { width: 15px; height: 15px; }
 `;
 
 const Card = styled.div`
-  background: ${colors.surface};
-  border: 1px solid ${colors.border};
-  border-radius: 12px;
-  padding: 40px;
   width: 380px;
+  background: ${colors.card};
+  border-radius: ${'26px'};
+  box-shadow: ${shadows.card};
+  padding: 34px 32px;
   position: relative;
   z-index: 1;
-  backdrop-filter: blur(12px);
 `;
 
-const LogoRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 24px;
-`;
-
-const LogoMark = styled.div`
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, ${colors.logoFrom} 0%, ${colors.logoTo} 100%);
+const Mark = styled.div`
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: ${colors.periTint};
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  font-weight: 900;
-  color: ${colors.textOnAccent};
-  flex-shrink: 0;
-`;
-
-const LogoText = styled.div`
-  font-size: 18px;
-  font-weight: 700;
-  color: ${colors.text};
+  margin-bottom: 18px;
 `;
 
 const Title = styled.h1`
-  color: ${colors.text};
-  font-size: 22px;
   font-weight: 700;
-  margin: 0 0 6px;
+  font-size: 27px;
+  letter-spacing: -.01em;
+  margin: 0 0 5px;
+  color: ${colors.ink};
 `;
 
-const Subtitle = styled.p`
-  color: ${colors.textMuted};
-  font-size: 13px;
-  margin: 0 0 28px;
-  line-height: 1.5;
+const Lead = styled.p`
+  font-size: 14px;
+  color: ${colors.mut};
+  margin: 0 0 24px;
+`;
+
+const Field = styled.div`
+  margin-bottom: 14px;
 `;
 
 const Label = styled.label`
   display: block;
-  color: ${colors.textMuted};
-  font-size: 10px;
+  font-size: 12.5px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 6px;
+  color: ${colors.ink2};
+  margin-bottom: 7px;
 `;
 
 const Input = styled.input`
   width: 100%;
-  padding: 10px 12px;
-  background: ${colors.surfaceHover};
-  border: 1px solid ${({ $invalid }) => $invalid ? colors.danger : colors.border};
-  border-radius: 6px;
-  color: ${colors.text};
-  font-size: 14px;
-  margin-bottom: 4px;
-  box-sizing: border-box;
-  font-family: inherit;
-  transition: border-color 0.2s;
+  height: 48px;
+  border-radius: ${'14px'};
+  border: 1.5px solid ${({ $invalid }) => $invalid ? colors.danger : '#E4E7F4'};
+  background: ${({ $invalid }) => $invalid ? '#FDF3F5' : '#F7F8FE'};
+  padding: 0 16px;
+  font-size: 14.5px;
+  color: ${colors.ink};
+  outline: none;
+  transition: .16s;
 
+  &::placeholder { color: #aab0c6; }
   &:focus {
-    outline: none;
-    border-color: ${({ $invalid }) => $invalid ? colors.danger : colors.accent};
-    background: ${colors.surfaceStrong};
-  }
-
-  &::placeholder {
-    color: ${colors.placeholderSubtle};
+    border-color: ${({ $invalid }) => $invalid ? colors.danger : colors.peri};
+    background: #fff;
+    box-shadow: 0 0 0 4px ${({ $invalid }) => $invalid ? '#F8DCE3' : colors.periTint};
   }
 `;
 
-const FieldHint = styled.div`
-  font-size: 11px;
-  color: ${({ $error }) => $error ? colors.danger : colors.textMuted};
-  margin-bottom: 16px;
-  min-height: 16px;
+const Hint = styled.div`
+  font-size: 11.5px;
+  color: ${({ $error }) => $error ? colors.danger : colors.mut};
+  margin: 6px 2px 0;
+  min-height: 14px;
 `;
 
-const Button = styled.button`
+const Row = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 8px 0 20px;
+  font-size: 12.5px;
+`;
+
+const ForgotLink = styled.a`
+  color: ${colors.peri};
+  font-weight: 600;
+  cursor: pointer;
+`;
+
+const Submit = styled.button`
   width: 100%;
-  padding: 12px;
-  background: ${colors.accent};
-  border: none;
-  border-radius: 6px;
-  color: ${colors.textOnAccent};
+  justify-content: center;
+  font-weight: 600;
   font-size: 14px;
-  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-  margin-bottom: 16px;
-  font-family: inherit;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 15px;
+  border-radius: 999px;
+  background: ${colors.ink};
+  color: #fff;
+  box-shadow: ${shadows.btn};
+  transition: transform .12s, box-shadow .12s;
 
-  &:hover {
-    background: ${colors.accentHover};
-  }
+  &:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 0 #050509; }
+  &:active:not(:disabled) { transform: translateY(4px); box-shadow: ${shadows.btnActive}; }
+  &:disabled { opacity: .55; cursor: not-allowed; }
 
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  span {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #fff;
+    color: ${colors.ink};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
   }
 `;
 
-const SwitchText = styled.p`
-  color: ${colors.textMuted};
-  font-size: 13px;
+const Alt = styled.p`
   text-align: center;
-  margin: 0;
+  font-size: 13px;
+  color: ${colors.mut};
+  margin-top: 18px;
 `;
 
-const SwitchLink = styled.span`
-  color: ${colors.accent};
-  cursor: pointer;
+const AltLink = styled.span`
+  color: ${colors.ink};
   font-weight: 600;
-
-  &:hover {
-    text-decoration: underline;
-  }
+  cursor: pointer;
+  &:hover { text-decoration: underline; }
 `;
 
 const ErrorMsg = styled.div`
-  background: ${colors.dangerSoft};
+  background: #FBE3EA;
   border: 1px solid ${colors.dangerBorder};
   color: ${colors.danger};
-  padding: 10px 12px;
-  border-radius: 6px;
+  padding: 10px 14px;
+  border-radius: 12px;
   font-size: 13px;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 `;
 
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-export default function Auth({ onLogin }) {
+export default function Auth({ onLogin, onBack }) {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -202,20 +213,32 @@ export default function Auth({ onLogin }) {
 
   return (
     <Wrapper>
-      <AmbientOrb />
+      {onBack && (
+        <Back onClick={onBack}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
+          Back
+        </Back>
+      )}
       <Card>
-        <LogoRow><LogoMark>S</LogoMark><LogoText>Studio Simulator</LogoText></LogoRow>
-        <Title>{isRegister ? 'Create Account' : 'Welcome Back'}</Title>
-        <Subtitle>{isRegister ? 'Sign up to save your studio setups' : 'Log in to access your saved setups'}</Subtitle>
+        <Mark>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#17171C" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M16.2 7.4 C15.4 5.3 12.3 4.6 9.9 5.9 C7.3 7.2 7.6 10 10.5 11.1 C12.4 11.9 14.4 12.4 15.6 13.6 C17.2 15.1 16.7 17.9 13.8 18.9 C11 19.9 8.1 18.8 7.6 16.6" /></svg>
+        </Mark>
+        <Title>{isRegister ? 'Create an account' : 'Welcome back'}</Title>
+        <Lead>{isRegister ? 'Sign up to save your studio.' : 'Log in to your studio.'}</Lead>
         {error && <ErrorMsg>{error}</ErrorMsg>}
-        <Label>Email</Label>
-        <Input type="email" value={email} $invalid={!!emailError} onChange={e => setEmail(e.target.value)} onBlur={() => setTouched(t => ({ ...t, email: true }))} onKeyDown={handleKeyDown} placeholder="you@example.com" />
-        <FieldHint $error={!!emailError}>{emailError}</FieldHint>
-        <Label>Password</Label>
-        <Input type="password" value={password} $invalid={!!passwordError} onChange={e => setPassword(e.target.value)} onBlur={() => setTouched(t => ({ ...t, password: true }))} onKeyDown={handleKeyDown} placeholder="Enter your password" />
-        <FieldHint $error={!!passwordError}>{passwordError || (isRegister && !touched.password ? 'At least 6 characters' : '')}</FieldHint>
-        <Button onClick={handleSubmit} disabled={loading || !canSubmit}>{loading ? 'Loading...' : isRegister ? 'Sign Up' : 'Log In'}</Button>
-        <SwitchText>{isRegister ? 'Already have an account? ' : "Don't have an account? "}<SwitchLink onClick={switchMode}>{isRegister ? 'Log In' : 'Sign Up'}</SwitchLink></SwitchText>
+        <Field>
+          <Label>Email</Label>
+          <Input type="email" value={email} $invalid={!!emailError} onChange={e => setEmail(e.target.value)} onBlur={() => setTouched(t => ({ ...t, email: true }))} onKeyDown={handleKeyDown} placeholder="you@studio.com" />
+          {emailError && <Hint $error>{emailError}</Hint>}
+        </Field>
+        <Field>
+          <Label>Password</Label>
+          <Input type="password" value={password} $invalid={!!passwordError} onChange={e => setPassword(e.target.value)} onBlur={() => setTouched(t => ({ ...t, password: true }))} onKeyDown={handleKeyDown} placeholder="••••••••" />
+          {(passwordError || (isRegister && !touched.password)) && <Hint $error={!!passwordError}>{passwordError || 'At least 6 characters'}</Hint>}
+        </Field>
+        <Row><span /><ForgotLink>Forgot password?</ForgotLink></Row>
+        <Submit onClick={handleSubmit} disabled={loading || !canSubmit}>{loading ? 'Loading…' : isRegister ? 'Sign up' : 'Log in'} <span>→</span></Submit>
+        <Alt>{isRegister ? 'Already have an account? ' : 'New here? '}<AltLink onClick={switchMode}>{isRegister ? 'Log in' : 'Create an account'}</AltLink></Alt>
       </Card>
     </Wrapper>
   );

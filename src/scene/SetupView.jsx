@@ -108,10 +108,11 @@ const AXIS_COLORS = {
   x:  0xe05a4e, y:  0x5aad5a, z:  0x4a90d9,
   rx: 0xe05a4e, ry: 0x5aad5a, rz: 0x4a90d9,
   sx: 0xe05a4e, sy: 0x5aad5a, sz: 0x4a90d9,
-  suniform: 0xffffff,
+  suniform: 0xffffff, rfree: 0xcfd4da,
   xy: 0x4a90d9, xz: 0x5aad5a, yz: 0xe05a4e,
 };
 const HIGHLIGHT_COLOR = 0xffffff;
+const HOVER_COLOR = 0xffd24a;
 
 const createProxyForType = (type, pos, id, elementState) => {
   switch (type) {
@@ -364,6 +365,12 @@ export default function SetupView() {
     const rotateGizmo = makeRotateGizmo();
     rotateGizmo.visible = false;
     scene.add(rotateGizmo);
+    const freeRotateRing = rotateGizmo.children.find(c => c.userData.gizmoAxis === 'rfree');
+    const billboardPos = new THREE.Vector3();
+    const billboardDir = new THREE.Vector3();
+    const billboardWorldQ = new THREE.Quaternion();
+    const billboardGizmoQ = new THREE.Quaternion();
+    const UNIT_Z = new THREE.Vector3(0, 0, 1);
 
     const scaleGizmo = makeScaleGizmo();
     scaleGizmo.visible = false;
@@ -454,6 +461,19 @@ export default function SetupView() {
           child.material.opacity = 1;
           child.material.transparent = false;
         });
+      });
+      hoveredGizmoAxis = null;
+    };
+
+    let hoveredGizmoAxis = null;
+    const setGizmoHover = (axis) => {
+      if (axis === hoveredGizmoAxis) return;
+      hoveredGizmoAxis = axis;
+      const gizmo = getActiveGizmo();
+      gizmo.children.forEach(child => {
+        const a = child.userData.gizmoAxis;
+        if (!a) return;
+        child.material.color.setHex(a === axis ? HOVER_COLOR : (AXIS_COLORS[a] ?? 0xffffff));
       });
     };
 
@@ -729,6 +749,8 @@ export default function SetupView() {
     const planeNormalWorld = new THREE.Vector3();
     const rotRefDir = new THREE.Vector3();
     const rotAxisVec = new THREE.Vector3();
+    const cameraRight = new THREE.Vector3();
+    const cameraUp = new THREE.Vector3();
     const dqQuat = new THREE.Quaternion();
     const curQuat = new THREE.Quaternion();
     const dragStartQuat = new THREE.Quaternion();
@@ -757,11 +779,24 @@ export default function SetupView() {
         return;
       }
       if (!isDraggingGizmo || !dragAxis) {
-        // Not dragging — do hover detection instead
         const rect = container.getBoundingClientRect();
         mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
         mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
         raycaster.setFromCamera(mouse, helperCamera);
+
+        const activeGizmo = getActiveGizmo();
+        if (activeGizmo.visible) {
+          const gHits = raycaster.intersectObjects(activeGizmo.children, true);
+          if (gHits.length > 0) {
+            let go = gHits[0].object;
+            while (go && !go.userData.gizmoAxis) go = go.parent;
+            setGizmoHover(go?.userData.gizmoAxis ?? null);
+            setHoverHighlight(null);
+            container.style.cursor = 'grab';
+            return;
+          }
+        }
+        setGizmoHover(null);
 
         const clickables = [];
         Object.entries(proxies).forEach(([pid, proxy]) => {
@@ -856,6 +891,26 @@ export default function SetupView() {
           }));
         }
       } else if (gizmoMode === 'rotate') {
+        if (dragAxis === 'rfree') {
+          const k = 0.4 * DEG2RAD;
+          cameraRight.setFromMatrixColumn(helperCamera.matrixWorld, 0).normalize();
+          cameraUp.setFromMatrixColumn(helperCamera.matrixWorld, 1).normalize();
+          dqQuat.setFromAxisAngle(cameraUp, -dx * k);
+          curQuat.multiplyQuaternions(dqQuat, dragStartQuat);
+          dqQuat.setFromAxisAngle(cameraRight, -dy * k);
+          curQuat.premultiply(dqQuat);
+          eulerScratch.setFromQuaternion(curQuat, 'XYZ');
+          const frx = eulerScratch.x * RAD2DEG, fry = eulerScratch.y * RAD2DEG, frz = eulerScratch.z * RAD2DEG;
+          if (id === 'camera') { updateCamera('rx', frx); updateCamera('ry', fry); updateCamera('rz', frz); }
+          else { updateElement(id, 'rx', frx); updateElement(id, 'ry', fry); updateElement(id, 'rz', frz); }
+          if (id && id !== 'camera') updateOneProxyTransform(id);
+          const ag = getActiveGizmo();
+          if (ag.visible) { const pos = getSelectedPosition(id); if (pos) ag.position.copy(pos); }
+          window.dispatchEvent(new CustomEvent('studio:position-update', { detail: { id, axis: 'rx', val: frx } }));
+          window.dispatchEvent(new CustomEvent('studio:position-update', { detail: { id, axis: 'ry', val: fry } }));
+          window.dispatchEvent(new CustomEvent('studio:position-update', { detail: { id, axis: 'rz', val: frz } }));
+          return;
+        }
         rotateGizmoPos.copy(rotateGizmo.position);
         rotateRefPoint.copy(rotateGizmoPos);
         if (dragAxis === 'rx') rotRefDir.set(0, 1, 0);
@@ -1201,6 +1256,14 @@ export default function SetupView() {
         const dist = helperCamera.position.distanceTo(activeGizmo.position);
         const s = dist * 0.12;
         activeGizmo.scale.set(s, s, s);
+      }
+
+      if (rotateGizmo.visible && freeRotateRing) {
+        rotateGizmo.getWorldPosition(billboardPos);
+        billboardDir.copy(helperCamera.position).sub(billboardPos).normalize();
+        billboardWorldQ.setFromUnitVectors(UNIT_Z, billboardDir);
+        rotateGizmo.getWorldQuaternion(billboardGizmoQ).invert();
+        freeRotateRing.quaternion.copy(billboardGizmoQ).multiply(billboardWorldQ);
       }
 
       renderer.render(scene, helperCamera);

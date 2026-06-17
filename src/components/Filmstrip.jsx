@@ -4,14 +4,15 @@ import { getSceneSnapshot, restoreFullSnapshot, getDefaultSnapshot, sceneState }
 import { colors, shadows } from '../styles/theme';
 
 const Strip = styled.div`
-  height: 80px;
-  background: ${colors.surface};
-  border-top: 1px solid ${colors.border};
+  height: 98px;
+  flex-shrink: 0;
+  background: ${colors.card};
+  border-radius: 20px;
+  box-shadow: ${shadows.cardSm};
   display: flex;
   align-items: center;
-  padding: 0 16px;
-  gap: 10px;
-  flex-shrink: 0;
+  gap: 12px;
+  padding: 0 14px;
 `;
 
 const AddWrap = styled.div`
@@ -20,212 +21,231 @@ const AddWrap = styled.div`
 `;
 
 const AddShotBtn = styled.button`
-  width: 40px;
-  height: 54px;
-  border-radius: 8px;
-  border: 1px dashed ${colors.accentBorder};
-  background: ${colors.accentGhost};
-  color: ${colors.accent};
-  font-size: 20px;
-  cursor: pointer;
+  width: 72px;
+  height: 66px;
+  flex-shrink: 0;
+  border-radius: 18px;
+  background: ${colors.ink};
+  color: #fff;
+  border: none;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s;
-  &:hover {
-    background: ${colors.accentSubtle};
-    border-color: ${colors.accentBorderHover};
+  gap: 5px;
+  cursor: pointer;
+  font-size: 11.5px;
+  font-weight: 600;
+  box-shadow: ${shadows.btn};
+  transition: transform .12s, box-shadow .12s;
+  &:active { transform: translateY(4px); box-shadow: ${shadows.btnActive}; }
+  span {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #fff;
+    color: ${colors.ink};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1;
   }
 `;
 
 const AddMenuDropdown = styled.div`
   position: absolute;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + 8px);
   left: 0;
-  min-width: 180px;
-  background: ${colors.surfaceOverlay};
-  border: 1px solid ${colors.borderStrong};
-  border-radius: 8px;
+  min-width: 200px;
+  background: ${colors.card};
+  border-radius: 14px;
   overflow: hidden;
-  box-shadow: ${shadows.menu};
+  box-shadow: ${shadows.dropdown};
+  padding: 6px;
   z-index: 100;
 `;
 
 const AddMenuHeader = styled.div`
-  padding: 6px 12px;
-  font-size: 9px;
+  padding: 6px 10px;
+  font-size: 10px;
   font-weight: 600;
-  color: ${colors.textMuted};
+  color: ${colors.mut};
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  border-bottom: 1px solid ${colors.border};
+  letter-spacing: 0.06em;
 `;
 
 const AddMenuItem = styled.div`
-  padding: 8px 12px;
-  font-size: 12px;
-  color: ${colors.text};
+  padding: 9px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: ${colors.ink2};
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
+  border-radius: 10px;
   transition: background 0.1s;
-  &:hover {
-    background: ${colors.accentFaint};
-    color: ${colors.accent};
-  }
-  & + & {
-    border-top: 1px solid ${colors.borderLight};
-  }
+  &:hover { background: ${colors.periTint}; color: ${colors.ink}; }
 `;
 
 const AddMenuIcon = styled.span`
-  font-size: 12px;
-  color: ${colors.textMuted};
+  font-size: 13px;
+  color: ${colors.mut};
   width: 16px;
   text-align: center;
 `;
 
 const SubMenu = styled.div`
-  border-top: 1px solid ${colors.border};
   max-height: 160px;
   overflow-y: auto;
+  margin: 2px 0;
 `;
 
 const SubMenuItem = styled.div`
-  padding: 6px 12px 6px 36px;
-  font-size: 11px;
-  color: ${colors.textMuted};
+  padding: 7px 10px 7px 34px;
+  font-size: 12px;
+  color: ${colors.mut};
   cursor: pointer;
+  border-radius: 10px;
   transition: background 0.1s;
-  &:hover {
-    background: ${colors.accentFaint};
-    color: ${colors.accent};
-  }
+  &:hover { background: ${colors.periTint}; color: ${colors.ink}; }
 `;
 
 const StripDivider = styled.div`
   width: 1px;
   height: 44px;
-  background: ${colors.border};
+  background: ${colors.borderLight};
   flex-shrink: 0;
 `;
 
 const ShotList = styled.div`
   flex: 1;
   display: flex;
-  gap: 8px;
+  gap: 12px;
   overflow-x: auto;
   padding: 4px 0;
-  &::-webkit-scrollbar { height: 4px; }
-  &::-webkit-scrollbar-thumb { background: ${colors.scrollThumb}; border-radius: 2px; }
+  &::-webkit-scrollbar { height: 6px; }
+  &::-webkit-scrollbar-thumb { background: ${colors.scrollThumb}; border-radius: 999px; }
 `;
 
 const ShotCard = styled.div`
-  width: 90px;
-  height: 56px;
-  border-radius: 8px;
+  width: 116px;
+  height: 68px;
+  border-radius: 18px;
   flex-shrink: 0;
   position: relative;
   overflow: hidden;
   cursor: pointer;
-  border: ${({ $active }) => $active ? `2px solid ${colors.accent}` : `1px solid ${colors.border}`};
-  transition: all 0.2s;
-  transform: ${({ $active }) => $active ? 'scale(1.04)' : 'scale(1)'};
-  background: ${colors.black};
-  &:hover {
-    border-color: ${({ $active }) => $active ? colors.accent : colors.borderHover};
+  padding: 9px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: ${({ $color }) => $color};
+  transition: transform .14s;
+  outline: ${({ $active }) => $active ? `3px solid ${colors.ink}` : '3px solid transparent'};
+  outline-offset: -3px;
+  &:hover { transform: translateY(-3px); }
+  &::after {
+    content: '';
+    position: absolute;
+    top: 9px;
+    right: 10px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: ${colors.ink};
+    opacity: ${({ $active }) => $active ? 1 : 0};
   }
 `;
 
 const ShotBg = styled.div`
-  position: absolute;
-  inset: 0;
-  background: ${({ $color }) => `radial-gradient(circle at 50% 60%, ${$color}, #050404)`};
+  display: none;
 `;
 
 const ShotNumber = styled.div`
-  position: absolute;
-  top: 4px;
-  left: 6px;
-  font-size: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10.5px;
   font-weight: 700;
-  color: ${({ $active }) => $active ? colors.accent : colors.placeholder};
-  font-family: 'JetBrains Mono', monospace;
+  color: ${colors.ink};
+  font-variant-numeric: tabular-nums;
+  position: relative;
+  z-index: 1;
 `;
 
 const ShotInfo = styled.div`
   position: absolute;
-  top: 4px;
-  right: 6px;
-  font-size: 7px;
-  color: ${colors.placeholderSubtle};
-  font-family: 'JetBrains Mono', monospace;
+  bottom: 9px;
+  right: 12px;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(23,23,28,0.5);
+  font-variant-numeric: tabular-nums;
 `;
 
 const ShotLabel = styled.div`
-  position: absolute;
-  bottom: 4px;
-  left: 6px;
-  right: 6px;
-  font-size: 8px;
   font-weight: 600;
-  color: ${({ $active }) => $active ? `rgba(255,255,255,0.6)` : `rgba(255,255,255,0.25)`};
+  font-size: 14px;
+  color: ${colors.ink};
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  position: relative;
+  z-index: 1;
 `;
 
 const LabelInput = styled.input`
-  position: absolute;
-  bottom: 3px;
-  left: 5px;
-  right: 5px;
-  font-size: 8px;
   font-weight: 600;
-  color: #fff;
-  background: rgba(0,0,0,0.55);
-  border: 1px solid ${colors.accent};
-  border-radius: 3px;
-  padding: 1px 3px;
+  font-size: 14px;
+  color: ${colors.ink};
+  background: #fff;
+  border: 1.5px solid ${colors.peri};
+  border-radius: 8px;
+  padding: 2px 6px;
   outline: none;
+  width: 100%;
+  position: relative;
+  z-index: 2;
 `;
 
 const ActiveBar = styled.div`
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: ${colors.accent};
+  display: none;
 `;
 
 const ShotActions = styled.div`
   position: absolute;
-  top: 3px;
-  right: 3px;
+  top: 8px;
+  right: 8px;
   display: flex;
-  gap: 2px;
+  gap: 4px;
   opacity: 0;
   transition: opacity 0.15s;
+  z-index: 2;
   ${ShotCard}:hover & { opacity: 1; }
 `;
 
 const ShotActionBtn = styled.button`
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
   border: none;
-  background: rgba(0,0,0,0.6);
-  color: ${({ $danger }) => $danger ? colors.danger : `rgba(255,255,255,0.4)`};
-  font-size: 8px;
+  background: rgba(255,255,255,0.75);
+  color: ${({ $danger }) => $danger ? colors.danger : colors.ink2};
+  font-size: 10px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: .12s;
   &:hover {
-    color: ${({ $danger }) => $danger ? colors.danger : colors.white};
-    background: rgba(0,0,0,0.8);
+    background: #fff;
+    color: ${({ $danger }) => $danger ? colors.danger : colors.ink};
   }
 `;
 
@@ -385,7 +405,7 @@ const Filmstrip = forwardRef(function Filmstrip({ onShotsChange }, ref) {
   return (
     <Strip>
       <AddWrap ref={menuRef}>
-        <AddShotBtn onClick={() => { setMenuOpen(v => !v); setDupSubmenu(false); }} title="Add new shot">+</AddShotBtn>
+        <AddShotBtn onClick={() => { setMenuOpen(v => !v); setDupSubmenu(false); }} title="Add new shot"><span>+</span>Add shot</AddShotBtn>
         {menuOpen && (
           <AddMenuDropdown>
             <AddMenuHeader>New Shot</AddMenuHeader>
@@ -410,7 +430,7 @@ const Filmstrip = forwardRef(function Filmstrip({ onShotsChange }, ref) {
           const isActive = shot.id === activeId;
           const colorIdx = i % colors.shotColors.length;
           return (
-            <ShotCard key={shot.id} $active={isActive} onClick={() => selectShot(shot)}>
+            <ShotCard key={shot.id} $active={isActive} $color={colors.shotColors[colorIdx]} onClick={() => selectShot(shot)}>
               <ShotBg $color={colors.shotColors[colorIdx]} />
               <ShotNumber $active={isActive}>{String(i + 1).padStart(2, '0')}</ShotNumber>
               <ShotInfo>{getElementCount(shot)} obj</ShotInfo>

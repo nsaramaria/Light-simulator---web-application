@@ -66,8 +66,7 @@ const SceneCount = styled.span`
   color: ${colors.textDim};
   background: ${colors.surfaceActive};
   padding: 2px 7px;
-  border-radius: 10px;
-  font-family: 'JetBrains Mono', monospace;
+  border-radius: 10px;
 `;
 
 const CloseBtn = styled.button`
@@ -154,8 +153,7 @@ const SceneName = styled.div`
 const SceneMeta = styled.div`
   font-size: 10px;
   color: ${colors.textDim};
-  margin-top: 2px;
-  font-family: 'JetBrains Mono', monospace;
+  margin-top: 2px;
   display: flex;
   align-items: center;
   gap: 8px;

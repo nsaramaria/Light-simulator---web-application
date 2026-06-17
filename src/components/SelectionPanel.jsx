@@ -7,8 +7,7 @@ import { colors } from '../styles/theme';
 const Sidebar = styled.div`
   width: ${({ $collapsed, $embedded }) => $embedded ? '100%' : $collapsed ? '24px' : '240px'};
   height: 100%;
-  background: ${({ $embedded }) => $embedded ? 'transparent' : colors.surfaceDark};
-  backdrop-filter: ${({ $embedded }) => $embedded ? 'none' : 'blur(16px)'};
+  background: ${({ $embedded }) => $embedded ? 'transparent' : colors.card};
   border-left: ${({ $embedded }) => $embedded ? 'none' : `1px solid ${colors.border}`};
   display: flex;
   flex-direction: column;
@@ -21,10 +20,8 @@ const SidebarHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  border-bottom: 1px solid ${colors.border};
+  padding: 14px 16px 12px;
   flex-shrink: 0;
-  min-height: 42px;
 `;
 
 const HeaderLeft = styled.div`
@@ -34,18 +31,19 @@ const HeaderLeft = styled.div`
 `;
 
 const SidebarLabel = styled.div`
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
-  color: ${colors.textMuted};
+  color: ${colors.mut};
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
 `;
 
 const SelectedName = styled.div`
-  font-size: 14px;
-  font-weight: 600;
-  color: ${colors.accent};
-  margin-top: 2px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  color: ${colors.ink};
+  margin-top: 1px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -54,44 +52,37 @@ const SelectedName = styled.div`
 const CollapseBtn = styled.button`
   background: transparent;
   border: none;
-  color: ${colors.textMuted};
+  color: ${colors.mut};
   cursor: pointer;
-  font-size: 14px;
-  padding: 4px;
+  font-size: 16px;
+  padding: 4px 8px;
   line-height: 1;
   flex-shrink: 0;
-  border-radius: 4px;
-  transition: all 0.2s;
-
-  &:hover {
-    color: ${colors.accent};
-    background: ${colors.accentSubtle};
-  }
+  border-radius: 8px;
+  transition: all 0.15s;
+  &:hover { color: ${colors.peri}; background: ${colors.periTint}; }
 `;
 
 const HeaderActions = styled.div`
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
 `;
 
 const HeaderIconBtn = styled.button`
-  background: transparent;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: ${({ $active }) => $active ? colors.peri : colors.periTint};
   border: none;
-  color: ${({ $active }) => $active ? colors.accent : colors.textMuted};
+  color: ${({ $active }) => $active ? '#fff' : colors.ink2};
   cursor: pointer;
-  padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border-radius: 4px;
-  transition: all 0.2s;
-
-  &:hover {
-    color: ${colors.accent};
-    background: ${colors.accentSubtle};
-  }
+  transition: all 0.14s;
+  &:hover { background: ${({ $active }) => $active ? colors.peri : '#E0E5FD'}; }
 `;
 
 const LockClosedIcon = () => (
@@ -124,94 +115,132 @@ const EyeClosedIcon = () => (
   </svg>
 );
 
+const SI = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', viewBox: '0 0 24 24' };
+const IconMove = () => (<svg {...SI}><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20" /></svg>);
+const IconRotate = () => (<svg {...SI}><path d="M21 12a9 9 0 1 1-3-6.7" /><polyline points="21 3 21 9 15 9" /></svg>);
+const IconScale = () => (<svg {...SI}><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></svg>);
+const IconSun = () => (<svg {...SI}><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>);
+const IconPalette = () => (<svg {...SI}><circle cx="13.5" cy="6.5" r="1.5" /><circle cx="17.5" cy="10.5" r="1.5" /><circle cx="8.5" cy="7.5" r="1.5" /><circle cx="6.5" cy="12.5" r="1.5" /><path d="M12 2a10 10 0 0 0 0 20 2.5 2.5 0 0 0 2-4 2.5 2.5 0 0 1 2-4h2a4 4 0 0 0 4-4 10 10 0 0 0-10-8z" /></svg>);
+const IconFile = () => (<svg {...SI}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>);
+const IconChevron = () => (<svg {...SI}><polyline points="9 18 15 12 9 6" /></svg>);
+
 const LockedBanner = styled.div`
-  padding: 8px 14px;
-  font-size: 10px;
-  color: ${colors.accent};
-  background: ${colors.accentSubtle};
-  border-bottom: 1px solid ${colors.border};
+  margin: 0 16px 10px;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: ${colors.peri};
+  background: ${colors.periTint};
+  border-radius: 12px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
 `;
 
 const HiddenBanner = styled.div`
-  padding: 8px 14px;
-  font-size: 10px;
-  color: ${colors.textMuted};
-  background: rgba(255, 255, 255, 0.04);
-  border-bottom: 1px solid ${colors.border};
+  margin: 0 16px 10px;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: ${colors.mut};
+  background: #F1F3FC;
+  border-radius: 12px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
 `;
 
 const CheckboxRow = styled.label`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 0;
-  font-size: 11px;
-  color: ${colors.text};
+  margin-bottom: 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: ${colors.ink2};
   cursor: pointer;
   user-select: none;
 `;
 
 const Checkbox = styled.input.attrs({ type: 'checkbox' })`
+  appearance: none;
+  -webkit-appearance: none;
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  background: #dfe3f3;
+  position: relative;
   cursor: pointer;
-  accent-color: ${colors.accent};
+  flex-shrink: 0;
+  transition: background .18s;
+  &::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    transition: transform .18s;
+  }
+  &:checked { background: ${colors.peri}; }
+  &:checked::after { transform: translateX(20px); }
 `;
 
 const AimRow = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: 11px;
-  color: ${colors.text};
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: ${colors.ink2};
 `;
 
 const AimSelect = styled.select`
-  background: ${colors.surfaceHover};
-  color: ${colors.text};
-  border: 1px solid ${colors.border};
-  border-radius: 4px;
-  padding: 3px 6px;
-  font-size: 11px;
+  background: ${colors.fieldBg};
+  color: ${colors.ink};
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 13px;
   font-family: inherit;
   cursor: pointer;
   flex: 1;
   min-width: 0;
-
-  &:focus { outline: none; border-color: ${colors.accent}; }
+  transition: .14s;
+  &:focus { outline: none; border-color: ${colors.peri}; background: #fff; box-shadow: 0 0 0 4px ${colors.periTint}; }
 `;
 
 const LumensReadout = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 0;
-  font-size: 10px;
-  color: ${colors.textMuted};
-  font-family: 'JetBrains Mono', monospace;
+  background: ${colors.yellowSoft};
+  border-radius: 12px;
+  padding: 11px 14px;
+  margin-top: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: ${colors.yellowInk};
+  font-variant-numeric: tabular-nums;
 `;
 
 const CollapsedLabel = styled.div`
   writing-mode: vertical-rl;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
-  color: ${colors.textMuted};
+  color: ${colors.mut};
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding-top: 10px;
   text-align: center;
   cursor: pointer;
   flex: 1;
-
-  &:hover {
-    color: ${colors.accent};
-  }
+  &:hover { color: ${colors.peri}; }
 `;
 
 const SidebarHint = styled.div`
@@ -219,8 +248,8 @@ const SidebarHint = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
-  color: ${colors.textMuted};
+  font-size: 13px;
+  color: ${colors.mut};
   padding: 24px;
   text-align: center;
   line-height: 1.6;
@@ -229,131 +258,138 @@ const SidebarHint = styled.div`
 const PropsScroll = styled.div`
   flex: 1;
   overflow-y: auto;
-  padding: 6px 0;
+  padding: 0 16px 14px;
 `;
 
 const SectionWrap = styled.div`
-  border-bottom: 1px solid ${colors.border};
+  margin-bottom: 4px;
 `;
 
 const SectionHeader = styled.div`
-  padding: 8px 14px;
+  padding: 6px 0;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 9px;
   cursor: pointer;
-  transition: background 0.1s;
-
-  &:hover {
-    background: ${colors.surface};
-  }
 `;
 
 const SectionArrow = styled.span`
-  font-size: 8px;
-  color: ${colors.textMuted};
-  display: inline-block;
+  color: ${colors.mut};
+  display: inline-flex;
+  align-items: center;
   transform: ${({ $open }) => $open ? 'rotate(90deg)' : 'none'};
-  transition: transform 0.15s;
+  transition: transform 0.18s;
+  svg { width: 13px; height: 13px; }
+`;
+
+const SectionIcon = styled.span`
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: ${({ $tone }) => $tone === 'yellow' ? colors.yellowSoft : $tone === 'purple' ? colors.purpleSoft : $tone === 'pink' ? colors.pinkSoft : colors.periTint};
+  color: ${({ $tone }) => $tone === 'yellow' ? '#b58a14' : $tone === 'purple' ? '#7a4fb0' : $tone === 'pink' ? '#bb4f95' : colors.peri};
+  svg { width: 14px; height: 14px; }
 `;
 
 const SectionTitle = styled.span`
-  font-size: 9px;
-  font-weight: 700;
-  color: ${colors.textMuted};
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: ${colors.ink};
   flex: 1;
 `;
 
 const SectionBadge = styled.span`
-  font-size: 8px;
-  color: ${colors.textMuted};
-  padding: 1px 6px;
-  background: ${colors.surfaceActive};
-  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  color: ${colors.mut};
+  padding: 2px 8px;
+  background: #F1F3FC;
+  border-radius: 999px;
 `;
 
 const SectionBody = styled.div`
-  padding: 4px 14px 10px;
+  padding: 10px 0 6px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 8px;
+`;
+
+const Triple = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
 `;
 
 const ColorRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 0;
+  gap: 10px;
+  margin-bottom: 4px;
 `;
 
 const PropLabel = styled.span`
-  font-size: 10px;
-  color: ${colors.textMuted};
-  width: 60px;
+  font-size: 13px;
+  font-weight: 500;
+  color: ${colors.ink2};
+  width: 74px;
   flex-shrink: 0;
 `;
 
 const ColorSwatch = styled.input.attrs({ type: 'color' })`
-  width: 28px;
-  height: 28px;
-  border: 2px solid ${colors.borderHover};
-  border-radius: 6px;
+  width: 34px;
+  height: 34px;
+  border: 2px solid #fff;
+  border-radius: 11px;
+  box-shadow: 0 0 0 1.5px ${colors.fieldBorder};
   background: none;
   cursor: pointer;
   padding: 0;
-  transition: border-color 0.15s;
-
-  &:hover {
-    border-color: ${colors.placeholder};
-  }
 `;
 
 const ColorHex = styled.span`
-  font-size: 10px;
-  color: ${colors.textMuted};
-  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: ${colors.mut};
+  font-variant-numeric: tabular-nums;
 `;
 
 const ScrubFieldWrap = styled.div`
   display: flex;
-  align-items: center;
-  height: 26px;
-  background: ${colors.surfaceHover};
-  border: 1px solid ${({ $active }) => $active ? colors.accent : colors.border};
-  border-radius: 4px;
+  flex-direction: column;
+  justify-content: center;
+  height: 42px;
+  background: ${({ $active }) => $active ? '#fff' : colors.fieldBg};
+  border: 1.5px solid ${({ $active }) => $active ? colors.peri : 'transparent'};
+  box-shadow: ${({ $active }) => $active ? `0 0 0 4px ${colors.periTint}` : 'none'};
+  border-radius: 14px;
+  padding: 0 12px;
   overflow: hidden;
-  cursor: ew-resize;
-  transition: border-color 0.15s;
+  cursor: ${({ $disabled }) => $disabled ? 'default' : 'ew-resize'};
+  opacity: ${({ $disabled }) => $disabled ? 0.55 : 1};
+  transition: .14s;
   position: relative;
-
-  &:hover {
-    border-color: ${colors.borderHover};
-    background: ${colors.surfaceActive};
-  }
+  &:hover { background: ${({ $disabled, $active }) => ($disabled || $active) ? '' : '#EDF0FB'}; }
 `;
 
 const ScrubLabelText = styled.div`
   font-size: 10px;
-  color: ${({ $color }) => $color || colors.textMuted};
+  color: ${({ $color }) => $color || colors.mut};
   font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
-  padding: 0 8px;
+  letter-spacing: .03em;
   flex-shrink: 0;
   user-select: none;
   pointer-events: none;
-  min-width: ${({ $wide }) => $wide ? '60px' : '20px'};
 `;
 
 const ScrubValue = styled.div`
-  flex: 1;
-  font-size: 11px;
-  color: ${colors.text};
-  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: ${colors.ink};
   font-variant-numeric: tabular-nums;
-  text-align: right;
-  padding-right: 8px;
+  margin-top: 1px;
   user-select: none;
   pointer-events: none;
   white-space: nowrap;
@@ -365,41 +401,42 @@ const ScrubInput = styled.input`
   inset: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.4);
+  background: #fff;
   border: none;
   outline: none;
-  color: ${colors.text};
-  font-size: 11px;
-  font-family: 'JetBrains Mono', monospace;
-  text-align: right;
-  padding: 0 8px;
+  color: ${colors.ink};
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  padding: 0 12px;
   z-index: 2;
 `;
 
 const InfoRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 0;
+  gap: 10px;
+  margin-bottom: 4px;
 `;
 
 const InfoLabel = styled.span`
-  font-size: 10px;
-  color: ${colors.textDim};
-  width: 60px;
+  font-size: 13px;
+  color: ${colors.mut};
+  width: 74px;
   flex-shrink: 0;
 `;
 
 const InfoValue = styled.span`
-  font-size: 10px;
-  color: ${colors.textMuted};
-  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  color: ${colors.ink2};
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 `;
 
-function ScrubField({ label, labelColor, value, step, wideLabel, min, max, onChange, onStart, onCommit }) {
+function ScrubField({ label, labelColor, value, step, wideLabel, min, max, onChange, onStart, onCommit, disabled }) {
   const [editing, setEditing] = useState(false);
   const [editVal, setEditVal] = useState('');
   const [dragging, setDragging] = useState(false);
@@ -425,7 +462,7 @@ function ScrubField({ label, labelColor, value, step, wideLabel, min, max, onCha
   };
 
   const handleMouseDown = (e) => {
-    if (editing) return;
+    if (editing || disabled) return;
     e.preventDefault();
     dragStartX.current = e.clientX;
     dragStartVal.current = numValue;
@@ -479,7 +516,7 @@ function ScrubField({ label, labelColor, value, step, wideLabel, min, max, onCha
   };
 
   return (
-    <ScrubFieldWrap $active={editing || dragging} onMouseDown={handleMouseDown}>
+    <ScrubFieldWrap $active={editing || dragging} $disabled={disabled} onMouseDown={handleMouseDown}>
       <ScrubLabelText $color={labelColor} $wide={wideLabel}>{label}</ScrubLabelText>
       <ScrubValue>{formatDisplay()}</ScrubValue>
       {editing && (
@@ -513,7 +550,6 @@ const ROT_FIELDS = [{ key: 'rx', axis: 'rx', step: 1 }, { key: 'ry', axis: 'ry',
 const SCALE_FIELDS = [{ key: 'sx', axis: 'sx', step: 0.1 }, { key: 'sy', axis: 'sy', step: 0.1 }, { key: 'sz', axis: 'sz', step: 0.1 }];
 
 const LABEL_BY_TYPE = { 'point-light': 'Point Light', 'spot-light': 'Focused Light', 'area-light': 'Softbox', 'hemisphere-light': 'Environment Light', 'product-cube': 'Product Cube', 'cyclorama': 'Cyclorama', 'imported-model': 'Imported Model', camera: 'Camera' };
-const TYPE_ICON = { 'point-light': '☀', 'spot-light': '◐', 'area-light': '▬', 'hemisphere-light': '◑', 'product-cube': '■', 'cyclorama': '⌐', 'imported-model': '⬡', camera: '◎' };
 const AXIS_COLORS = { x: colors.axisX, rx: colors.axisX, sx: colors.axisX, y: colors.axisY, ry: colors.axisY, sy: colors.axisY, z: colors.axisZ, rz: colors.axisZ, sz: colors.axisZ };
 const SINGLE_COLOR_TYPES = ['point-light', 'spot-light', 'directional-light', 'area-light'];
 const SHADOW_CASTING_TYPES = ['point-light', 'spot-light', 'directional-light'];
@@ -619,7 +655,6 @@ const KelvinRow = styled.div`
 const KelvinValue = styled.span`
   font-size: 11px;
   color: ${colors.text};
-  font-family: 'JetBrains Mono', monospace;
   font-variant-numeric: tabular-nums;
 `;
 
@@ -720,12 +755,13 @@ function KelvinPicker({ value, onStart, onChange, onCommit }) {
 const getStateForId = (id) => id === 'camera' ? sceneState.camera : sceneState.elements[id] ?? null;
 const THROTTLE_MS = 66;
 
-function AccordionSection({ title, badge, defaultOpen = true, children }) {
+function AccordionSection({ title, badge, icon, tone, defaultOpen = true, children }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <SectionWrap>
       <SectionHeader onClick={() => setOpen(!open)}>
-        <SectionArrow $open={open}>▶</SectionArrow>
+        <SectionArrow $open={open}><IconChevron /></SectionArrow>
+        {icon && <SectionIcon $tone={tone}>{icon}</SectionIcon>}
         <SectionTitle>{title}</SectionTitle>
         {badge && <SectionBadge>{badge}</SectionBadge>}
       </SectionHeader>
@@ -792,25 +828,25 @@ export default function SelectionPanel({ embedded = false }) {
   const posFields = POS_FIELDS[type] ?? [];
   const lightFields = LIGHT_FIELDS[type] ?? [];
   const label = type === 'imported-model' ? (vals.fileName || 'Imported Model') : (LABEL_BY_TYPE[type] ?? selected);
-  const icon = TYPE_ICON[type] ?? '○';
 
+  const locked = !!vals.locked;
   const handleScrubStart = () => { beginTransaction(); };
-  const handleScrubChange = (field, newVal) => { setVals(v => ({ ...v, [field.key]: newVal })); if (selected === 'camera') updateCamera(field.key, newVal); else updateElement(selected, field.key, newVal); };
+  const handleScrubChange = (field, newVal) => { if (locked) return; setVals(v => ({ ...v, [field.key]: newVal })); if (selected === 'camera') updateCamera(field.key, newVal); else updateElement(selected, field.key, newVal); };
   const handleScrubCommit = () => { commitTransaction(); };
-  const handleColorChange = (key, value) => { updateElement(selected, key, value); setVals(v => ({ ...v, [key]: value })); };
+  const handleColorChange = (key, value) => { if (locked) return; updateElement(selected, key, value); setVals(v => ({ ...v, [key]: value })); };
 
   const renderAxisField = (field) => (
-    <ScrubField key={field.key} label={field.axis.replace('r','').replace('s','').toUpperCase()} labelColor={AXIS_COLORS[field.axis]} value={vals[field.key] ?? 0} step={field.step} onChange={(v) => handleScrubChange(field, v)} onStart={handleScrubStart} onCommit={() => handleScrubCommit()} />
+    <ScrubField key={field.key} label={field.axis.replace('r','').replace('s','').toUpperCase()} labelColor={AXIS_COLORS[field.axis]} value={vals[field.key] ?? 0} step={field.step} disabled={locked} onChange={(v) => handleScrubChange(field, v)} onStart={handleScrubStart} onCommit={() => handleScrubCommit()} />
   );
 
   const renderLabeledField = (field) => (
-    <ScrubField key={field.key} label={field.label} value={vals[field.key] ?? 0} step={field.step} min={field.min} max={field.max} wideLabel onChange={(v) => handleScrubChange(field, v)} onStart={handleScrubStart} onCommit={() => handleScrubCommit()} />
+    <ScrubField key={field.key} label={field.label} value={vals[field.key] ?? 0} step={field.step} min={field.min} max={field.max} wideLabel disabled={locked} onChange={(v) => handleScrubChange(field, v)} onStart={handleScrubStart} onCommit={() => handleScrubCommit()} />
   );
 
   return (
     <Sidebar $collapsed={false} $embedded={embedded}>
       <SidebarHeader>
-        <HeaderLeft><SidebarLabel>Inspector</SidebarLabel><SelectedName>{icon} {label}</SelectedName></HeaderLeft>
+        <HeaderLeft><SidebarLabel>Inspector</SidebarLabel><SelectedName>{label}</SelectedName></HeaderLeft>
         <HeaderActions>
           {selected && selected !== 'camera' && (
             <>
@@ -841,24 +877,25 @@ export default function SelectionPanel({ embedded = false }) {
       )}
       <PropsScroll>
         {type === 'imported-model' && vals.fileName && (
-          <AccordionSection title="File" defaultOpen={false}>
+          <AccordionSection title="File" icon={<IconFile />} tone="peri" defaultOpen={false}>
             <InfoRow>
               <InfoLabel>Name</InfoLabel>
               <InfoValue>{vals.fileName}</InfoValue>
             </InfoRow>
           </AccordionSection>
         )}
-        <AccordionSection title="Position">{posFields.map(renderAxisField)}</AccordionSection>
-        <AccordionSection title="Rotation">{ROT_FIELDS.map(renderAxisField)}</AccordionSection>
-        {SCALABLE_TYPES.includes(type) && <AccordionSection title="Scale">{SCALE_FIELDS.map(renderAxisField)}</AccordionSection>}
+        <AccordionSection title="Position" icon={<IconMove />} tone="peri"><Triple>{posFields.map(renderAxisField)}</Triple></AccordionSection>
+        <AccordionSection title="Rotation" icon={<IconRotate />} tone="peri"><Triple>{ROT_FIELDS.map(renderAxisField)}</Triple></AccordionSection>
+        {SCALABLE_TYPES.includes(type) && <AccordionSection title="Scale" icon={<IconScale />} tone="purple"><Triple>{SCALE_FIELDS.map(renderAxisField)}</Triple></AccordionSection>}
         {lightFields.length > 0 && (
-          <AccordionSection title="Light" badge={LABEL_BY_TYPE[type]?.split(' ')[0]}>
+          <AccordionSection title="Light" icon={<IconSun />} tone="yellow" badge={LABEL_BY_TYPE[type]?.split(' ')[0]}>
             {lightFields.map(renderLabeledField)}
             {SINGLE_COLOR_TYPES.includes(type) && (
               <KelvinPicker
                 value={vals.colorKelvin ?? 5600}
                 onStart={handleScrubStart}
                 onChange={(k, hex) => {
+                  if (locked) return;
                   setVals(v => ({ ...v, colorKelvin: k, color: hex }));
                   updateElement(selected, 'colorKelvin', k);
                   updateElement(selected, 'color', hex);
@@ -871,6 +908,7 @@ export default function SelectionPanel({ embedded = false }) {
                 <PropLabel>Color</PropLabel>
                 <ColorSwatch
                   value={vals.color ?? '#ffffff'}
+                  disabled={locked}
                   onChange={e => handleColorChange('color', e.target.value)}
                 />
                 <ColorHex>{(vals.color ?? '#ffffff').toUpperCase()}</ColorHex>
@@ -887,6 +925,7 @@ export default function SelectionPanel({ embedded = false }) {
                 <span style={{ flexShrink: 0 }}>Aim at</span>
                 <AimSelect
                   value=""
+                  disabled={locked}
                   onChange={(e) => {
                     const targetId = e.target.value;
                     if (!targetId) return;
@@ -932,7 +971,9 @@ export default function SelectionPanel({ embedded = false }) {
                 Cast shadow
                 <Checkbox
                   checked={vals.castShadow !== false}
+                  disabled={locked}
                   onChange={(e) => {
+                    if (locked) return;
                     const v = e.target.checked;
                     updateElement(selected, 'castShadow', v);
                     setVals(prev => ({ ...prev, castShadow: v }));
@@ -943,7 +984,7 @@ export default function SelectionPanel({ embedded = false }) {
           </AccordionSection>
         )}
         {type === 'hemisphere-light' && (
-          <AccordionSection title="Colors">
+          <AccordionSection title="Colors" icon={<IconPalette />} tone="pink">
             <ColorRow><PropLabel>Sky</PropLabel><ColorSwatch value={vals.skyColor ?? '#87ceeb'} onChange={e => handleColorChange('skyColor', e.target.value)} /><ColorHex>{(vals.skyColor ?? '#87ceeb').toUpperCase()}</ColorHex></ColorRow>
             <ColorRow><PropLabel>Ground</PropLabel><ColorSwatch value={vals.groundColor ?? '#362a1e'} onChange={e => handleColorChange('groundColor', e.target.value)} /><ColorHex>{(vals.groundColor ?? '#362a1e').toUpperCase()}</ColorHex></ColorRow>
           </AccordionSection>

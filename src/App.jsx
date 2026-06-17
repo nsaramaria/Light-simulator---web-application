@@ -6,7 +6,7 @@ import SelectionPanel from './components/SelectionPanel';
 import Header from './components/Header';
 import HelpModal from './components/Help';
 import ContextMenu from './components/ContextMenu';
-import Auth from './components/Auth';
+import Entry from './components/Entry';
 import StatusBar from './components/StatusBar';
 import Filmstrip from './components/Filmstrip';
 import SaveLoadManager from './components/SaveLoadManager';
@@ -19,20 +19,24 @@ import {
   getSceneSnapshot, restoreFullSnapshot, getDefaultSnapshot, onSceneChange,
 } from './scene/sharedScene';
 import { saveScene, updateScene, getScene } from './api';
-import { colors } from './styles/theme';
+import { colors, shadows } from './styles/theme';
 
 const AppWrapper = styled.div`
   width: 100vw;
   height: 100vh;
   display: flex;
   flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: ${colors.bg};
+  animation: appin .22s ease both;
 `;
 
 const ViewsContainer = styled.div`
   flex: 1;
   display: flex;
+  gap: 12px;
   min-height: 0;
-  overflow: hidden;
   user-select: ${({ $dragging }) => $dragging ? 'none' : 'auto'};
 `;
 
@@ -41,7 +45,7 @@ const ViewsArea = styled.div`
   min-width: 0;
   height: 100%;
   display: flex;
-  overflow: hidden;
+  gap: 12px;
   position: relative;
 `;
 
@@ -51,25 +55,26 @@ const ViewPanel = styled.div`
   min-width: 0;
   height: 100%;
   overflow: hidden;
+  border-radius: ${'20px'};
+  background: radial-gradient(75% 65% at 35% 26%, #ffffff, #eef0fb 72%);
+  box-shadow: ${shadows.cardSm};
   display: ${({ $width }) => $width === 0 ? 'none' : 'block'};
 `;
 
 const Divider = styled.div`
-  width: 3px;
+  width: 6px;
   height: 100%;
-  background: ${colors.borderSubtle};
+  background: transparent;
   cursor: col-resize;
   flex-shrink: 0;
-  transition: background 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border-radius: 999px;
+  transition: background 0.15s;
   position: relative;
-  &:hover, &:active { background: ${colors.accent}; }
+  &:hover, &:active { background: ${colors.periSoft}; }
   &::after {
     content: '';
     position: absolute;
-    width: 11px;
+    width: 14px;
     height: 100%;
     left: -4px;
     cursor: col-resize;
@@ -77,19 +82,22 @@ const Divider = styled.div`
 `;
 
 const RightColumn = styled.div`
-  width: 252px;
+  width: 280px;
   flex-shrink: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: ${colors.surfaceDark};
-  border-left: 1px solid ${colors.border};
+  gap: 7px;
 `;
 
 const OutlinerPane = styled.div`
   flex-shrink: 0;
   min-height: 90px;
   display: flex;
+  background: ${colors.card};
+  border-radius: ${'20px'};
+  box-shadow: ${shadows.cardSm};
+  overflow: hidden;
 `;
 
 const InspectorPane = styled.div`
@@ -97,20 +105,24 @@ const InspectorPane = styled.div`
   min-height: 90px;
   overflow: hidden;
   display: flex;
+  background: ${colors.card};
+  border-radius: ${'20px'};
+  box-shadow: ${shadows.cardSm};
 `;
 
 const HDivider = styled.div`
-  height: 4px;
+  height: 6px;
   flex-shrink: 0;
-  background: ${colors.border};
+  background: transparent;
   cursor: row-resize;
-  transition: background 0.2s;
+  border-radius: 999px;
+  transition: background 0.15s;
   position: relative;
-  &:hover, &:active { background: ${colors.accent}; }
+  &:hover, &:active { background: ${colors.periSoft}; }
   &::after {
     content: '';
     position: absolute;
-    height: 11px;
+    height: 14px;
     width: 100%;
     top: -4px;
     cursor: row-resize;
@@ -119,45 +131,38 @@ const HDivider = styled.div`
 
 const ViewLabel = styled.div`
   position: absolute;
-  top: 10px;
-  left: 10px;
-  background: ${colors.surfacePanel};
-  backdrop-filter: blur(8px);
-  color: ${colors.placeholder};
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 9px;
+  top: 12px;
+  left: 12px;
+  background: #fff;
+  color: ${colors.ink2};
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  border: 1px solid ${colors.borderLight};
+  letter-spacing: 0.05em;
+  box-shadow: ${shadows.cardSm};
   z-index: 10;
-  font-family: 'JetBrains Mono', monospace;
 `;
 
 const MaximizeBtn = styled.button`
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 12px;
+  right: 12px;
   z-index: 10;
-  background: ${colors.surfacePanel};
-  backdrop-filter: blur(8px);
-  border: 1px solid ${colors.borderLight};
-  color: ${colors.placeholder};
-  width: 26px;
-  height: 26px;
-  border-radius: 4px;
-  font-size: 12px;
+  background: #fff;
+  border: none;
+  color: ${colors.ink2};
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
-  &:hover {
-    border-color: ${colors.accentBorder};
-    color: ${colors.accent};
-    background: ${colors.surfaceDark};
-  }
+  box-shadow: ${shadows.cardSm};
+  transition: all 0.15s;
+  svg { width: 15px; height: 15px; }
+  &:hover { color: ${colors.peri}; transform: translateY(-1px); }
 `;
 
 const HiddenFileInput = styled.input`
@@ -459,7 +464,7 @@ export default function App() {
     markUnsaved();
   };
 
-  if (!user) return <Auth onLogin={setUser} />;
+  if (!user) return <Entry onLogin={setUser} />;
 
   const cameraWidth = maximized === 'camera' ? 100 : maximized === 'setup' ? 0 : splitPct;
   const setupWidth  = maximized === 'setup'  ? 100 : maximized === 'camera' ? 0 : 100 - splitPct;
@@ -489,17 +494,17 @@ export default function App() {
       <ViewsContainer $dragging={dragging}>
         <ViewsArea ref={containerRef}>
           <ViewPanel $width={cameraWidth}>
-            <ViewLabel>CAM</ViewLabel>
-            <MaximizeBtn onClick={() => toggleMaximize('camera')}>
-              {maximized === 'camera' ? '⤡' : '⤢'}
+            <ViewLabel>Camera</ViewLabel>
+            <MaximizeBtn onClick={() => toggleMaximize('camera')} title={maximized === 'camera' ? 'Restore' : 'Maximize'}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
             </MaximizeBtn>
             <CameraView />
           </ViewPanel>
           {showDividerEl && <Divider onMouseDown={onDividerMouseDown} />}
           <ViewPanel $width={setupWidth}>
-            <ViewLabel>3D</ViewLabel>
-            <MaximizeBtn onClick={() => toggleMaximize('setup')}>
-              {maximized === 'setup' ? '⤡' : '⤢'}
+            <ViewLabel>3D Setup</ViewLabel>
+            <MaximizeBtn onClick={() => toggleMaximize('setup')} title={maximized === 'setup' ? 'Restore' : 'Maximize'}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
             </MaximizeBtn>
             <SetupView />
           </ViewPanel>

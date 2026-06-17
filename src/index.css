@@ -1,19 +1,32 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
-/*
-  Mirror of the JS theme palette (styles/theme.js — Steel Slate).
-  Update both when changing the palette.
-*/
 :root {
-  --color-background: #0C0E14;
-  --color-text: #D0D5DF;
-  --color-accent: #6A9FD8;
-  --color-accent-30: rgba(106,159,216,0.3);
-  --color-accent-50: rgba(106,159,216,0.5);
-  --color-scrollbar: rgba(255,255,255,0.08);
-  --color-scrollbar-hover: rgba(255,255,255,0.15);
-  --color-placeholder: rgba(255,255,255,0.2);
+  --bg: #D9E0FC;
+  --bg-deep: #C7D2FB;
+  --card: #FFFFFF;
+  --ink: #17171C;
+  --ink2: #41424C;
+  --mut: #7E8295;
+  --peri: #8C9BF2;
+  --peri-soft: #B9C3FB;
+  --peri-tint: #EBEEFE;
+  --pink: #F18FD0;
+  --pink-soft: #FBD3EE;
+  --yellow: #F4C84F;
+  --yellow-soft: #FCEFC5;
+  --purple: #C49BEA;
+  --purple-soft: #EEE0FB;
+  --mint: #8FE3C0;
+  --mint-soft: #D8F6EA;
+  --blue: #A9B8FB;
+  --sh: 0 12px 30px rgba(120,135,230,.16);
+  --sh-sm: 0 4px 14px rgba(120,135,230,.14);
+  --sh-btn: 0 5px 0 #050509;
+  --r-xl: 26px;
+  --r-lg: 20px;
+  --r: 14px;
+  --r-sm: 10px;
+  --ui: 'Poppins', system-ui, -apple-system, sans-serif;
 }
 
 *, *::before, *::after {
@@ -29,61 +42,34 @@ html, body, #root {
 }
 
 body {
-  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
-  background: var(--color-background);
-  color: var(--color-text);
+  font-family: var(--ui);
+  background: var(--bg);
+  color: var(--ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+input, button, select, textarea {
+  font-family: inherit;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D4DAF2; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #C2CAEC; }
+* { scrollbar-width: thin; scrollbar-color: #D4DAF2 transparent; }
 
-::-webkit-scrollbar-thumb {
-  background: var(--color-scrollbar);
-  border-radius: 4px;
-}
+::selection { background: rgba(140,155,242,.3); color: var(--ink); }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-scrollbar-hover);
-}
-
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-scrollbar) transparent;
-}
-
-::selection {
-  background: var(--color-accent-30);
-  color: var(--color-text);
-}
-
-:focus-visible {
-  outline: 1px solid var(--color-accent-50);
-  outline-offset: 1px;
-}
+:focus-visible { outline: 2px solid var(--peri); outline-offset: 2px; }
 
 input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; }
+::placeholder { color: #aab0c6; }
 
-input[type="number"] {
-  -moz-appearance: textfield;
-}
-
-::placeholder {
-  color: var(--color-placeholder);
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.4; }
-}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+@keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes camin { from { opacity: 0; transform: translateY(20px) scale(.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes appin { from { opacity: 0; transform: scale(.985); } to { opacity: 1; transform: scale(1); } }
