@@ -482,6 +482,7 @@ export default function App() {
         onShowLoad={() => setShowLoadModal(true)}
         onNewScene={handleNewScene}
         onExport={() => setShowExportModal(true)}
+        onAdd={handleAdd}
         saving={saving}
         saveStatus={saveStatus}
       />
@@ -511,7 +512,7 @@ export default function App() {
         </ViewsArea>
         <RightColumn ref={rightColRef}>
           <OutlinerPane style={{ height: `${outlinerPct}%` }}>
-            <Outliner embedded onAdd={handleAdd} />
+            <Outliner embedded />
           </OutlinerPane>
           <HDivider onMouseDown={onRightDividerMouseDown} />
           <InspectorPane>

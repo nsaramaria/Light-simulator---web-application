@@ -1,28 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
-import { colors, shadows, alpha } from '../styles/theme';
+import { colors, shadows } from '../styles/theme';
 
 const Wrapper = styled.div`
   position: relative;
 `;
 
 const AddBtn = styled.button`
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: ${colors.ink};
-  color: #fff;
-  border: none;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  font-size: 17px;
-  line-height: 1;
+  gap: 6px;
+  padding: 11px 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: 999px;
   cursor: pointer;
+  border: none;
+  background: ${({ $open }) => $open ? '#E0E5FD' : colors.periTint};
+  color: ${colors.ink2};
+  transition: .14s;
   flex-shrink: 0;
-  box-shadow: 0 3px 0 #050509;
-  transition: transform .1s, box-shadow .1s;
-  &:active { transform: translateY(3px); box-shadow: 0 0 0 #050509; }
+  &:hover { background: #E0E5FD; }
+  svg { width: 15px; height: 15px; }
 `;
 
 const DropdownWrap = styled.div`
@@ -32,7 +31,7 @@ const DropdownWrap = styled.div`
   z-index: 200;
   display: flex;
   flex-direction: column;
-  width: 280px;
+  width: 300px;
   background: ${colors.surfaceOverlay};
   border-radius: 16px;
   overflow: hidden;
@@ -61,15 +60,49 @@ const SearchInput = styled.input`
   font-size: 12px;
   color: ${colors.text};
   font-family: inherit;
-
-  &::placeholder {
-    color: ${colors.placeholder};
-  }
+  &::placeholder { color: ${colors.placeholder}; }
 `;
 
-const MenuList = styled.div`
-  overflow-y: auto;
+const MenuBody = styled.div`
+  display: flex;
   max-height: 340px;
+`;
+
+const CatList = styled.div`
+  width: 112px;
+  flex-shrink: 0;
+  border-right: 1px solid ${colors.border};
+  padding: 6px;
+`;
+
+const CatItem = styled.div`
+  padding: 9px 10px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: ${({ $active }) => $active ? colors.accent : colors.text};
+  background: ${({ $active }) => $active ? colors.accentFaint : 'transparent'};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  transition: background 0.1s, color 0.1s;
+  &:hover { background: ${colors.accentFaint}; color: ${colors.accent}; }
+`;
+
+const CatIcon = styled.div`
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border-radius: ${({ $round }) => $round ? '50%' : '4px'};
+  background: ${({ $color }) => $color};
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.06);
+`;
+
+const ItemList = styled.div`
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
   padding: 4px 0 8px;
   &::-webkit-scrollbar { width: 8px; }
   &::-webkit-scrollbar-thumb { background: ${colors.scrollThumb}; border-radius: 999px; }
@@ -96,11 +129,7 @@ const Item = styled.div`
   align-items: center;
   gap: 10px;
   transition: background 0.1s;
-
-  &:hover {
-    background: ${colors.accentFaint};
-    color: ${colors.accent};
-  }
+  &:hover { background: ${colors.accentFaint}; color: ${colors.accent}; }
 `;
 
 const ItemIcon = styled.div`
@@ -152,23 +181,18 @@ const InfoIconWrap = styled.div`
   border: 1px solid ${colors.textDim};
   cursor: default;
   transition: all 0.15s;
-
-  &:hover {
-    color: ${colors.accent};
-    border-color: ${colors.accent};
-  }
+  &:hover { color: ${colors.accent}; border-color: ${colors.accent}; }
 `;
 
 const InfoIcon = ({ text }) => (
-  <InfoIconWrap title={text} onClick={(e) => e.stopPropagation()}>
-    i
-  </InfoIconWrap>
+  <InfoIconWrap title={text} onClick={(e) => e.stopPropagation()}>i</InfoIconWrap>
 );
 
 const SearchResults = styled.div`
   flex: 1;
   overflow-y: auto;
-  padding: 4px 0;
+  max-height: 360px;
+  padding: 4px 0 8px;
 `;
 
 const SearchResultItem = styled.div`
@@ -183,11 +207,7 @@ const SearchResultItem = styled.div`
   align-items: center;
   gap: 10px;
   transition: background 0.1s;
-
-  &:hover {
-    background: ${colors.accentFaint};
-    color: ${colors.accent};
-  }
+  &:hover { background: ${colors.accentFaint}; color: ${colors.accent}; }
 `;
 
 const SearchResultCat = styled.span`
@@ -220,17 +240,6 @@ const ImportIcon = ({ type }) => {
       </svg>
     </ItemSvgIcon>
   );
-  if (type === 'scan') return (
-    <ItemSvgIcon $color="#5AAD5A">
-      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M1 4V2a1 1 0 0 1 1-1h3" />
-        <path d="M11 1h3a1 1 0 0 1 1 1v2" />
-        <path d="M15 12v2a1 1 0 0 1-1 1h-3" />
-        <path d="M5 15H2a1 1 0 0 1-1-1v-2" />
-        <circle cx="8" cy="8" r="3" />
-      </svg>
-    </ItemSvgIcon>
-  );
   return null;
 };
 
@@ -250,7 +259,6 @@ const DESCRIPTIONS = {
   'product-cube':     'Simple cube to represent the product being photographed',
   'import-upload':    'Upload a .glb, .gltf, .obj, or .fbx file from your device',
   'import-generate':  'Take or upload a photo and AI generates a 3D model from it',
-  'import-scan':      'Scan a real object with your phone using multiple photos',
 };
 
 const CATEGORIES = [
@@ -263,7 +271,6 @@ const CATEGORIES = [
     items: [
       { id: 'import-upload',   label: 'Upload 3D Model',    importType: 'upload' },
       { id: 'import-generate', label: 'Generate from Photo', importType: 'generate', badge: 'AI' },
-      { id: 'import-scan',     label: 'Scan Object',         importType: 'scan' },
     ],
   },
   {
@@ -272,10 +279,10 @@ const CATEGORIES = [
     iconColor: colors.lightIcon,
     iconRound: true,
     items: [
-      { id: 'point-light',       label: 'Point Light',       iconColor: colors.white,       iconRound: true },
-      { id: 'spot-light',        label: 'Focused Light',     iconColor: '#ffdd44',          iconRound: true },
-      { id: 'area-light',        label: 'Softbox',           iconColor: '#44aaff',          iconRound: false },
-      { id: 'hemisphere-light',  label: 'Environment Light', iconColor: '#87ceeb',          iconRound: true },
+      { id: 'point-light',       label: 'Point Light',       iconColor: colors.white, iconRound: true },
+      { id: 'spot-light',        label: 'Focused Light',     iconColor: '#ffdd44',    iconRound: true },
+      { id: 'area-light',        label: 'Softbox',           iconColor: '#44aaff',    iconRound: false },
+      { id: 'hemisphere-light',  label: 'Environment Light', iconColor: '#87ceeb',    iconRound: true },
     ],
   },
   {
@@ -285,9 +292,9 @@ const CATEGORIES = [
     iconRound: false,
     items: [
       { id: 'flag',      label: 'Flag',      iconColor: '#1a1a1a', iconRound: false },
-      { id: 'reflector',  label: 'Reflector',  iconColor: '#e0e0e0', iconRound: false },
-      { id: 'diffuser',   label: 'Diffuser',   iconColor: '#f5f0e8', iconRound: false },
-      { id: 'v-flat',     label: 'V-Flat',     iconColor: '#555555', iconRound: false },
+      { id: 'reflector', label: 'Reflector', iconColor: '#e0e0e0', iconRound: false },
+      { id: 'diffuser',  label: 'Diffuser',  iconColor: '#f5f0e8', iconRound: false },
+      { id: 'v-flat',    label: 'V-Flat',    iconColor: '#555555', iconRound: false },
     ],
   },
   {
@@ -296,10 +303,10 @@ const CATEGORIES = [
     iconColor: '#8b7d6b',
     iconRound: false,
     items: [
-      { id: 'backdrop',   label: 'Backdrop',   iconColor: '#8b7d6b', iconRound: false },
-      { id: 'cyclorama',  label: 'Cyclorama',  iconColor: '#f0f0f0', iconRound: false },
-      { id: 'table',      label: 'Table',      iconColor: '#6b5d4b', iconRound: false },
-      { id: 'pedestal',   label: 'Pedestal',   iconColor: '#7b6d5b', iconRound: false },
+      { id: 'backdrop',  label: 'Backdrop',  iconColor: '#8b7d6b', iconRound: false },
+      { id: 'cyclorama', label: 'Cyclorama', iconColor: '#f0f0f0', iconRound: false },
+      { id: 'table',     label: 'Table',     iconColor: '#6b5d4b', iconRound: false },
+      { id: 'pedestal',  label: 'Pedestal',  iconColor: '#7b6d5b', iconRound: false },
     ],
   },
   {
@@ -319,6 +326,7 @@ const ALL_ITEMS = CATEGORIES.flatMap(cat =>
 
 export default function AddMenu({ onAdd }) {
   const [open, setOpen] = useState(false);
+  const [activeCat, setActiveCat] = useState('import');
   const [search, setSearch] = useState('');
   const wrapperRef = useRef(null);
   const searchRef = useRef(null);
@@ -335,12 +343,13 @@ export default function AddMenu({ onAdd }) {
   }, []);
 
   useEffect(() => {
-    if (open) setTimeout(() => searchRef.current?.focus(), 50);
+    if (open) { setActiveCat('import'); setTimeout(() => searchRef.current?.focus(), 50); }
     else setSearch('');
   }, [open]);
 
   const handleAdd = (itemId) => { onAdd(itemId); setOpen(false); setSearch(''); };
 
+  const currentCat = CATEGORIES.find(c => c.id === activeCat);
   const isSearching = search.trim().length > 0;
 
   const searchResults = isSearching
@@ -393,7 +402,10 @@ export default function AddMenu({ onAdd }) {
 
   return (
     <Wrapper ref={wrapperRef}>
-      <AddBtn $open={open} onClick={() => setOpen(v => !v)} title="Add element">+</AddBtn>
+      <AddBtn $open={open} onClick={() => setOpen(v => !v)} title="Add element">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        Add
+      </AddBtn>
 
       {open && (
         <DropdownWrap>
@@ -408,14 +420,34 @@ export default function AddMenu({ onAdd }) {
               {searchResults.map(renderSearchItem)}
             </SearchResults>
           ) : (
-            <MenuList>
-              {CATEGORIES.map(cat => (
-                <div key={cat.id}>
-                  <ItemHeader>{cat.label}</ItemHeader>
-                  {cat.items.map(renderItem)}
-                </div>
-              ))}
-            </MenuList>
+            <MenuBody>
+              <CatList>
+                {CATEGORIES.map(cat => (
+                  <CatItem key={cat.id} $active={activeCat === cat.id} onMouseEnter={() => setActiveCat(cat.id)}>
+                    {cat.isImport ? (
+                      <ItemSvgIcon $color={activeCat === cat.id ? colors.accent : colors.textMuted}>
+                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 8l4-4 4 4" />
+                          <line x1="8" y1="4" x2="8" y2="14" />
+                          <line x1="2" y1="2" x2="14" y2="2" />
+                        </svg>
+                      </ItemSvgIcon>
+                    ) : (
+                      <CatIcon $color={cat.iconColor} $round={cat.iconRound} />
+                    )}
+                    {cat.label}
+                  </CatItem>
+                ))}
+              </CatList>
+              <ItemList>
+                {currentCat && (
+                  <>
+                    <ItemHeader>{currentCat.label}</ItemHeader>
+                    {currentCat.items.map(renderItem)}
+                  </>
+                )}
+              </ItemList>
+            </MenuBody>
           )}
         </DropdownWrap>
       )}

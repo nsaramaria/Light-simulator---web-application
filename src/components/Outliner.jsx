@@ -2,7 +2,6 @@ import React, { useEffect, useReducer, useState } from 'react';
 import styled from 'styled-components';
 import { sceneState, onSceneChange, updateElement } from '../scene/sharedScene';
 import { colors } from '../styles/theme';
-import AddMenu from './AddMenu';
 
 const LABEL_BY_TYPE = { 'point-light': 'Point Light', 'spot-light': 'Focused Light', 'directional-light': 'Directional Light', 'area-light': 'Softbox', 'hemisphere-light': 'Environment Light', 'product-cube': 'Product Cube', 'cyclorama': 'Cyclorama', 'imported-model': 'Imported Model' };
 const LIGHT_TYPES = new Set(['point-light', 'spot-light', 'directional-light', 'area-light', 'hemisphere-light']);
@@ -184,7 +183,7 @@ const Empty = styled.div`
 const selectExternal = (id) => window.dispatchEvent(new CustomEvent('studio:select', { detail: id }));
 const selectSet = (ids) => window.dispatchEvent(new CustomEvent('studio:select-set', { detail: { ids } }));
 
-export default function Outliner({ embedded = false, onAdd }) {
+export default function Outliner({ embedded = false }) {
   const [, force] = useReducer(x => x + 1, 0);
   const [filter, setFilter] = useState('all');
   const [collapsed, setCollapsed] = useState(false);
@@ -240,7 +239,7 @@ export default function Outliner({ embedded = false, onAdd }) {
     <Sidebar $collapsed={false} $embedded={embedded}>
       <Head>
         <Title>Outliner</Title>
-        {onAdd ? <AddMenu onAdd={onAdd} /> : (!embedded && <CollapseBtn onClick={() => toggleCollapse(true)} title="Collapse">‹</CollapseBtn>)}
+        {!embedded && <CollapseBtn onClick={() => toggleCollapse(true)} title="Collapse">‹</CollapseBtn>}
       </Head>
       <PinnedZone>
         <Row $primary={primary === 'camera'} $sel={false} onClick={() => selectExternal('camera')}>
