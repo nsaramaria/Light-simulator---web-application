@@ -11,6 +11,7 @@ import StatusBar from './components/StatusBar';
 import Filmstrip from './components/Filmstrip';
 import SaveLoadManager from './components/SaveLoadManager';
 import ExportDialog from './components/ExportDialog';
+import Feedback from './components/Feedback';
 import Outliner from './components/Outliner';
 import GenerateDialog from './components/GenerateDialog';
 import {
@@ -188,6 +189,7 @@ export default function App() {
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [splitPct, setSplitPct] = useState(50);
   const [dragging, setDragging] = useState(false);
   const [maximized, setMaximized] = useState(null);
@@ -483,6 +485,7 @@ export default function App() {
         onNewScene={handleNewScene}
         onExport={() => setShowExportModal(true)}
         onAdd={handleAdd}
+        onShowFeedback={() => setShowFeedback(true)}
         saving={saving}
         saveStatus={saveStatus}
       />
@@ -522,6 +525,7 @@ export default function App() {
       </ViewsContainer>
       <Filmstrip ref={filmstripRef} onShotsChange={markUnsaved} />
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+      {showFeedback && <Feedback onClose={() => setShowFeedback(false)} />}
       {showLoadModal && (
         <SaveLoadManager
           onClose={() => setShowLoadModal(false)}
