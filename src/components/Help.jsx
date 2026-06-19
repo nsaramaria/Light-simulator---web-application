@@ -240,6 +240,7 @@ export default function HelpModal({ onClose }) {
               <Row><Keys><Kbd>W</Kbd><Kbd>E</Kbd><Kbd>R</Kbd></Keys><Desc>Move / Rotate / Scale</Desc></Row>
               <Row><Keys><Kbd>Q</Kbd></Keys><Desc>Switch between World and Local axes</Desc></Row>
               <Row><Keys><Kbd>X</Kbd></Keys><Desc>Show or hide the transform handles</Desc></Row>
+              <Row><Keys><Kbd>G</Kbd></Keys><Desc>Show or hide the guides (camera frustum, axes, light lines)</Desc></Row>
               <Row><Keys><Kbd>H</Kbd></Keys><Desc>Hide selected &nbsp;(Alt+H unhides all)</Desc></Row>
               <Row><Keys><Kbd>Ctrl</Kbd><Sep>+</Sep><Kbd>D</Kbd></Keys><Desc>Duplicate selected</Desc></Row>
               <Row><Keys><Kbd>Delete</Kbd></Keys><Desc>Delete selected</Desc></Row>

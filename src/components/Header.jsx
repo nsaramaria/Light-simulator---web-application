@@ -155,35 +155,6 @@ const SaveChip = styled.span`
   }
 `;
 
-const Export = styled.button`
-  font-weight: 600;
-  font-size: 13.5px;
-  color: #fff;
-  background: ${colors.ink};
-  border: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  padding: 11px 18px;
-  border-radius: 999px;
-  cursor: pointer;
-  box-shadow: ${shadows.btnSm};
-  transition: transform .12s, box-shadow .12s;
-  &:hover { transform: translateY(-1px); box-shadow: 0 5px 0 #050509; }
-  &:active { transform: translateY(3px); box-shadow: ${shadows.btnActive}; }
-  span {
-    width: 21px;
-    height: 21px;
-    border-radius: 50%;
-    background: #fff;
-    color: ${colors.ink};
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-  }
-`;
-
 const IconBtn = styled.button`
   width: 38px;
   height: 38px;
@@ -412,7 +383,6 @@ export default function Header({
       <Spacer />
 
       {onAdd && <AddMenu onAdd={onAdd} />}
-      <Export onClick={onExport}>Export <span>↓</span></Export>
       {onShowFeedback && (
         <IconBtn onClick={onShowFeedback} title="Feedback & community" aria-label="Feedback">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-12.5 7.5L3 20l1-5A8.5 8.5 0 1 1 21 11.5Z" /></svg>

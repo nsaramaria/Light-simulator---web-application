@@ -62,6 +62,12 @@ const ToolBtn = styled.button`
   }
 `;
 
+const EyeIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+);
+const EyeOffIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.9 4.2A10.9 10.9 0 0 1 12 4c6.5 0 10 7 10 7a17 17 0 0 1-3 3.6M6.6 6.6A17 17 0 0 0 2 11s3.5 7 10 7a10.8 10.8 0 0 0 4.7-1M3 3l18 18" /></svg>
+);
 const MoveIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
     <line x1="8" y1="1" x2="8" y2="15" />
@@ -131,6 +137,7 @@ export default function SetupView() {
   const mountRef = useRef(null);
   const [activeMode, setActiveMode] = useState('move');
   const [activeCoordSpace, setActiveCoordSpace] = useState('world');
+  const [showHelpers, setShowHelpers] = useState(true);
 
   useEffect(() => {
     const { scene, elementMeshes } = createSharedScene();
@@ -185,6 +192,7 @@ export default function SetupView() {
 
     const cameraHelper = new THREE.CameraHelper(photographerCamera);
     scene.add(cameraHelper);
+    let helpersVisible = true;
     scene.add(photographerCamera);
 
     const proxies = {};
@@ -199,10 +207,6 @@ export default function SetupView() {
         helper = new THREE.SpotLightHelper(obj, 0xffaa00);
       } else if (obj.isDirectionalLight) {
         helper = new THREE.DirectionalLightHelper(obj, 1.5, 0xffaa00);
-      } else if (obj.isPointLight) {
-        helper = new THREE.PointLightHelper(obj, 0.4, 0xffaa00);
-      } else if (obj.isHemisphereLight) {
-        helper = new THREE.HemisphereLightHelper(obj, 1, 0xffaa00);
       }
 
       if (!helper) return null;
@@ -266,6 +270,36 @@ export default function SetupView() {
       scene.add(proxy);
       proxies[id] = proxy;
       addLightHelper(id);
+      applyProxyAppearance(id);
+    };
+
+    const _proxyTexLoader = new THREE.TextureLoader();
+    const applyProxyAppearance = (id) => {
+      const proxy = proxies[id];
+      const state = sceneState.elements[id];
+      if (!proxy || !state) return;
+      proxy.traverse(c => {
+        if (!c.isMesh || !c.material || c.userData.isHighlightOverlay || c.material.wireframe) return;
+        if (state.color && c.material.color && c.userData.appliedColor !== state.color) {
+          c.material.color.set(state.color);
+          c.userData.appliedColor = state.color;
+        }
+        const tex = state.texture || '';
+        if (c.userData.appliedTexture !== tex) {
+          c.userData.appliedTexture = tex;
+          if (!tex) {
+            if (c.material.map) { c.material.map.dispose(); c.material.map = null; c.material.needsUpdate = true; }
+          } else {
+            _proxyTexLoader.load(tex, t => {
+              t.colorSpace = THREE.SRGBColorSpace;
+              if (c.material.map) c.material.map.dispose();
+              c.material.map = t;
+              c.material.needsUpdate = true;
+              renderLoop.markDirty();
+            });
+          }
+        }
+      });
     };
 
     const updateProxyTransforms = () => {
@@ -290,7 +324,7 @@ export default function SetupView() {
         const proxy = proxies[id];
         if (proxy) proxy.visible = visible;
         const helper = lightHelpers[id];
-        if (helper) helper.visible = visible;
+        if (helper) helper.visible = visible && helpersVisible;
       }
     };
 
@@ -344,6 +378,7 @@ export default function SetupView() {
       // only the selected element can be moving during interaction
       if (sceneState.selected && sceneState.selected !== 'camera') {
         updateOneProxyTransform(sceneState.selected);
+        applyProxyAppearance(sceneState.selected);
       }
     };
 
@@ -355,6 +390,14 @@ export default function SetupView() {
     scene.add(grid);
     const axesHelper = new THREE.AxesHelper(5);
     scene.add(axesHelper);
+
+    const applyHelpersVisible = () => {
+      cameraHelper.visible = helpersVisible;
+      axesHelper.visible = helpersVisible;
+      applyProxyVisibility();
+    };
+    const onToggleHelpers = (e) => { helpersVisible = e.detail !== false; applyHelpersVisible(); renderLoop.markDirty(); };
+    window.addEventListener('studio:toggle-helpers', onToggleHelpers);
 
     [cameraProxy, grid, axesHelper].forEach(o => o.layers.set(1));
 
@@ -1100,6 +1143,13 @@ export default function SetupView() {
       if (e.key === 'e' || e.key === 'E') { setMode('rotate'); return; }
       if (e.key === 'r' || e.key === 'R') { setMode('scale'); return; }
       if (e.key === 'x' || e.key === 'X') { toggleGizmoVisibility(); return; }
+      if (e.key === 'g' || e.key === 'G') {
+        helpersVisible = !helpersVisible;
+        applyHelpersVisible();
+        renderLoop.markDirty();
+        window.dispatchEvent(new CustomEvent('studio:helpers-changed', { detail: helpersVisible }));
+        return;
+      }
       if (e.key === 'q' || e.key === 'Q') {
         coordinateSpace = coordinateSpace === 'world' ? 'local' : 'world';
         syncGizmos(sceneState.selected);
@@ -1307,6 +1357,7 @@ export default function SetupView() {
       window.removeEventListener('resize', onResize);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('studio:set-gizmo-mode', onToolbarMode);
+      window.removeEventListener('studio:toggle-helpers', onToggleHelpers);
       window.removeEventListener('studio:set-coord-space', onToolbarCoordSpace);
       window.removeEventListener('studio:coordinate-space-changed', onCoordSpaceChanged);
       window.removeEventListener('studio:select', onExternalSelect);
@@ -1379,6 +1430,20 @@ export default function SetupView() {
     window.dispatchEvent(new CustomEvent('studio:set-coord-space', { detail: next }));
   };
 
+  const handleHelpersToggle = () => {
+    setShowHelpers(v => {
+      const nv = !v;
+      window.dispatchEvent(new CustomEvent('studio:toggle-helpers', { detail: nv }));
+      return nv;
+    });
+  };
+
+  useEffect(() => {
+    const onHelpersChanged = (e) => setShowHelpers(e.detail !== false);
+    window.addEventListener('studio:helpers-changed', onHelpersChanged);
+    return () => window.removeEventListener('studio:helpers-changed', onHelpersChanged);
+  }, []);
+
   return (
     <Wrapper>
       <Toolbar>
@@ -1397,6 +1462,13 @@ export default function SetupView() {
           title={`Coordinate space: ${activeCoordSpace} (Q to toggle)`}
         >
           {activeCoordSpace === 'world' ? <WorldIcon /> : <LocalIcon />}
+        </ToolBtn>
+        <ToolBtn
+          $active={showHelpers}
+          onClick={handleHelpersToggle}
+          title={showHelpers ? 'Hide guides — camera frustum, axes, light lines (G)' : 'Show guides (G)'}
+        >
+          {showHelpers ? <EyeIcon /> : <EyeOffIcon />}
         </ToolBtn>
       </Toolbar>
       <Mount ref={mountRef} />

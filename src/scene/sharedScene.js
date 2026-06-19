@@ -43,6 +43,32 @@ const requestRender = () => {
   }
 };
 
+const _texLoader = new THREE.TextureLoader();
+const applyMeshColor = (obj, hex) => {
+  if (!obj) return;
+  obj.traverse(c => {
+    if (c.isMesh && c.material && !Array.isArray(c.material) && c.material.color) c.material.color.set(hex);
+  });
+};
+const applyMeshTexture = (obj, dataUrl) => {
+  if (!obj) return;
+  obj.traverse(c => {
+    if (!c.isMesh || !c.material || Array.isArray(c.material)) return;
+    if (!dataUrl) {
+      if (c.material.map) { c.material.map.dispose(); c.material.map = null; c.material.needsUpdate = true; }
+      return;
+    }
+    _texLoader.load(dataUrl, (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 4;
+      if (c.material.map) c.material.map.dispose();
+      c.material.map = tex;
+      c.material.needsUpdate = true;
+      requestRender();
+    });
+  });
+};
+
 let _snapshotVersion = 0;
 export const getSnapshotVersion = () => _snapshotVersion;
 
@@ -220,6 +246,10 @@ const createElementFromDef = (desiredId, def) => {
     if (def.groundColor !== undefined && obj.isHemisphereLight) obj.groundColor.set(def.groundColor);
     if (def.castShadow !== undefined && obj.shadow) obj.castShadow = !!def.castShadow;
   }
+  if (!obj.isLight) {
+    if (def.color !== undefined) applyMeshColor(obj, def.color);
+    if (def.texture) applyMeshTexture(obj, def.texture);
+  }
   if (def.hidden !== undefined) obj.visible = !def.hidden;
 
   return desiredId;
@@ -355,7 +385,8 @@ export const updateElement = (id, key, val) => {
   if (key === 'sz') { obj.scale.z = val; markShadowsDirty(); notify(); return; }
 
   if (key === 'intensity') obj.intensity = val;
-  else if (key === 'color') obj.color.set(val);
+  else if (key === 'color') { if (obj.isLight && obj.color) obj.color.set(val); else applyMeshColor(obj, val); }
+  else if (key === 'texture') applyMeshTexture(obj, val);
   else if (key === 'distance' && obj.distance !== undefined) obj.distance = val;
   else if (key === 'angle' && obj.isSpotLight) obj.angle = (val * Math.PI) / 180;
   else if (key === 'penumbra' && obj.isSpotLight) obj.penumbra = val;
@@ -715,7 +746,7 @@ const restoreImportedModel = (desiredId, def) => {
         def.boundingSize?.y || 2,
         def.boundingSize?.z || 2
       ),
-      new THREE.MeshStandardMaterial({ color: 0x6A9FD8, wireframe: true })
+      new THREE.MeshStandardMaterial({ color: 0x6A9FD8, roughness: 0.65, metalness: 0.05 })
     );
     const bh = (def.boundingSize?.y || 2) / 2;
     placeholder.position.y = bh;

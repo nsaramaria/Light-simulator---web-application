@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { createSoftboxGeometry, createCornerCycloramaGeometry } from './geometries';
+import { getImportedModelStore } from '../sharedScene';
 
 const loader = new GLTFLoader();
 const modelCache = {};
@@ -108,7 +109,7 @@ export const makeHemisphereProxy = (position, id) => {
   const group = new THREE.Group();
   const mesh = new THREE.Mesh(
     new THREE.SphereGeometry(0.35, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
-    new THREE.MeshBasicMaterial({ color: 0x87ceeb, wireframe: true })
+    new THREE.MeshStandardMaterial({ color: 0x87ceeb, roughness: 0.5, metalness: 0.1 })
   );
   group.add(mesh);
   group.position.copy(position);
@@ -121,13 +122,29 @@ export const makeProductProxy = (position, id) => {
   const group = new THREE.Group();
   const mesh = new THREE.Mesh(
     new THREE.BoxGeometry(2, 2, 2),
-    new THREE.MeshBasicMaterial({ color: 0xd4a5a5, wireframe: true })
+    new THREE.MeshStandardMaterial({ color: 0xd4a5a5, roughness: 0.65, metalness: 0.05 })
   );
   group.add(mesh);
   group.position.copy(position);
   group.userData.id = id;
   group.userData.proxyFor = id;
   return group;
+};
+
+const normalizeImported = (model) => {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = new THREE.Vector3();
+  const center = new THREE.Vector3();
+  box.getSize(size);
+  box.getCenter(center);
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const scaleFactor = maxDim > 0 ? 2 / maxDim : 1;
+  model.scale.multiplyScalar(scaleFactor);
+  box.setFromObject(model);
+  box.getCenter(center);
+  const bottomY = box.min.y;
+  model.position.sub(center);
+  model.position.y -= bottomY;
 };
 
 export const makeImportedProxy = (position, id, boundingSize) => {
@@ -139,13 +156,29 @@ export const makeImportedProxy = (position, id, boundingSize) => {
   const sx = boundingSize?.x || 2;
   const sy = boundingSize?.y || 2;
   const sz = boundingSize?.z || 2;
-
-  const mesh = new THREE.Mesh(
+  const fallback = new THREE.Mesh(
     new THREE.BoxGeometry(sx, sy, sz),
-    new THREE.MeshBasicMaterial({ color: 0x6A9FD8, wireframe: true })
+    new THREE.MeshBasicMaterial({ color: 0x6A9FD8, wireframe: true, transparent: true, opacity: 0.3 })
   );
-  mesh.position.y = sy / 2;
-  group.add(mesh);
+  fallback.position.y = sy / 2;
+  fallback.userData.isFallback = true;
+  group.add(fallback);
+
+  const store = getImportedModelStore();
+  const entry = store && store[id];
+  const file = entry && entry.file;
+  if (file) {
+    const url = URL.createObjectURL(file);
+    loader.load(url, (gltf) => {
+      URL.revokeObjectURL(url);
+      const fb = group.children.find(c => c.userData.isFallback);
+      if (fb) group.remove(fb);
+      const model = gltf.scene;
+      normalizeImported(model);
+      model.traverse(c => { c.layers.set(1); });
+      group.add(model);
+    }, undefined, () => { URL.revokeObjectURL(url); });
+  }
 
   return group;
 };

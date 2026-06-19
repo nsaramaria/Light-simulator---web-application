@@ -356,6 +356,35 @@ const ColorHex = styled.span`
   font-variant-numeric: tabular-nums;
 `;
 
+const TextureRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+`;
+
+const TextureControls = styled.div`
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+`;
+
+const TextureBtn = styled.button`
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: 9px;
+  border: 1px solid ${colors.border};
+  background: ${colors.accentSoft};
+  color: ${colors.accent};
+  cursor: pointer;
+  transition: .14s;
+  &:hover { background: ${colors.accentSubtle}; }
+  &:disabled { opacity: .5; cursor: default; }
+  input { display: none; }
+`;
+
 const ScrubFieldWrap = styled.div`
   display: flex;
   flex-direction: column;
@@ -834,6 +863,16 @@ export default function SelectionPanel({ embedded = false }) {
   const handleScrubChange = (field, newVal) => { if (locked) return; setVals(v => ({ ...v, [field.key]: newVal })); if (selected === 'camera') updateCamera(field.key, newVal); else updateElement(selected, field.key, newVal); };
   const handleScrubCommit = () => { commitTransaction(); };
   const handleColorChange = (key, value) => { if (locked) return; updateElement(selected, key, value); setVals(v => ({ ...v, [key]: value })); };
+  const handleTextureUpload = (e) => {
+    if (locked) return;
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { updateElement(selected, 'texture', reader.result); setVals(v => ({ ...v, texture: reader.result })); };
+    reader.readAsDataURL(file);
+  };
+  const handleTextureRemove = () => { if (locked) return; updateElement(selected, 'texture', ''); setVals(v => ({ ...v, texture: '' })); };
 
   const renderAxisField = (field) => (
     <ScrubField key={field.key} label={field.axis.replace('r','').replace('s','').toUpperCase()} labelColor={AXIS_COLORS[field.axis]} value={vals[field.key] ?? 0} step={field.step} disabled={locked} onChange={(v) => handleScrubChange(field, v)} onStart={handleScrubStart} onCommit={() => handleScrubCommit()} />
@@ -887,6 +926,25 @@ export default function SelectionPanel({ embedded = false }) {
         <AccordionSection title="Position" icon={<IconMove />} tone="peri"><Triple>{posFields.map(renderAxisField)}</Triple></AccordionSection>
         <AccordionSection title="Rotation" icon={<IconRotate />} tone="peri"><Triple>{ROT_FIELDS.map(renderAxisField)}</Triple></AccordionSection>
         {SCALABLE_TYPES.includes(type) && <AccordionSection title="Scale" icon={<IconScale />} tone="purple"><Triple>{SCALE_FIELDS.map(renderAxisField)}</Triple></AccordionSection>}
+        {type === 'product-cube' && (
+          <AccordionSection title="Appearance" icon={<IconSun />} tone="purple">
+            <ColorRow>
+              <PropLabel>Color</PropLabel>
+              <ColorSwatch value={vals.color ?? '#d4a5a5'} disabled={locked} onChange={e => handleColorChange('color', e.target.value)} />
+              <ColorHex>{(vals.color ?? '#d4a5a5').toUpperCase()}</ColorHex>
+            </ColorRow>
+            <TextureRow>
+              <PropLabel>Texture</PropLabel>
+              <TextureControls>
+                <TextureBtn as="label">
+                  {vals.texture ? 'Replace' : 'Upload'}
+                  <input type="file" accept="image/*" disabled={locked} onChange={handleTextureUpload} />
+                </TextureBtn>
+                {vals.texture && <TextureBtn type="button" onClick={handleTextureRemove} disabled={locked}>Remove</TextureBtn>}
+              </TextureControls>
+            </TextureRow>
+          </AccordionSection>
+        )}
         {lightFields.length > 0 && (
           <AccordionSection title="Light" icon={<IconSun />} tone="yellow" badge={LABEL_BY_TYPE[type]?.split(' ')[0]}>
             {lightFields.map(renderLabeledField)}
